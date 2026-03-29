@@ -1,0 +1,28 @@
+{
+  "name": "Meal Planner",
+  "short_name": "Meals",
+  "description": "Search, plan, and shop for meals from HelloFresh, Marley Spoon, and NYT Cooking",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fffbf5",
+  "theme_color": "#ea580c",
+  "orientation": "portrait",
+  "categories": ["food", "productivity"],
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
