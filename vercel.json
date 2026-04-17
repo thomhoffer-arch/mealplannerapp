@@ -6,8 +6,6 @@
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "crons": [
-    { "path": "/api/cron/scrape?site=hellofresh",  "schedule": "0 3 * * 1" },
-    { "path": "/api/cron/scrape?site=marleyspoon", "schedule": "0 3 * * 3" },
-    { "path": "/api/cron/scrape?site=nyt",         "schedule": "0 3 * * 5" }
+    { "path": "/api/cron/scrape", "schedule": "0 3 * * 1" }
   ]
 }

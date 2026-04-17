@@ -3,15 +3,24 @@
 const { createClient } = require('@supabase/supabase-js');
 const { normalizeHelloFresh } = require('../_lib/normalize');
 
-// Runs weekly — Mon (HelloFresh), Wed (Marley Spoon), Fri (NYT) — see vercel.json.
-// Each invocation scrapes one site, staying within Vercel Hobby's 10s limit.
+// Runs every Monday at 3 AM UTC using a single cron slot.
+// Rotates through all sites by ISO week number so each site is scraped in turn.
+// Add more sites to SITES to extend the rotation — no cron config changes needed.
+const SITES = ['hellofresh', 'marleyspoon', 'nyt'];
+
+function currentSite() {
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const week = Math.floor(Date.now() / msPerWeek);
+  return SITES[week % SITES.length];
+}
+
 module.exports = async function handler(req, res) {
   if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).end('Unauthorized');
   }
 
-  const site = req.query.site;
-  if (!site) return res.status(400).json({ error: 'site param required' });
+  // Allow manual override via ?site=hellofresh for testing
+  const site = req.query.site || currentSite();
 
   const supabase = createClient(
     process.env.SUPABASE_URL,
