@@ -44,21 +44,16 @@ module.exports = async function handler(req, res) {
 };
 
 function buildPrompt(recipe, preferences) {
-  const restrictions = [
-    ...(preferences.dietary_restrictions || []),
-    ...(preferences.intolerances || []),
-  ];
-  const dislikes = preferences.dislikes || '';
+  const preferencesText = (preferences.preferences_text || '').trim();
 
   const ingredientList = (recipe.ingredients || [])
     .map((i) => `- ${i.amount ? i.amount + ' ' : ''}${i.name}`)
     .join('\n');
 
-  return `You are a helpful cooking assistant. Analyse this recipe against the household's dietary needs and suggest specific adaptations.
+  return `You are a helpful cooking assistant. Analyse this recipe against the household's preferences and suggest specific adaptations.
 
 HOUSEHOLD PREFERENCES:
-${restrictions.length ? `Dietary restrictions / intolerances: ${restrictions.join(', ')}` : 'No dietary restrictions.'}
-${dislikes ? `Dislikes: ${dislikes}` : ''}
+${preferencesText || 'No preferences provided — suggest general improvements if any.'}
 
 RECIPE: ${recipe.name}
 Source: ${recipe.source || 'Unknown'}

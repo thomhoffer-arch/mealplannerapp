@@ -1,11 +1,9 @@
 -- Run this in Supabase SQL Editor after schema.sql
 
 create table public.household_preferences (
-  household_id        uuid primary key references public.households(id) on delete cascade,
-  dietary_restrictions text[]  not null default '{}',
-  intolerances         text[]  not null default '{}',
-  dislikes             text    not null default '',
-  updated_at           timestamptz default now()
+  household_id     uuid primary key references public.households(id) on delete cascade,
+  preferences_text text not null default '',
+  updated_at       timestamptz default now()
 );
 
 alter table public.household_preferences enable row level security;
