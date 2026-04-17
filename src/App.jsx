@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, Calendar, ChevronDown, ChevronUp,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles, Star,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
@@ -83,7 +83,7 @@ function FilterSection({ title, options, selected, onToggle }) {
   );
 }
 
-function RecipeCard({ recipe, isSelected, onToggleSelect }) {
+function RecipeCard({ recipe, isSelected, isStarred, onToggleSelect, onToggleStar }) {
   return (
     <div className={`rounded-xl border-2 p-4 transition-all ${isSelected ? "border-orange-400 bg-orange-50" : "border-orange-100 bg-white"}`}>
       <div className="flex items-start justify-between gap-3">
@@ -102,15 +102,26 @@ function RecipeCard({ recipe, isSelected, onToggleSelect }) {
             ))}
           </div>
         </div>
-        <button
-          onClick={() => onToggleSelect(recipe)}
-          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
-            isSelected ? "bg-orange-500 border-orange-500 text-white" : "border-orange-300 text-orange-300 hover:border-orange-500"
-          }`}
-          aria-label={isSelected ? "Remove from meal plan" : "Add to meal plan"}
-        >
-          {isSelected ? <Check size={18} /> : <Plus size={18} />}
-        </button>
+        <div className="flex flex-col gap-2 flex-shrink-0">
+          <button
+            onClick={() => onToggleStar(recipe)}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+              isStarred ? "text-amber-400 bg-amber-50" : "text-orange-200 hover:text-amber-400"
+            }`}
+            aria-label={isStarred ? "Unstar recipe" : "Star recipe"}
+          >
+            <Star size={16} fill={isStarred ? "currentColor" : "none"} />
+          </button>
+          <button
+            onClick={() => onToggleSelect(recipe)}
+            className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
+              isSelected ? "bg-orange-500 border-orange-500 text-white" : "border-orange-300 text-orange-300 hover:border-orange-500"
+            }`}
+            aria-label={isSelected ? "Remove from meal plan" : "Add to meal plan"}
+          >
+            {isSelected ? <Check size={18} /> : <Plus size={18} />}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -119,7 +130,7 @@ function RecipeCard({ recipe, isSelected, onToggleSelect }) {
 function SelectedRecipeCard({
   recipe, expanded, onToggleExpand, onToggleCooked, isCooked,
   customIngredients, onAddCustom, onRemoveCustom, onRemove,
-  newIngredientInput, onInputChange, preferences, onAcceptSubstitution,
+  newIngredientInput, onInputChange, preferences, starredRecipes, onAcceptSubstitution,
 }) {
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
@@ -132,15 +143,22 @@ function SelectedRecipeCard({
     setAiError(null);
     setAiResult(null);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/ai/suggest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipe, preferences }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ recipe, preferences, starredRecipes }),
       });
-      if (!res.ok) throw new Error('AI request failed');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'AI request failed');
+      }
       setAiResult(await res.json());
-    } catch {
-      setAiError('Could not get suggestions. Try again.');
+    } catch (err) {
+      setAiError(err.message || 'Could not get suggestions. Try again.');
     } finally {
       setAiLoading(false);
     }
@@ -345,6 +363,7 @@ export default function App() {
   const [customIngredients, setCustomIngredients] = useState({});  // { recipe_id: [{id,name,amount}] }
   const [cookedRecipes, setCookedRecipes] = useState({});   // { recipe_id: true }
   const [checkedItems, setCheckedItems] = useState({});     // { item_name: true }
+  const [starredItems, setStarredItems] = useState([]);     // [{ recipe_id, recipe_data }]
 
   // ── Local UI state
   const [expandedRecipes, setExpandedRecipes] = useState({});
@@ -401,6 +420,7 @@ export default function App() {
     loadCookedRecipes();
     loadCheckedItems();
     loadPreferences();
+    loadStarred();
 
     const channel = supabase
       .channel(`hh-${household.id}`)
@@ -408,6 +428,7 @@ export default function App() {
       .on("postgres_changes", { event: "*", schema: "public", table: "custom_ingredients", filter: `household_id=eq.${household.id}` }, loadCustomIngredients)
       .on("postgres_changes", { event: "*", schema: "public", table: "cooked_recipes",     filter: `household_id=eq.${household.id}` }, loadCookedRecipes)
       .on("postgres_changes", { event: "*", schema: "public", table: "shopping_checks",    filter: `household_id=eq.${household.id}` }, loadCheckedItems)
+      .on("postgres_changes", { event: "*", schema: "public", table: "starred_recipes",    filter: `household_id=eq.${household.id}` }, loadStarred)
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -451,6 +472,25 @@ export default function App() {
     const { data } = await supabase
       .from("household_preferences").select("*").eq("household_id", household.id).single();
     setPreferences(data || {});
+  }
+
+  async function loadStarred() {
+    const { data } = await supabase
+      .from("starred_recipes").select("recipe_id, recipe_data").eq("household_id", household.id);
+    setStarredItems(data || []);
+  }
+
+  async function toggleStar(recipe) {
+    const rid = String(recipe.id);
+    const isStarred = starredItems.some((s) => s.recipe_id === rid);
+    if (isStarred) {
+      await supabase.from("starred_recipes").delete()
+        .eq("household_id", household.id).eq("recipe_id", rid);
+    } else {
+      await supabase.from("starred_recipes").insert({
+        household_id: household.id, recipe_id: rid, recipe_data: recipe,
+      });
+    }
   }
 
   // Accept an AI substitution — saves it as a custom ingredient note on the recipe
@@ -567,6 +607,8 @@ export default function App() {
   // ── Derived values ────────────────────────────────────────────────────────
   const selectedRecipeObjects = mealPlanItems.map((i) => i.recipe_data);
   const selectedIds = new Set(mealPlanItems.map((i) => i.recipe_id));
+  const starredIds = new Set(starredItems.map((s) => s.recipe_id));
+  const starredRecipes = starredItems.map((s) => s.recipe_data);
   const shoppingList = consolidateIngredients(selectedRecipeObjects, customIngredients);
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
   const totalFiltersActive = Object.values(selectedFilters).reduce((s, f) => s + f.length, 0);
@@ -701,7 +743,9 @@ export default function App() {
                 {recipes.map((recipe) => (
                   <RecipeCard key={recipe.id} recipe={recipe}
                     isSelected={selectedIds.has(String(recipe.id))}
-                    onToggleSelect={toggleSelectedRecipe} />
+                    isStarred={starredIds.has(String(recipe.id))}
+                    onToggleSelect={toggleSelectedRecipe}
+                    onToggleStar={toggleStar} />
                 ))}
               </div>
             ) : (
@@ -740,6 +784,7 @@ export default function App() {
                         newIngredientInput={newIngredientInput}
                         onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
                         preferences={preferences}
+                        starredRecipes={starredRecipes}
                         onAcceptSubstitution={acceptSubstitution}
                       />
                     );

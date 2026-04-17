@@ -4,6 +4,8 @@ const { createClient } = require('@supabase/supabase-js');
 const { getUserAndHousehold } = require('../_lib/auth');
 const { decrypt } = require('../_lib/crypto');
 
+const DAILY_FREE_LIMIT = 50;
+
 // POST /api/ai/suggest
 // Body: { recipe, preferences, starredRecipes }
 // Returns: { suitable, issues, substitutions, tips }
@@ -13,9 +15,22 @@ module.exports = async function handler(req, res) {
   const { recipe, preferences, starredRecipes } = req.body || {};
   if (!recipe) return res.status(400).json({ error: 'recipe is required' });
 
+  const ctx = await getUserAndHousehold(req).catch(() => null);
+  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
   // Resolve which API key to use: household key → server default
-  const apiKey = await resolveApiKey(req);
+  const { apiKey, usingSharedKey } = await resolveApiKey(ctx, supabase);
   if (!apiKey) return res.status(503).json({ error: 'No Gemini API key configured' });
+
+  // Enforce daily cap when using the shared server key
+  if (usingSharedKey && ctx) {
+    const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
+    if (limited) {
+      return res.status(429).json({
+        error: `Daily limit of ${DAILY_FREE_LIMIT} AI suggestions reached. Add your own Gemini API key in Settings for unlimited use.`,
+      });
+    }
+  }
 
   const prompt = buildPrompt(recipe, preferences || {}, starredRecipes || []);
 
@@ -47,12 +62,9 @@ module.exports = async function handler(req, res) {
   }
 };
 
-async function resolveApiKey(req) {
-  // Try household's own key first
-  try {
-    const ctx = await getUserAndHousehold(req);
-    if (ctx) {
-      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+async function resolveApiKey(ctx, supabase) {
+  if (ctx) {
+    try {
       const { data } = await supabase
         .from('household_preferences')
         .select('gemini_api_key_encrypted')
@@ -60,13 +72,33 @@ async function resolveApiKey(req) {
         .single();
 
       if (data?.gemini_api_key_encrypted) {
-        return decrypt(data.gemini_api_key_encrypted);
+        return { apiKey: decrypt(data.gemini_api_key_encrypted), usingSharedKey: false };
       }
+    } catch {
+      // fall through
     }
-  } catch {
-    // Fall through to server default
   }
-  return process.env.GEMINI_API_KEY || null;
+  return { apiKey: process.env.GEMINI_API_KEY || null, usingSharedKey: true };
+}
+
+async function checkAndIncrementUsage(supabase, householdId) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data } = await supabase
+    .from('ai_usage')
+    .select('call_count')
+    .eq('household_id', householdId)
+    .eq('usage_date', today)
+    .single();
+
+  if (data && data.call_count >= DAILY_FREE_LIMIT) return true;
+
+  await supabase.from('ai_usage').upsert(
+    { household_id: householdId, usage_date: today, call_count: (data?.call_count || 0) + 1 },
+    { onConflict: 'household_id,usage_date' }
+  );
+
+  return false;
 }
 
 function buildPrompt(recipe, preferences, starredRecipes) {
