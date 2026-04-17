@@ -1,18 +1,23 @@
 'use strict';
 
+const { createClient } = require('@supabase/supabase-js');
+const { getUserAndHousehold } = require('../_lib/auth');
+const { decrypt } = require('../_lib/crypto');
+
 // POST /api/ai/suggest
-// Body: { recipe, preferences }
+// Body: { recipe, preferences, starredRecipes }
 // Returns: { suitable, issues, substitutions, tips }
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(503).json({ error: 'GEMINI_API_KEY not configured' });
-
-  const { recipe, preferences } = req.body || {};
+  const { recipe, preferences, starredRecipes } = req.body || {};
   if (!recipe) return res.status(400).json({ error: 'recipe is required' });
 
-  const prompt = buildPrompt(recipe, preferences || {});
+  // Resolve which API key to use: household key → server default
+  const apiKey = await resolveApiKey(req);
+  if (!apiKey) return res.status(503).json({ error: 'No Gemini API key configured' });
+
+  const prompt = buildPrompt(recipe, preferences || {}, starredRecipes || []);
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -27,8 +32,7 @@ module.exports = async function handler(req, res) {
   );
 
   if (!response.ok) {
-    const err = await response.text();
-    console.error('Gemini error:', err);
+    console.error('Gemini error:', await response.text());
     return res.status(502).json({ error: 'AI service error' });
   }
 
@@ -43,17 +47,45 @@ module.exports = async function handler(req, res) {
   }
 };
 
-function buildPrompt(recipe, preferences) {
+async function resolveApiKey(req) {
+  // Try household's own key first
+  try {
+    const ctx = await getUserAndHousehold(req);
+    if (ctx) {
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+      const { data } = await supabase
+        .from('household_preferences')
+        .select('gemini_api_key_encrypted')
+        .eq('household_id', ctx.householdId)
+        .single();
+
+      if (data?.gemini_api_key_encrypted) {
+        return decrypt(data.gemini_api_key_encrypted);
+      }
+    }
+  } catch {
+    // Fall through to server default
+  }
+  return process.env.GEMINI_API_KEY || null;
+}
+
+function buildPrompt(recipe, preferences, starredRecipes) {
   const preferencesText = (preferences.preferences_text || '').trim();
 
   const ingredientList = (recipe.ingredients || [])
     .map((i) => `- ${i.amount ? i.amount + ' ' : ''}${i.name}`)
     .join('\n');
 
+  const starredSection = starredRecipes.length
+    ? `RECIPES THIS HOUSEHOLD HAS STARRED (use to infer taste preferences):\n${starredRecipes.map((r) => `- ${r.name} (${r.source})`).join('\n')}`
+    : '';
+
   return `You are a helpful cooking assistant. Analyse this recipe against the household's preferences and suggest specific adaptations.
 
 HOUSEHOLD PREFERENCES:
 ${preferencesText || 'No preferences provided — suggest general improvements if any.'}
+
+${starredSection}
 
 RECIPE: ${recipe.name}
 Source: ${recipe.source || 'Unknown'}
