@@ -11,6 +11,7 @@ import InstallBanner from "./components/InstallBanner";
 import CreateRecipeModal from "./components/CreateRecipeModal";
 import StarredPanel from "./components/StarredPanel";
 import WeekSuggestModal from "./components/WeekSuggestModal";
+import NotificationBell from "./components/NotificationBell";
 
 // ─── Filter configuration ─────────────────────────────────────────────────────
 const FILTERS = {
@@ -876,6 +877,9 @@ export default function App() {
                 </div>
               )}
             </div>
+            {/* Notifications */}
+            <NotificationBell household={household} />
+
             {/* Preferences */}
             <button
               onClick={() => setShowPreferences(true)}
