@@ -43,7 +43,7 @@ export default function PreferencesModal({ household, onClose }) {
         <div className="px-5 pb-5 space-y-3">
           <textarea
             rows={5}
-            placeholder={"Describe your preferences in plain English, for example:\n\n\"We're gluten intolerant and don't eat pork. Tom doesn't like mushrooms. We prefer lighter meals and love a bit of spice.\""}
+            placeholder={"e.g. We're gluten intolerant and Tom doesn't eat pork. Anna uses oat milk instead of regular milk. We prefer mostly plant-based meals during the week but enjoy chicken or fish on weekends. We love spicy food and prefer lighter meals — nothing too heavy or creamy."}
             value={text}
             onChange={(e) => setText(e.target.value)}
             className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
