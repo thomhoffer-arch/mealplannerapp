@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, Calendar, ChevronDown, ChevronUp,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles, Star, Package, PenLine,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
 import PreferencesModal from "./components/PreferencesModal";
+import WillingnessModal from "./components/WillingnessModal";
+import InstallBanner from "./components/InstallBanner";
+import CreateRecipeModal from "./components/CreateRecipeModal";
+import StarredPanel from "./components/StarredPanel";
+import WeekSuggestModal from "./components/WeekSuggestModal";
+import NotificationBell from "./components/NotificationBell";
 
 // ─── Filter configuration ─────────────────────────────────────────────────────
 const FILTERS = {
@@ -16,10 +22,13 @@ const FILTERS = {
 };
 
 const SOURCE_COLORS = {
-  HelloFresh:    "bg-green-100 text-green-700",
-  "Marley Spoon":"bg-purple-100 text-purple-700",
-  "NYT Cooking": "bg-red-100 text-red-700",
-  Spoonacular:   "bg-blue-100 text-blue-700",
+  HelloFresh:      "bg-green-100 text-green-700",
+  "Marley Spoon":  "bg-purple-100 text-purple-700",
+  "NYT Cooking":   "bg-red-100 text-red-700",
+  Spoonacular:     "bg-blue-100 text-blue-700",
+  "My Recipes":    "bg-amber-100 text-amber-700",
+  "AI Suggestion": "bg-purple-100 text-purple-600",
+  "Web import":    "bg-gray-100 text-gray-600",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -83,7 +92,41 @@ function FilterSection({ title, options, selected, onToggle }) {
   );
 }
 
-function RecipeCard({ recipe, isSelected, onToggleSelect }) {
+function WeeklyNutritionCard({ recipes }) {
+  const totals = recipes.reduce(
+    (acc, r) => {
+      const s = r.servings || 1;
+      acc.calories += (r.macros?.calories || 0) * s;
+      acc.protein  += (r.macros?.protein  || 0) * s;
+      acc.carbs    += (r.macros?.carbs    || 0) * s;
+      acc.fat      += (r.macros?.fat      || 0) * s;
+      return acc;
+    },
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+  const hasData = totals.calories > 0 || totals.protein > 0;
+  if (!hasData) return null;
+  return (
+    <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
+      <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">Weekly nutrition total</p>
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { label: "Calories", value: Math.round(totals.calories), unit: "" },
+          { label: "Protein",  value: Math.round(totals.protein),  unit: "g" },
+          { label: "Carbs",    value: Math.round(totals.carbs),    unit: "g" },
+          { label: "Fat",      value: Math.round(totals.fat),      unit: "g" },
+        ].map(({ label, value, unit }) => (
+          <div key={label} className="bg-orange-50 rounded-lg p-2 text-center">
+            <p className="text-sm font-bold text-orange-900">{value}{unit}</p>
+            <p className="text-xs text-orange-500">{label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RecipeCard({ recipe, isSelected, isStarred, onToggleSelect, onToggleStar }) {
   return (
     <div className={`rounded-xl border-2 p-4 transition-all ${isSelected ? "border-orange-400 bg-orange-50" : "border-orange-100 bg-white"}`}>
       <div className="flex items-start justify-between gap-3">
@@ -102,15 +145,26 @@ function RecipeCard({ recipe, isSelected, onToggleSelect }) {
             ))}
           </div>
         </div>
-        <button
-          onClick={() => onToggleSelect(recipe)}
-          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
-            isSelected ? "bg-orange-500 border-orange-500 text-white" : "border-orange-300 text-orange-300 hover:border-orange-500"
-          }`}
-          aria-label={isSelected ? "Remove from meal plan" : "Add to meal plan"}
-        >
-          {isSelected ? <Check size={18} /> : <Plus size={18} />}
-        </button>
+        <div className="flex flex-col gap-2 flex-shrink-0">
+          <button
+            onClick={() => onToggleStar(recipe)}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+              isStarred ? "text-amber-400 bg-amber-50" : "text-orange-200 hover:text-amber-400"
+            }`}
+            aria-label={isStarred ? "Unstar recipe" : "Star recipe"}
+          >
+            <Star size={16} fill={isStarred ? "currentColor" : "none"} />
+          </button>
+          <button
+            onClick={() => onToggleSelect(recipe)}
+            className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
+              isSelected ? "bg-orange-500 border-orange-500 text-white" : "border-orange-300 text-orange-300 hover:border-orange-500"
+            }`}
+            aria-label={isSelected ? "Remove from meal plan" : "Add to meal plan"}
+          >
+            {isSelected ? <Check size={18} /> : <Plus size={18} />}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -119,7 +173,8 @@ function RecipeCard({ recipe, isSelected, onToggleSelect }) {
 function SelectedRecipeCard({
   recipe, expanded, onToggleExpand, onToggleCooked, isCooked,
   customIngredients, onAddCustom, onRemoveCustom, onRemove,
-  newIngredientInput, onInputChange, preferences, onAcceptSubstitution,
+  newIngredientInput, onInputChange, preferences, starredRecipes, onAcceptSubstitution,
+  rating,
 }) {
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
@@ -132,15 +187,22 @@ function SelectedRecipeCard({
     setAiError(null);
     setAiResult(null);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/ai/suggest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipe, preferences }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ recipe, preferences, starredRecipes }),
       });
-      if (!res.ok) throw new Error('AI request failed');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'AI request failed');
+      }
       setAiResult(await res.json());
-    } catch {
-      setAiError('Could not get suggestions. Try again.');
+    } catch (err) {
+      setAiError(err.message || 'Could not get suggestions. Try again.');
     } finally {
       setAiLoading(false);
     }
@@ -165,6 +227,9 @@ function SelectedRecipeCard({
             <h3 className={`font-semibold text-base leading-snug ${isCooked ? "line-through text-gray-500" : "text-orange-900"}`}>
               {recipe.name}
             </h3>
+            {rating && (
+              <p className="text-xs mt-0.5">{"⭐".repeat(rating)}</p>
+            )}
           </div>
           <button
             onClick={() => onToggleExpand(rid)}
@@ -330,6 +395,11 @@ export default function App() {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
+  const [showSurvey, setShowSurvey] = useState(false);
+  const [showCreateRecipe, setShowCreateRecipe] = useState(false);
+  const [showStarred, setShowStarred] = useState(false);
+  const [showWeekSuggest, setShowWeekSuggest] = useState(false);
+  const [showReminderBanner, setShowReminderBanner] = useState(false);
   const [preferences, setPreferences] = useState({});
 
   // ── Search state
@@ -339,12 +409,24 @@ export default function App() {
   const [recipes, setRecipes] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchTimer = useRef(null);
+  const [importUrl, setImportUrl] = useState("");
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState("");
 
   // ── Supabase-backed shared state
   const [mealPlanItems, setMealPlanItems] = useState([]);   // [{ id, recipe_id, recipe_data }]
   const [customIngredients, setCustomIngredients] = useState({});  // { recipe_id: [{id,name,amount}] }
   const [cookedRecipes, setCookedRecipes] = useState({});   // { recipe_id: true }
   const [checkedItems, setCheckedItems] = useState({});     // { item_name: true }
+  const [starredItems, setStarredItems] = useState([]);     // [{ recipe_id, recipe_data, rotation_priority }]
+  const [userRecipes, setUserRecipes] = useState([]);       // household-created recipes
+  const [recipeRatings, setRecipeRatings] = useState({});  // { recipe_id: 1-5 }
+  const [ratingPrompt, setRatingPrompt] = useState(null);  // recipe_id awaiting rating
+  const [pantryItems, setPantryItems] = useState([]);      // [{ id, name, amount }]
+  const [pantryInput, setPantryInput] = useState("");
+  const [templates, setTemplates] = useState([]);          // [{ id, name, recipes }]
+  const [templateName, setTemplateName] = useState("");
+  const [showTemplates, setShowTemplates] = useState(false);
 
   // ── Local UI state
   const [expandedRecipes, setExpandedRecipes] = useState({});
@@ -401,6 +483,10 @@ export default function App() {
     loadCookedRecipes();
     loadCheckedItems();
     loadPreferences();
+    loadStarred();
+    loadPantry();
+    loadTemplates();
+    loadUserRecipes();
 
     const channel = supabase
       .channel(`hh-${household.id}`)
@@ -408,6 +494,9 @@ export default function App() {
       .on("postgres_changes", { event: "*", schema: "public", table: "custom_ingredients", filter: `household_id=eq.${household.id}` }, loadCustomIngredients)
       .on("postgres_changes", { event: "*", schema: "public", table: "cooked_recipes",     filter: `household_id=eq.${household.id}` }, loadCookedRecipes)
       .on("postgres_changes", { event: "*", schema: "public", table: "shopping_checks",    filter: `household_id=eq.${household.id}` }, loadCheckedItems)
+      .on("postgres_changes", { event: "*", schema: "public", table: "starred_recipes",    filter: `household_id=eq.${household.id}` }, loadStarred)
+      .on("postgres_changes", { event: "*", schema: "public", table: "pantry_items",       filter: `household_id=eq.${household.id}` }, loadPantry)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_recipes",       filter: `household_id=eq.${household.id}` }, loadUserRecipes)
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -433,10 +522,14 @@ export default function App() {
 
   async function loadCookedRecipes() {
     const { data } = await supabase
-      .from("cooked_recipes").select("recipe_id").eq("household_id", household.id);
-    const map = {};
-    (data || []).forEach((r) => { map[r.recipe_id] = true; });
-    setCookedRecipes(map);
+      .from("cooked_recipes").select("recipe_id, rating").eq("household_id", household.id);
+    const cooked = {}, ratings = {};
+    (data || []).forEach((r) => {
+      cooked[r.recipe_id] = true;
+      if (r.rating) ratings[r.recipe_id] = r.rating;
+    });
+    setCookedRecipes(cooked);
+    setRecipeRatings(ratings);
   }
 
   async function loadCheckedItems() {
@@ -453,6 +546,124 @@ export default function App() {
     setPreferences(data || {});
   }
 
+  // ── Survey trigger ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user || !household || preferences.survey_completed_at) return;
+    const daysSinceSignup = (Date.now() - new Date(user.created_at)) / (1000 * 60 * 60 * 24);
+    const isEngaged = mealPlanItems.length >= 1 || Object.keys(cookedRecipes).length >= 1;
+    if (daysSinceSignup >= 3 && isEngaged) {
+      const t = setTimeout(() => setShowSurvey(true), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [user, household, preferences.survey_completed_at, mealPlanItems.length, cookedRecipes]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Planning reminder ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!preferences.reminder_enabled || !preferences.reminder_day) return;
+    const todayName = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"][new Date().getDay()];
+    if (todayName !== preferences.reminder_day) return;
+    // Only show once per day (use ISO date as key)
+    const today = new Date().toISOString().slice(0, 10);
+    const dismissKey = `reminder_dismissed_${today}`;
+    if (localStorage.getItem(dismissKey)) return;
+    // Check if plan was already updated this week
+    const mostRecent = mealPlanItems[mealPlanItems.length - 1];
+    const daysSinceLastPlan = mostRecent
+      ? (Date.now() - new Date(mostRecent.added_at)) / (1000 * 60 * 60 * 24)
+      : 999;
+    if (daysSinceLastPlan >= 6) {
+      setShowReminderBanner(true);
+    }
+  }, [preferences.reminder_enabled, preferences.reminder_day, mealPlanItems]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadStarred() {
+    const { data } = await supabase
+      .from("starred_recipes").select("recipe_id, recipe_data, rotation_priority").eq("household_id", household.id);
+    setStarredItems(data || []);
+  }
+
+  async function loadUserRecipes() {
+    const { data } = await supabase
+      .from("user_recipes").select("*").eq("household_id", household.id).order("created_at");
+    setUserRecipes((data || []).map((r) => ({
+      id: r.id, name: r.name, source: "My Recipes", overview: r.overview,
+      prepTime: r.prep_time, cookTime: r.cook_time, servings: r.servings,
+      ingredients: r.ingredients, steps: r.steps, keywords: [], macros: {},
+    })));
+  }
+
+  async function loadPantry() {
+    const { data } = await supabase
+      .from("pantry_items").select("id, name, amount").eq("household_id", household.id).order("added_at");
+    setPantryItems(data || []);
+  }
+
+  async function addPantryItem() {
+    const raw = pantryInput.trim();
+    if (!raw) return;
+    const match = raw.match(/^([\d.]+\s*(?:g|kg|ml|l|tsp|tbsp|cup|cups|oz|lb|pieces?|slices?|handful|pinch)\s*)/i);
+    let amount = "", name = raw;
+    if (match) { amount = match[0].trim(); name = raw.slice(match[0].length).trim() || raw; }
+    await supabase.from("pantry_items").insert({ household_id: household.id, name, amount });
+    setPantryInput("");
+  }
+
+  async function removePantryItem(id) {
+    await supabase.from("pantry_items").delete().eq("id", id);
+  }
+
+  async function loadTemplates() {
+    const { data } = await supabase
+      .from("plan_templates").select("id, name, recipes").eq("household_id", household.id).order("created_at");
+    setTemplates(data || []);
+  }
+
+  async function saveTemplate() {
+    const name = templateName.trim();
+    if (!name || selectedRecipeObjects.length === 0) return;
+    await supabase.from("plan_templates").insert({
+      household_id: household.id,
+      name,
+      recipes: selectedRecipeObjects,
+    });
+    setTemplateName("");
+    setShowTemplates(false);
+    await loadTemplates();
+  }
+
+  async function loadTemplate(template) {
+    // Clear current plan and load template recipes
+    for (const item of mealPlanItems) {
+      await supabase.from("meal_plan_items").delete().eq("id", item.id);
+    }
+    for (const recipe of template.recipes) {
+      await supabase.from("meal_plan_items").insert({
+        household_id: household.id,
+        recipe_id: String(recipe.id),
+        recipe_data: recipe,
+      });
+    }
+    setShowTemplates(false);
+  }
+
+  async function deleteTemplate(id) {
+    await supabase.from("plan_templates").delete().eq("id", id);
+    await loadTemplates();
+  }
+
+  async function toggleStar(recipe) {
+    const rid = String(recipe.id);
+    const isStarred = starredItems.some((s) => s.recipe_id === rid);
+    if (isStarred) {
+      await supabase.from("starred_recipes").delete()
+        .eq("household_id", household.id).eq("recipe_id", rid);
+    } else {
+      await supabase.from("starred_recipes").insert({
+        household_id: household.id, recipe_id: rid, recipe_data: recipe,
+      });
+    }
+  }
+
   // Accept an AI substitution — saves it as a custom ingredient note on the recipe
   async function acceptSubstitution(rid, sub) {
     await supabase.from("custom_ingredients").insert({
@@ -464,6 +675,31 @@ export default function App() {
   }
 
   // ── Recipe search ─────────────────────────────────────────────────────────
+  async function importFromUrl() {
+    const url = importUrl.trim();
+    if (!url) return;
+    setImportLoading(true);
+    setImportError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/recipes/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      // Add directly to meal plan
+      await toggleSelectedRecipe(data);
+      setImportUrl("");
+      setActiveTab("recipes");
+    } catch (err) {
+      setImportError(err.message || 'Could not import recipe');
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
   const fetchRecipes = useCallback(async (query, filters) => {
     const hasFilters = Object.values(filters).some((f) => f.length > 0);
     if (!query.trim() && !hasFilters) { setRecipes([]); return; }
@@ -511,7 +747,16 @@ export default function App() {
         .eq("household_id", household.id).eq("recipe_id", rid);
     } else {
       await supabase.from("cooked_recipes").insert({ household_id: household.id, recipe_id: rid });
+      setRatingPrompt(rid);
     }
+  }
+
+  async function saveRating(rid, stars) {
+    setRatingPrompt(null);
+    setRecipeRatings((prev) => ({ ...prev, [rid]: stars }));
+    await supabase.from("cooked_recipes")
+      .update({ rating: stars })
+      .eq("household_id", household.id).eq("recipe_id", rid);
   }
 
   // ── Custom ingredient handlers ────────────────────────────────────────────
@@ -567,7 +812,11 @@ export default function App() {
   // ── Derived values ────────────────────────────────────────────────────────
   const selectedRecipeObjects = mealPlanItems.map((i) => i.recipe_data);
   const selectedIds = new Set(mealPlanItems.map((i) => i.recipe_id));
-  const shoppingList = consolidateIngredients(selectedRecipeObjects, customIngredients);
+  const starredIds = new Set(starredItems.map((s) => s.recipe_id));
+  const starredRecipes = starredItems.map((s) => s.recipe_data);
+  const pantryNames = new Set(pantryItems.map((p) => p.name.toLowerCase().trim()));
+  const shoppingList = consolidateIngredients(selectedRecipeObjects, customIngredients)
+    .map((item) => ({ ...item, inPantry: pantryNames.has(item.name.toLowerCase().trim()) }));
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
   const totalFiltersActive = Object.values(selectedFilters).reduce((s, f) => s + f.length, 0);
 
@@ -628,6 +877,9 @@ export default function App() {
                 </div>
               )}
             </div>
+            {/* Notifications */}
+            <NotificationBell household={household} />
+
             {/* Preferences */}
             <button
               onClick={() => setShowPreferences(true)}
@@ -635,6 +887,19 @@ export default function App() {
               title="Household preferences"
             >
               <Settings size={18} />
+            </button>
+            {/* Starred recipes panel */}
+            <button
+              onClick={() => setShowStarred(true)}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition relative"
+              title="Starred recipes"
+            >
+              <Star size={18} />
+              {starredItems.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-amber-400 rounded-full text-white text-[9px] font-bold flex items-center justify-center">
+                  {starredItems.length}
+                </span>
+              )}
             </button>
             {/* Sign out */}
             <button
@@ -648,12 +913,100 @@ export default function App() {
         </div>
       </header>
 
+      {/* Reminder banner */}
+      {showReminderBanner && (
+        <div className="bg-purple-50 border-b border-purple-100 px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+            <p className="text-sm text-purple-800">
+              🗓️ <span className="font-semibold">Time to plan your week!</span> You haven't planned in a while.
+            </p>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button onClick={() => { setShowWeekSuggest(true); setShowReminderBanner(false); }}
+                className="text-xs px-3 py-1.5 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition">
+                Plan now
+              </button>
+              <button onClick={() => {
+                  localStorage.setItem(`reminder_dismissed_${new Date().toISOString().slice(0, 10)}`, '1');
+                  setShowReminderBanner(false);
+                }}
+                className="text-purple-400 hover:text-purple-600 transition">
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Preferences modal */}
       {showPreferences && (
         <PreferencesModal
           household={household}
           onClose={() => { setShowPreferences(false); loadPreferences(); }}
         />
+      )}
+
+      {/* Willingness-to-pay survey */}
+      {showSurvey && !showPreferences && (
+        <WillingnessModal
+          household={household}
+          onClose={() => { setShowSurvey(false); loadPreferences(); }}
+        />
+      )}
+
+      {/* Create recipe modal */}
+      {showCreateRecipe && (
+        <CreateRecipeModal
+          household={household}
+          onClose={() => setShowCreateRecipe(false)}
+          onAddToPlan={toggleSelectedRecipe}
+        />
+      )}
+
+      {/* Starred panel */}
+      {showStarred && (
+        <StarredPanel
+          starredItems={starredItems}
+          household={household}
+          onClose={() => setShowStarred(false)}
+          onAddToPlan={(recipe) => { toggleSelectedRecipe(recipe); setShowStarred(false); setActiveTab("recipes"); }}
+          onUnstar={toggleStar}
+          onPlanWeek={() => { setShowStarred(false); setShowWeekSuggest(true); }}
+        />
+      )}
+
+      {/* AI week suggestion modal */}
+      {showWeekSuggest && (
+        <WeekSuggestModal
+          household={household}
+          onClose={() => setShowWeekSuggest(false)}
+          onLoadPlan={async (recipes) => {
+            for (const recipe of recipes) await toggleSelectedRecipe(recipe);
+            setActiveTab("recipes");
+          }}
+        />
+      )}
+
+      {/* Post-cook rating prompt */}
+      {ratingPrompt && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 text-center">
+            <p className="text-2xl mb-2">🍽️</p>
+            <h3 className="text-base font-bold text-orange-900 mb-1">How was it?</h3>
+            <p className="text-xs text-orange-400 mb-4">Rate the recipe to help your household remember the winners.</p>
+            <div className="flex justify-center gap-2 mb-4">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button key={s} onClick={() => saveRating(ratingPrompt, s)}
+                  className="text-3xl hover:scale-110 transition-transform">
+                  ⭐
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setRatingPrompt(null)}
+              className="text-xs text-orange-400 hover:text-orange-600 transition">
+              Skip
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Main content */}
@@ -671,6 +1024,33 @@ export default function App() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300 text-base"
               />
+            </div>
+
+            {/* URL import + manual create */}
+            <div className="bg-white rounded-xl border border-orange-100 p-3 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Import from any website</p>
+                <button onClick={() => setShowCreateRecipe(true)}
+                  className="flex items-center gap-1 text-xs font-semibold text-orange-500 hover:text-orange-700 transition">
+                  <PenLine size={12} /> Create your own
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  placeholder="Paste a recipe URL…"
+                  value={importUrl}
+                  onChange={(e) => { setImportUrl(e.target.value); setImportError(""); }}
+                  onKeyDown={(e) => e.key === "Enter" && importFromUrl()}
+                  className="flex-1 border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                />
+                <button onClick={importFromUrl} disabled={importLoading || !importUrl.trim()}
+                  className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
+                  <Link2 size={14} />
+                  {importLoading ? "Importing…" : "Import"}
+                </button>
+              </div>
+              {importError && <p className="text-xs text-red-500 mt-1.5">{importError}</p>}
             </div>
 
             <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
@@ -691,6 +1071,23 @@ export default function App() {
               ))}
             </div>
 
+            {/* User-created recipes */}
+            {userRecipes.length > 0 && (
+              <div className="mb-4">
+                <p className="text-sm text-orange-600 font-medium mb-2">Your recipes</p>
+                <div className="space-y-3">
+                  {userRecipes.map((recipe) => (
+                    <RecipeCard key={recipe.id} recipe={recipe}
+                      isSelected={selectedIds.has(String(recipe.id))}
+                      isStarred={starredIds.has(String(recipe.id))}
+                      onToggleSelect={toggleSelectedRecipe}
+                      onToggleStar={toggleStar} />
+                  ))}
+                </div>
+                {recipes.length > 0 && <div className="border-t border-orange-100 my-4" />}
+              </div>
+            )}
+
             {searchLoading ? (
               <div className="flex justify-center py-12">
                 <div className="w-7 h-7 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
@@ -701,7 +1098,9 @@ export default function App() {
                 {recipes.map((recipe) => (
                   <RecipeCard key={recipe.id} recipe={recipe}
                     isSelected={selectedIds.has(String(recipe.id))}
-                    onToggleSelect={toggleSelectedRecipe} />
+                    isStarred={starredIds.has(String(recipe.id))}
+                    onToggleSelect={toggleSelectedRecipe}
+                    onToggleStar={toggleStar} />
                 ))}
               </div>
             ) : (
@@ -717,11 +1116,75 @@ export default function App() {
         {/* ── RECIPES TAB ── */}
         {activeTab === "recipes" && (
           <div>
+            {/* AI week planner button */}
+            <button onClick={() => setShowWeekSuggest(true)}
+              className="w-full mb-3 py-2.5 bg-purple-500 text-white rounded-xl font-semibold text-sm hover:bg-purple-600 transition flex items-center justify-center gap-2">
+              <Sparkles size={14} />
+              Plan my week with AI
+            </button>
+
+            {/* Templates panel */}
+            <div className="mb-4">
+              <button onClick={() => setShowTemplates((v) => !v)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-800 transition">
+                <Calendar size={13} />
+                {showTemplates ? "Hide templates" : "Saved week templates"}
+                {showTemplates ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </button>
+
+              {showTemplates && (
+                <div className="mt-2 bg-white rounded-xl border border-orange-100 p-4 space-y-3">
+                  {templates.length > 0 && (
+                    <div className="space-y-2">
+                      {templates.map((t) => (
+                        <div key={t.id} className="flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2">
+                          <div>
+                            <p className="text-sm font-semibold text-orange-900">{t.name}</p>
+                            <p className="text-xs text-orange-400">{t.recipes.length} recipe{t.recipes.length !== 1 ? "s" : ""}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => loadTemplate(t)}
+                              className="text-xs px-2.5 py-1 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition">
+                              Load
+                            </button>
+                            <button onClick={() => deleteTemplate(t.id)}
+                              className="text-orange-300 hover:text-red-400 transition">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {selectedRecipeObjects.length > 0 && (
+                    <div className="flex gap-2 pt-1">
+                      <input
+                        type="text"
+                        placeholder="Name this week (e.g. "Light summer week")"
+                        value={templateName}
+                        onChange={(e) => setTemplateName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && saveTemplate()}
+                        className="flex-1 border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                      />
+                      <button onClick={saveTemplate} disabled={!templateName.trim()}
+                        className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
+                        Save
+                      </button>
+                    </div>
+                  )}
+                  {templates.length === 0 && selectedRecipeObjects.length === 0 && (
+                    <p className="text-xs text-orange-400">Add recipes to your plan, then save the week as a template to reuse later.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {selectedRecipeObjects.length > 0 ? (
               <>
                 <p className="text-sm text-orange-600 font-medium mb-3">
                   {selectedRecipeObjects.length} recipe{selectedRecipeObjects.length !== 1 ? "s" : ""} in your meal plan
                 </p>
+                <WeeklyNutritionCard recipes={selectedRecipeObjects} />
                 <div className="space-y-3">
                   {selectedRecipeObjects.map((recipe) => {
                     const rid = String(recipe.id);
@@ -740,7 +1203,9 @@ export default function App() {
                         newIngredientInput={newIngredientInput}
                         onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
                         preferences={preferences}
+                        starredRecipes={starredRecipes}
                         onAcceptSubstitution={acceptSubstitution}
+                        rating={recipeRatings[rid] || null}
                       />
                     );
                   })}
@@ -797,16 +1262,17 @@ export default function App() {
                     .map((item) => {
                       const checked = !!checkedItems[item.name];
                       return (
-                        <button key={item.name} onClick={() => toggleItem(item.name)}
-                          className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-orange-50 transition active:bg-orange-100">
+                        <button key={item.name} onClick={() => !item.inPantry && toggleItem(item.name)}
+                          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
                           <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                            checked ? "bg-green-500 border-green-500 text-white" : item.isCustom ? "border-blue-300" : "border-orange-300"}`}>
-                            {checked && <Check size={13} />}
+                            item.inPantry ? "bg-gray-100 border-gray-200" : checked ? "bg-green-500 border-green-500 text-white" : item.isCustom ? "border-blue-300" : "border-orange-300"}`}>
+                            {(checked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-gray-400" : ""} />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span className={`text-sm font-medium transition-all ${checked ? "line-through text-gray-400" : "text-orange-900"}`}>
+                            <span className={`text-sm font-medium transition-all ${checked || item.inPantry ? "line-through text-gray-400" : "text-orange-900"}`}>
                               {item.name}
                               {item.isCustom && <span className="ml-1.5 text-xs text-blue-500 font-normal">custom</span>}
+                              {item.inPantry && <span className="ml-1.5 text-xs text-gray-400 font-normal">in pantry</span>}
                             </span>
                           </div>
                           {item.amount && (
@@ -830,7 +1296,55 @@ export default function App() {
             )}
           </div>
         )}
+        {/* ── PANTRY TAB ── */}
+        {activeTab === "pantry" && (
+          <div>
+            <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">What's already at home</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. 500g pasta, olive oil…"
+                  value={pantryInput}
+                  onChange={(e) => setPantryInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addPantryItem()}
+                  className="flex-1 border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                />
+                <button onClick={addPantryItem} disabled={!pantryInput.trim()}
+                  className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
+                  Add
+                </button>
+              </div>
+              <p className="text-xs text-orange-400 mt-2">Items here are skipped (greyed out) in your shopping list.</p>
+            </div>
+
+            {pantryItems.length > 0 ? (
+              <div className="bg-white rounded-xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+                {pantryItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <span className="text-sm font-medium text-orange-900">{item.name}</span>
+                      {item.amount && <span className="text-xs text-orange-400 ml-2">{item.amount}</span>}
+                    </div>
+                    <button onClick={() => removePantryItem(item.id)}
+                      className="text-orange-300 hover:text-red-400 transition ml-3">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 text-orange-300">
+                <Package size={48} className="mx-auto mb-3 opacity-50" />
+                <p className="font-medium text-orange-400">Your pantry is empty</p>
+                <p className="text-sm mt-1">Add ingredients you already have at home</p>
+              </div>
+            )}
+          </div>
+        )}
       </main>
+
+      <InstallBanner />
 
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/90 backdrop-blur-md border-t border-orange-100 safe-bottom">
@@ -838,7 +1352,8 @@ export default function App() {
           {[
             { id: "search",   icon: Search,       label: "Search" },
             { id: "recipes",  icon: Calendar,     label: "Recipes",  badge: selectedIds.size },
-            { id: "shopping", icon: ShoppingCart, label: "Shopping", badge: shoppingList.length > 0 ? shoppingList.length - checkedCount || null : null },
+            { id: "shopping", icon: ShoppingCart, label: "Shopping", badge: shoppingList.filter((i) => !i.inPantry).length - checkedCount > 0 ? shoppingList.filter((i) => !i.inPantry).length - checkedCount : null },
+            { id: "pantry",   icon: Package,      label: "Pantry",   badge: pantryItems.length || null },
           ].map(({ id, icon: Icon, label, badge }) => (
             <button key={id} onClick={() => setActiveTab(id)}
               className={`flex-1 flex flex-col items-center justify-center py-3 gap-0.5 transition-all relative ${
