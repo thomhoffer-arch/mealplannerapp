@@ -6,6 +6,7 @@ import {
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
 import PreferencesModal from "./components/PreferencesModal";
+import WillingnessModal from "./components/WillingnessModal";
 
 // ─── Filter configuration ─────────────────────────────────────────────────────
 const FILTERS = {
@@ -348,6 +349,7 @@ export default function App() {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
+  const [showSurvey, setShowSurvey] = useState(false);
   const [preferences, setPreferences] = useState({});
 
   // ── Search state
@@ -473,6 +475,17 @@ export default function App() {
       .from("household_preferences").select("*").eq("household_id", household.id).single();
     setPreferences(data || {});
   }
+
+  // ── Survey trigger ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user || !household || preferences.survey_completed_at) return;
+    const daysSinceSignup = (Date.now() - new Date(user.created_at)) / (1000 * 60 * 60 * 24);
+    const isEngaged = mealPlanItems.length >= 1 || Object.keys(cookedRecipes).length >= 1;
+    if (daysSinceSignup >= 3 && isEngaged) {
+      const t = setTimeout(() => setShowSurvey(true), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [user, household, preferences.survey_completed_at, mealPlanItems.length, cookedRecipes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadStarred() {
     const { data } = await supabase
@@ -695,6 +708,14 @@ export default function App() {
         <PreferencesModal
           household={household}
           onClose={() => { setShowPreferences(false); loadPreferences(); }}
+        />
+      )}
+
+      {/* Willingness-to-pay survey */}
+      {showSurvey && !showPreferences && (
+        <WillingnessModal
+          household={household}
+          onClose={() => { setShowSurvey(false); loadPreferences(); }}
         />
       )}
 
