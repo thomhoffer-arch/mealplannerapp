@@ -7,6 +7,7 @@ import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
 import PreferencesModal from "./components/PreferencesModal";
 import WillingnessModal from "./components/WillingnessModal";
+import InstallBanner from "./components/InstallBanner";
 
 // ─── Filter configuration ─────────────────────────────────────────────────────
 const FILTERS = {
@@ -897,6 +898,8 @@ export default function App() {
           </div>
         )}
       </main>
+
+      <InstallBanner />
 
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/90 backdrop-blur-md border-t border-orange-100 safe-bottom">
