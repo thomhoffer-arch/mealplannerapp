@@ -1,18 +1,13 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Search,
-  ShoppingCart,
-  Calendar,
-  ChevronDown,
-  ChevronUp,
-  Check,
-  Plus,
-  X,
-  Trash2,
+  Search, ShoppingCart, Calendar, ChevronDown, ChevronUp,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles,
 } from "lucide-react";
-import { mockRecipes } from "./mockData";
+import { supabase } from "./lib/supabase";
+import AuthScreen from "./components/AuthScreen";
+import PreferencesModal from "./components/PreferencesModal";
 
-// ─── Filter configuration ────────────────────────────────────────────────────
+// ─── Filter configuration ─────────────────────────────────────────────────────
 const FILTERS = {
   dietary: ["gluten-free", "vegetarian", "high-protein", "traditional"],
   time: ["<20min", "20-40min", "40+min"],
@@ -21,55 +16,30 @@ const FILTERS = {
 };
 
 const SOURCE_COLORS = {
-  HelloFresh: "bg-green-100 text-green-700",
-  "Marley Spoon": "bg-purple-100 text-purple-700",
+  HelloFresh:    "bg-green-100 text-green-700",
+  "Marley Spoon":"bg-purple-100 text-purple-700",
   "NYT Cooking": "bg-red-100 text-red-700",
+  Spoonacular:   "bg-blue-100 text-blue-700",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function totalTime(r) {
-  return r.prepTime + r.cookTime;
-}
+function totalTime(r) { return (r.prepTime || 0) + (r.cookTime || 0); }
 
-function matchesTimeFilter(recipe, timeFilters) {
-  if (timeFilters.length === 0) return true;
-  const t = totalTime(recipe);
-  return timeFilters.some((f) => {
-    if (f === "<20min") return t < 20;
-    if (f === "20-40min") return t >= 20 && t <= 40;
-    if (f === "40+min") return t > 40;
-    return false;
-  });
-}
-
-function consolidateIngredients(recipes, selectedIds, customIngredients) {
+function consolidateIngredients(selectedRecipes, customIngredients) {
   const items = {};
-
-  selectedIds.forEach((id) => {
-    const recipe = recipes.find((r) => r.id === id);
-    if (!recipe) return;
-
-    recipe.ingredients.forEach(({ name, amount }) => {
+  selectedRecipes.forEach((recipe) => {
+    const rid = String(recipe.id);
+    (recipe.ingredients || []).forEach(({ name, amount }) => {
       const key = name.toLowerCase().trim();
-      if (items[key]) {
-        items[key].amounts.push(amount);
-      } else {
-        items[key] = { name, amounts: [amount] };
-      }
+      if (items[key]) items[key].amounts.push(amount);
+      else items[key] = { name, amounts: [amount] };
     });
-
-    const customs = customIngredients[id] || [];
-    customs.forEach(({ name, amount }) => {
+    (customIngredients[rid] || []).forEach(({ name, amount }) => {
       const key = name.toLowerCase().trim();
-      const displayName = name.trim();
-      if (items[key]) {
-        items[key].amounts.push(amount || "");
-      } else {
-        items[key] = { name: displayName, amounts: [amount || ""], isCustom: true };
-      }
+      if (items[key]) items[key].amounts.push(amount || "");
+      else items[key] = { name, amounts: [amount || ""], isCustom: true };
     });
   });
-
   return Object.values(items).map((item) => ({
     name: item.name,
     amount: item.amounts.filter(Boolean).join(" + "),
@@ -115,41 +85,27 @@ function FilterSection({ title, options, selected, onToggle }) {
 
 function RecipeCard({ recipe, isSelected, onToggleSelect }) {
   return (
-    <div
-      className={`rounded-xl border-2 p-4 transition-all ${
-        isSelected ? "border-orange-400 bg-orange-50" : "border-orange-100 bg-white"
-      }`}
-    >
+    <div className={`rounded-xl border-2 p-4 transition-all ${isSelected ? "border-orange-400 bg-orange-50" : "border-orange-100 bg-white"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span
-              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                SOURCE_COLORS[recipe.source] || "bg-gray-100 text-gray-600"
-              }`}
-            >
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-gray-100 text-gray-600"}`}>
               {recipe.source}
             </span>
-            <span className="text-xs text-orange-500">
-              {totalTime(recipe)} min · {recipe.servings} servings
-            </span>
+            <span className="text-xs text-orange-500">{totalTime(recipe)} min · {recipe.servings} servings</span>
           </div>
           <h3 className="font-semibold text-orange-900 text-base leading-snug">{recipe.name}</h3>
-          <p className="text-sm text-orange-700 italic mt-0.5 leading-snug">{recipe.overview}</p>
+          <p className="text-sm text-orange-700 italic mt-0.5 leading-snug line-clamp-2">{recipe.overview}</p>
           <div className="flex flex-wrap gap-1 mt-2">
-            {recipe.keywords.slice(0, 5).map((kw) => (
-              <span key={kw} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
-                {kw}
-              </span>
+            {(recipe.keywords || []).slice(0, 5).map((kw) => (
+              <span key={kw} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{kw}</span>
             ))}
           </div>
         </div>
         <button
-          onClick={() => onToggleSelect(recipe.id)}
+          onClick={() => onToggleSelect(recipe)}
           className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
-            isSelected
-              ? "bg-orange-500 border-orange-500 text-white"
-              : "border-orange-300 text-orange-300 hover:border-orange-500"
+            isSelected ? "bg-orange-500 border-orange-500 text-white" : "border-orange-300 text-orange-300 hover:border-orange-500"
           }`}
           aria-label={isSelected ? "Remove from meal plan" : "Add to meal plan"}
         >
@@ -161,40 +117,44 @@ function RecipeCard({ recipe, isSelected, onToggleSelect }) {
 }
 
 function SelectedRecipeCard({
-  recipe,
-  expanded,
-  onToggleExpand,
-  onToggleCooked,
-  isCooked,
-  customIngredients,
-  onAddCustom,
-  onRemoveCustom,
-  onRemove,
-  newIngredientInput,
-  onInputChange,
+  recipe, expanded, onToggleExpand, onToggleCooked, isCooked,
+  customIngredients, onAddCustom, onRemoveCustom, onRemove,
+  newIngredientInput, onInputChange, preferences, onAcceptSubstitution,
 }) {
-  const customs = customIngredients[recipe.id] || [];
+  const rid = String(recipe.id);
+  const customs = customIngredients[rid] || [];
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
+  const [aiError, setAiError] = useState(null);
 
+  async function fetchSuggestions() {
+    setAiLoading(true);
+    setAiError(null);
+    setAiResult(null);
+    try {
+      const res = await fetch('/api/ai/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipe, preferences }),
+      });
+      if (!res.ok) throw new Error('AI request failed');
+      setAiResult(await res.json());
+    } catch {
+      setAiError('Could not get suggestions. Try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  }
   return (
-    <div
-      className={`rounded-xl border-2 transition-all ${
-        isCooked ? "border-green-300 bg-green-50 opacity-80" : "border-orange-100 bg-white"
-      }`}
-    >
-      {/* Header */}
+    <div className={`rounded-xl border-2 transition-all ${isCooked ? "border-green-300 bg-green-50 opacity-80" : "border-orange-100 bg-white"}`}>
       <div className="p-4">
         <div className="flex items-start gap-3">
-          {/* Cooked checkbox */}
           <button
-            onClick={() => onToggleCooked(recipe.id)}
-            className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all ${
-              isCooked ? "bg-green-500 border-green-500 text-white" : "border-gray-300"
-            }`}
-            aria-label={isCooked ? "Mark as not cooked" : "Mark as cooked"}
+            onClick={() => onToggleCooked(rid)}
+            className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all ${isCooked ? "bg-green-500 border-green-500 text-white" : "border-gray-300"}`}
           >
             {isCooked && <Check size={12} />}
           </button>
-
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-gray-100 text-gray-600"}`}>
@@ -206,31 +166,23 @@ function SelectedRecipeCard({
               {recipe.name}
             </h3>
           </div>
-
           <button
-            onClick={() => onToggleExpand(recipe.id)}
+            onClick={() => onToggleExpand(rid)}
             className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
           >
             {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
           </button>
         </div>
-
-        {/* Ingredients pills – always visible */}
         <div className="flex flex-wrap gap-1 mt-3">
-          {recipe.ingredients.map((ing) => (
-            <span key={ing.name} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-              {ing.name}
-            </span>
+          {(recipe.ingredients || []).map((ing) => (
+            <span key={ing.name} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{ing.name}</span>
           ))}
-          {customs.map((c, i) => (
-            <span key={`custom-${i}`} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-              {c.name}
-            </span>
+          {customs.map((c) => (
+            <span key={c.id} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{c.name}</span>
           ))}
         </div>
       </div>
 
-      {/* Expanded content */}
       {expanded && (
         <div className="border-t border-orange-100 p-4 space-y-4">
           {/* Macros */}
@@ -238,15 +190,13 @@ function SelectedRecipeCard({
             <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Nutrition (per serving)</p>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: "Protein", value: recipe.macros.protein, unit: "g" },
-                { label: "Carbs", value: recipe.macros.carbs, unit: "g" },
-                { label: "Fat", value: recipe.macros.fat, unit: "g" },
-                { label: "Calories", value: recipe.macros.calories, unit: "" },
+                { label: "Protein",   value: recipe.macros?.protein,   unit: "g" },
+                { label: "Carbs",     value: recipe.macros?.carbs,     unit: "g" },
+                { label: "Fat",       value: recipe.macros?.fat,       unit: "g" },
+                { label: "Calories",  value: recipe.macros?.calories,  unit: "" },
               ].map(({ label, value, unit }) => (
                 <div key={label} className="bg-orange-50 rounded-lg p-2 text-center">
-                  <p className="text-sm font-bold text-orange-900">
-                    {value}{unit}
-                  </p>
+                  <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>
                   <p className="text-xs text-orange-600">{label}</p>
                 </div>
               ))}
@@ -254,19 +204,19 @@ function SelectedRecipeCard({
           </div>
 
           {/* Steps */}
-          <div>
-            <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Instructions</p>
-            <ol className="space-y-2">
-              {recipe.steps.map((step, i) => (
-                <li key={i} className="flex gap-2 text-sm text-orange-900">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-200 text-orange-700 text-xs flex items-center justify-center font-semibold">
-                    {i + 1}
-                  </span>
-                  <span className="leading-snug">{step}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
+          {(recipe.steps || []).length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Instructions</p>
+              <ol className="space-y-2">
+                {recipe.steps.map((step, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-orange-900">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-200 text-orange-700 text-xs flex items-center justify-center font-semibold">{i + 1}</span>
+                    <span className="leading-snug">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
 
           {/* Custom ingredients */}
           <div>
@@ -275,13 +225,13 @@ function SelectedRecipeCard({
               <input
                 type="text"
                 placeholder="e.g. 100g breadcrumbs"
-                value={newIngredientInput[recipe.id] || ""}
-                onChange={(e) => onInputChange(recipe.id, e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && onAddCustom(recipe.id)}
+                value={newIngredientInput[rid] || ""}
+                onChange={(e) => onInputChange(rid, e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && onAddCustom(rid)}
                 className="flex-1 border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
               />
               <button
-                onClick={() => onAddCustom(recipe.id)}
+                onClick={() => onAddCustom(rid)}
                 className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition text-sm font-medium"
               >
                 Add
@@ -289,13 +239,12 @@ function SelectedRecipeCard({
             </div>
             {customs.length > 0 && (
               <ul className="mt-2 space-y-1">
-                {customs.map((c, i) => (
-                  <li key={i} className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-1.5">
+                {customs.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-1.5">
                     <span className="text-sm text-blue-800">{c.amount ? `${c.amount} ${c.name}` : c.name}</span>
                     <button
-                      onClick={() => onRemoveCustom(recipe.id, i)}
+                      onClick={() => onRemoveCustom(rid, c.id)}
                       className="text-blue-400 hover:text-red-500 transition ml-2"
-                      aria-label="Remove ingredient"
                     >
                       <X size={14} />
                     </button>
@@ -305,9 +254,62 @@ function SelectedRecipeCard({
             )}
           </div>
 
-          {/* Remove button */}
+          {/* AI adaptation */}
+          <div className="rounded-xl border border-purple-100 bg-purple-50 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Adapt for your household</p>
+              <button
+                onClick={fetchSuggestions}
+                disabled={aiLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-white rounded-lg text-xs font-medium hover:bg-purple-600 transition disabled:opacity-50"
+              >
+                <Sparkles size={12} />
+                {aiLoading ? "Thinking…" : aiResult ? "Refresh" : "Suggest adaptations"}
+              </button>
+            </div>
+
+            {aiError && <p className="text-xs text-red-500">{aiError}</p>}
+
+            {aiResult && (
+              <div className="space-y-2 mt-1">
+                {aiResult.suitable && !aiResult.substitutions?.length ? (
+                  <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
+                    This recipe already fits your household preferences.
+                    {aiResult.tips && <span className="block mt-1 text-green-600">{aiResult.tips}</span>}
+                  </p>
+                ) : (
+                  <>
+                    {(aiResult.issues || []).length > 0 && (
+                      <div className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 space-y-0.5">
+                        {aiResult.issues.map((issue, i) => (
+                          <p key={i}>⚠ {issue}</p>
+                        ))}
+                      </div>
+                    )}
+                    {(aiResult.substitutions || []).map((sub, i) => (
+                      <div key={i} className="bg-white rounded-lg border border-purple-100 px-3 py-2">
+                        <p className="text-xs text-gray-400 line-through">{sub.original}</p>
+                        <p className="text-sm font-medium text-purple-900">{sub.replacement}</p>
+                        <p className="text-xs text-purple-500 mt-0.5">{sub.reason}</p>
+                        <button
+                          onClick={() => onAcceptSubstitution(rid, sub)}
+                          className="mt-1.5 text-xs text-purple-600 font-semibold hover:text-purple-800 transition"
+                        >
+                          + Add as note
+                        </button>
+                      </div>
+                    ))}
+                    {aiResult.tips && (
+                      <p className="text-xs text-purple-600 italic px-1">{aiResult.tips}</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           <button
-            onClick={() => onRemove(recipe.id)}
+            onClick={() => onRemove(recipe)}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-red-200 text-red-500 hover:bg-red-50 transition text-sm font-medium"
           >
             <Trash2 size={15} />
@@ -321,169 +323,264 @@ function SelectedRecipeCard({
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
+  // ── Auth / household state
+  const [user, setUser] = useState(null);
+  const [household, setHousehold] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [preferences, setPreferences] = useState({});
+
+  // ── Search state
   const [activeTab, setActiveTab] = useState("search");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilters, setSelectedFilters] = useState({
-    dietary: [],
-    time: [],
-    cuisine: [],
-    season: [],
-  });
+  const [selectedFilters, setSelectedFilters] = useState({ dietary: [], time: [], cuisine: [], season: [] });
   const [recipes, setRecipes] = useState([]);
-  const [selectedRecipes, setSelectedRecipes] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("selectedRecipes") || "[]");
-    } catch {
-      return [];
-    }
-  });
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimer = useRef(null);
+
+  // ── Supabase-backed shared state
+  const [mealPlanItems, setMealPlanItems] = useState([]);   // [{ id, recipe_id, recipe_data }]
+  const [customIngredients, setCustomIngredients] = useState({});  // { recipe_id: [{id,name,amount}] }
+  const [cookedRecipes, setCookedRecipes] = useState({});   // { recipe_id: true }
+  const [checkedItems, setCheckedItems] = useState({});     // { item_name: true }
+
+  // ── Local UI state
   const [expandedRecipes, setExpandedRecipes] = useState({});
-  const [customIngredients, setCustomIngredients] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("customIngredients") || "{}");
-    } catch {
-      return {};
-    }
-  });
   const [newIngredientInput, setNewIngredientInput] = useState({});
-  const [cookedRecipes, setCookedRecipes] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("cookedRecipes") || "{}");
-    } catch {
-      return {};
-    }
-  });
-  const [checkedItems, setCheckedItems] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("checkedItems") || "{}");
-    } catch {
-      return {};
-    }
-  });
-  const [shoppingList, setShoppingList] = useState([]);
 
-  // ── Persist to localStorage ──────────────────────────────────────────────
+  // ── Auth setup ────────────────────────────────────────────────────────────
   useEffect(() => {
-    localStorage.setItem("selectedRecipes", JSON.stringify(selectedRecipes));
-  }, [selectedRecipes]);
-
-  useEffect(() => {
-    localStorage.setItem("customIngredients", JSON.stringify(customIngredients));
-  }, [customIngredients]);
-
-  useEffect(() => {
-    localStorage.setItem("cookedRecipes", JSON.stringify(cookedRecipes));
-  }, [cookedRecipes]);
-
-  useEffect(() => {
-    localStorage.setItem("checkedItems", JSON.stringify(checkedItems));
-  }, [checkedItems]);
-
-  // ── Build shopping list whenever selections change ───────────────────────
-  useEffect(() => {
-    setShoppingList(consolidateIngredients(mockRecipes, selectedRecipes, customIngredients));
-  }, [selectedRecipes, customIngredients]);
-
-  // ── Filter / search logic ────────────────────────────────────────────────
-  const applyFilters = useCallback(() => {
-    const { dietary, time, cuisine, season } = selectedFilters;
-    const hasFilters =
-      dietary.length + time.length + cuisine.length + season.length > 0 ||
-      searchQuery.trim().length > 0;
-
-    if (!hasFilters) {
-      setRecipes([]);
-      return;
-    }
-
-    const filtered = mockRecipes.filter((r) => {
-      if (searchQuery.trim() && !r.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-        return false;
-      }
-      if (dietary.length > 0 && !dietary.some((d) => r.dietary.includes(d))) return false;
-      if (!matchesTimeFilter(r, time)) return false;
-      if (cuisine.length > 0 && !cuisine.includes(r.cuisine)) return false;
-      if (season.length > 0 && r.season !== "all" && !season.includes(r.season)) return false;
-      return true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) setAuthLoading(false);
     });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) {
+        setAuthLoading(false);
+        setHousehold(null);
+        setMealPlanItems([]);
+        setCustomIngredients({});
+        setCookedRecipes({});
+        setCheckedItems({});
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
-    setRecipes(filtered);
-  }, [selectedFilters, searchQuery]);
+  // ── Load household when user is ready ────────────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+    loadHousehold();
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadHousehold() {
+    const { data: member } = await supabase
+      .from("household_members")
+      .select("household_id, households(*)")
+      .eq("user_id", user.id)
+      .single();
+
+    if (member?.households) {
+      setHousehold(member.households);
+    } else {
+      const { data: hid } = await supabase.rpc("create_household_for_user", { uid: user.id });
+      const { data: h } = await supabase.from("households").select("*").eq("id", hid).single();
+      setHousehold(h);
+    }
+    setAuthLoading(false);
+  }
+
+  // ── Load + subscribe when household is ready ──────────────────────────────
+  useEffect(() => {
+    if (!household) return;
+    loadMealPlan();
+    loadCustomIngredients();
+    loadCookedRecipes();
+    loadCheckedItems();
+    loadPreferences();
+
+    const channel = supabase
+      .channel(`hh-${household.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "meal_plan_items",    filter: `household_id=eq.${household.id}` }, loadMealPlan)
+      .on("postgres_changes", { event: "*", schema: "public", table: "custom_ingredients", filter: `household_id=eq.${household.id}` }, loadCustomIngredients)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cooked_recipes",     filter: `household_id=eq.${household.id}` }, loadCookedRecipes)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shopping_checks",    filter: `household_id=eq.${household.id}` }, loadCheckedItems)
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [household]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Data loaders ──────────────────────────────────────────────────────────
+  async function loadMealPlan() {
+    const { data } = await supabase
+      .from("meal_plan_items").select("*").eq("household_id", household.id).order("added_at");
+    setMealPlanItems(data || []);
+  }
+
+  async function loadCustomIngredients() {
+    const { data } = await supabase
+      .from("custom_ingredients").select("*").eq("household_id", household.id);
+    const byRecipe = {};
+    (data || []).forEach((i) => {
+      if (!byRecipe[i.recipe_id]) byRecipe[i.recipe_id] = [];
+      byRecipe[i.recipe_id].push({ id: i.id, name: i.name, amount: i.amount });
+    });
+    setCustomIngredients(byRecipe);
+  }
+
+  async function loadCookedRecipes() {
+    const { data } = await supabase
+      .from("cooked_recipes").select("recipe_id").eq("household_id", household.id);
+    const map = {};
+    (data || []).forEach((r) => { map[r.recipe_id] = true; });
+    setCookedRecipes(map);
+  }
+
+  async function loadCheckedItems() {
+    const { data } = await supabase
+      .from("shopping_checks").select("item_name").eq("household_id", household.id);
+    const map = {};
+    (data || []).forEach((r) => { map[r.item_name] = true; });
+    setCheckedItems(map);
+  }
+
+  async function loadPreferences() {
+    const { data } = await supabase
+      .from("household_preferences").select("*").eq("household_id", household.id).single();
+    setPreferences(data || {});
+  }
+
+  // Accept an AI substitution — saves it as a custom ingredient note on the recipe
+  async function acceptSubstitution(rid, sub) {
+    await supabase.from("custom_ingredients").insert({
+      household_id: household.id,
+      recipe_id: rid,
+      name: sub.replacement,
+      amount: `replaces: ${sub.original}`,
+    });
+  }
+
+  // ── Recipe search ─────────────────────────────────────────────────────────
+  const fetchRecipes = useCallback(async (query, filters) => {
+    const hasFilters = Object.values(filters).some((f) => f.length > 0);
+    if (!query.trim() && !hasFilters) { setRecipes([]); return; }
+
+    setSearchLoading(true);
+    try {
+      const params = new URLSearchParams({ q: query });
+      if (filters.dietary.length) params.set("dietary", filters.dietary.join(","));
+      if (filters.time.length)    params.set("time", filters.time[0]);
+      if (filters.cuisine.length) params.set("cuisine", filters.cuisine.join(","));
+      const res = await fetch(`/api/recipes/search?${params}`);
+      if (!res.ok) throw new Error("Search failed");
+      setRecipes(await res.json());
+    } catch {
+      setRecipes([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    applyFilters();
-  }, [applyFilters]);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => fetchRecipes(searchQuery, selectedFilters), 400);
+    return () => clearTimeout(searchTimer.current);
+  }, [searchQuery, selectedFilters, fetchRecipes]);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
+  // ── Meal plan handlers ────────────────────────────────────────────────────
+  async function toggleSelectedRecipe(recipe) {
+    const rid = String(recipe.id);
+    const existing = mealPlanItems.find((i) => i.recipe_id === rid);
+    if (existing) {
+      await supabase.from("meal_plan_items").delete().eq("id", existing.id);
+    } else {
+      await supabase.from("meal_plan_items").insert({
+        household_id: household.id,
+        recipe_id: rid,
+        recipe_data: recipe,
+      });
+    }
+  }
+
+  async function toggleCookedRecipe(rid) {
+    if (cookedRecipes[rid]) {
+      await supabase.from("cooked_recipes").delete()
+        .eq("household_id", household.id).eq("recipe_id", rid);
+    } else {
+      await supabase.from("cooked_recipes").insert({ household_id: household.id, recipe_id: rid });
+    }
+  }
+
+  // ── Custom ingredient handlers ────────────────────────────────────────────
+  async function addCustomIngredient(rid) {
+    const raw = (newIngredientInput[rid] || "").trim();
+    if (!raw) return;
+    const match = raw.match(/^([\d.]+\s*(?:g|kg|ml|l|tsp|tbsp|cup|cups|oz|lb|piece|pieces|slice|slices|handful|pinch)?\s*)/i);
+    let amount = "", name = raw;
+    if (match) { amount = match[0].trim(); name = raw.slice(match[0].length).trim() || raw; }
+    await supabase.from("custom_ingredients").insert({
+      household_id: household.id, recipe_id: rid, name, amount,
+    });
+    setNewIngredientInput((prev) => ({ ...prev, [rid]: "" }));
+  }
+
+  async function removeCustomIngredient(rid, ingredientId) {
+    await supabase.from("custom_ingredients").delete().eq("id", ingredientId);
+  }
+
+  // ── Shopping list handlers ────────────────────────────────────────────────
+  async function toggleItem(itemName) {
+    if (checkedItems[itemName]) {
+      await supabase.from("shopping_checks").delete()
+        .eq("household_id", household.id).eq("item_name", itemName);
+    } else {
+      await supabase.from("shopping_checks").insert({ household_id: household.id, item_name: itemName });
+    }
+  }
+
+  async function clearCheckedItems() {
+    await supabase.from("shopping_checks").delete().eq("household_id", household.id);
+  }
+
+  // ── Filter toggle ─────────────────────────────────────────────────────────
   function toggleFilter(category, value) {
     setSelectedFilters((prev) => {
-      const current = prev[category];
-      return {
-        ...prev,
-        [category]: current.includes(value)
-          ? current.filter((v) => v !== value)
-          : [...current, value],
-      };
+      const cur = prev[category];
+      return { ...prev, [category]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
     });
   }
 
-  function toggleSelectedRecipe(id) {
-    setSelectedRecipes((prev) =>
-      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]
-    );
-  }
+  // ── Invite link ───────────────────────────────────────────────────────────
+  const inviteUrl = household
+    ? `${window.location.origin}?invite=${household.invite_token}`
+    : "";
 
-  function toggleRecipe(id) {
-    setExpandedRecipes((prev) => ({ ...prev, [id]: !prev[id] }));
-  }
-
-  function toggleCookedRecipe(id) {
-    setCookedRecipes((prev) => ({ ...prev, [id]: !prev[id] }));
-  }
-
-  function addCustomIngredient(recipeId) {
-    const raw = (newIngredientInput[recipeId] || "").trim();
-    if (!raw) return;
-
-    // Parse "amount name" e.g. "100g breadcrumbs" or just "salt"
-    const match = raw.match(/^([\d.]+\s*(?:g|kg|ml|l|tsp|tbsp|cup|cups|oz|lb|piece|pieces|slice|slices|handful|pinch)?\s*)/i);
-    let amount = "";
-    let name = raw;
-    if (match) {
-      amount = match[0].trim();
-      name = raw.slice(match[0].length).trim() || raw;
-    }
-
-    setCustomIngredients((prev) => ({
-      ...prev,
-      [recipeId]: [...(prev[recipeId] || []), { name, amount }],
-    }));
-    setNewIngredientInput((prev) => ({ ...prev, [recipeId]: "" }));
-  }
-
-  function removeCustomIngredient(recipeId, index) {
-    setCustomIngredients((prev) => ({
-      ...prev,
-      [recipeId]: (prev[recipeId] || []).filter((_, i) => i !== index),
-    }));
-  }
-
-  function toggleItem(itemName) {
-    setCheckedItems((prev) => ({ ...prev, [itemName]: !prev[itemName] }));
-  }
-
-  function clearCheckedItems() {
-    setCheckedItems({});
+  async function copyInviteLink() {
+    await navigator.clipboard.writeText(inviteUrl);
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 2000);
   }
 
   // ── Derived values ────────────────────────────────────────────────────────
-  const selectedRecipeObjects = mockRecipes.filter((r) => selectedRecipes.includes(r.id));
+  const selectedRecipeObjects = mealPlanItems.map((i) => i.recipe_data);
+  const selectedIds = new Set(mealPlanItems.map((i) => i.recipe_id));
+  const shoppingList = consolidateIngredients(selectedRecipeObjects, customIngredients);
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
-  const totalFiltersActive =
-    selectedFilters.dietary.length +
-    selectedFilters.time.length +
-    selectedFilters.cuisine.length +
-    selectedFilters.season.length;
+  const totalFiltersActive = Object.values(selectedFilters).reduce((s, f) => s + f.length, 0);
+
+  // ── Loading / auth gate ───────────────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-amber-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-orange-300 border-t-orange-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user || !household) return <AuthScreen />;
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -493,17 +590,71 @@ export default function App() {
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-orange-900 leading-none">Meal Planner</h1>
-            <p className="text-xs text-orange-500 mt-0.5">HelloFresh · Marley Spoon · NYT Cooking</p>
+            <p className="text-xs text-orange-500 mt-0.5">{household.name}</p>
           </div>
           <div className="flex items-center gap-2">
-            {selectedRecipes.length > 0 && (
+            {selectedIds.size > 0 && (
               <span className="bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                {selectedRecipes.length} meals
+                {selectedIds.size} meals
               </span>
             )}
+            {/* Invite button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowInvite((v) => !v)}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
+                title="Invite partner"
+              >
+                <Users size={18} />
+              </button>
+              {showInvite && (
+                <div className="absolute right-0 top-11 bg-white rounded-xl shadow-lg border border-orange-100 p-4 w-72 z-40">
+                  <p className="text-sm font-semibold text-orange-900 mb-1">Invite your partner</p>
+                  <p className="text-xs text-orange-500 mb-3">Share this link — they'll join your kitchen automatically.</p>
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      value={inviteUrl}
+                      className="flex-1 text-xs border border-orange-200 rounded-lg px-2 py-2 bg-orange-50 text-orange-700 truncate"
+                    />
+                    <button
+                      onClick={copyInviteLink}
+                      className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-lg text-xs font-medium hover:bg-orange-600 transition flex items-center gap-1"
+                    >
+                      {inviteCopied ? <Check size={12} /> : <Link2 size={12} />}
+                      {inviteCopied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Preferences */}
+            <button
+              onClick={() => setShowPreferences(true)}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
+              title="Household preferences"
+            >
+              <Settings size={18} />
+            </button>
+            {/* Sign out */}
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
+              title="Sign out"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
       </header>
+
+      {/* Preferences modal */}
+      {showPreferences && (
+        <PreferencesModal
+          household={household}
+          onClose={() => { setShowPreferences(false); loadPreferences(); }}
+        />
+      )}
 
       {/* Main content */}
       <main className="max-w-2xl mx-auto px-4 pt-4 pb-28">
@@ -511,19 +662,17 @@ export default function App() {
         {/* ── SEARCH TAB ── */}
         {activeTab === "search" && (
           <div>
-            {/* Search input */}
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-300" size={18} />
               <input
                 type="search"
-                placeholder="Search by recipe name..."
+                placeholder="Search recipes…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300 text-base"
               />
             </div>
 
-            {/* Filters */}
             <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-semibold text-orange-800">Filters</p>
@@ -537,34 +686,29 @@ export default function App() {
                 )}
               </div>
               {Object.entries(FILTERS).map(([cat, opts]) => (
-                <FilterSection
-                  key={cat}
-                  title={cat}
-                  options={opts}
-                  selected={selectedFilters[cat]}
-                  onToggle={(val) => toggleFilter(cat, val)}
-                />
+                <FilterSection key={cat} title={cat} options={opts}
+                  selected={selectedFilters[cat]} onToggle={(v) => toggleFilter(cat, v)} />
               ))}
             </div>
 
-            {/* Results */}
-            {recipes.length > 0 ? (
+            {searchLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="w-7 h-7 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
+              </div>
+            ) : recipes.length > 0 ? (
               <div className="space-y-3">
                 <p className="text-sm text-orange-600 font-medium">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} found</p>
                 {recipes.map((recipe) => (
-                  <RecipeCard
-                    key={recipe.id}
-                    recipe={recipe}
-                    isSelected={selectedRecipes.includes(recipe.id)}
-                    onToggleSelect={toggleSelectedRecipe}
-                  />
+                  <RecipeCard key={recipe.id} recipe={recipe}
+                    isSelected={selectedIds.has(String(recipe.id))}
+                    onToggleSelect={toggleSelectedRecipe} />
                 ))}
               </div>
             ) : (
               <div className="text-center py-12 text-orange-300">
                 <Search size={48} className="mx-auto mb-3 opacity-50" />
-                <p className="font-medium text-orange-400">Apply filters to discover recipes</p>
-                <p className="text-sm mt-1">or search by name above</p>
+                <p className="font-medium text-orange-400">Search or apply filters to discover recipes</p>
+                <p className="text-sm mt-1">powered by Spoonacular &amp; HelloFresh</p>
               </div>
             )}
           </div>
@@ -579,35 +723,36 @@ export default function App() {
                   {selectedRecipeObjects.length} recipe{selectedRecipeObjects.length !== 1 ? "s" : ""} in your meal plan
                 </p>
                 <div className="space-y-3">
-                  {selectedRecipeObjects.map((recipe) => (
-                    <SelectedRecipeCard
-                      key={recipe.id}
-                      recipe={recipe}
-                      expanded={!!expandedRecipes[recipe.id]}
-                      onToggleExpand={toggleRecipe}
-                      onToggleCooked={toggleCookedRecipe}
-                      isCooked={!!cookedRecipes[recipe.id]}
-                      customIngredients={customIngredients}
-                      onAddCustom={addCustomIngredient}
-                      onRemoveCustom={removeCustomIngredient}
-                      onRemove={toggleSelectedRecipe}
-                      newIngredientInput={newIngredientInput}
-                      onInputChange={(id, val) =>
-                        setNewIngredientInput((prev) => ({ ...prev, [id]: val }))
-                      }
-                    />
-                  ))}
+                  {selectedRecipeObjects.map((recipe) => {
+                    const rid = String(recipe.id);
+                    return (
+                      <SelectedRecipeCard
+                        key={rid}
+                        recipe={recipe}
+                        expanded={!!expandedRecipes[rid]}
+                        onToggleExpand={(id) => setExpandedRecipes((p) => ({ ...p, [id]: !p[id] }))}
+                        onToggleCooked={toggleCookedRecipe}
+                        isCooked={!!cookedRecipes[rid]}
+                        customIngredients={customIngredients}
+                        onAddCustom={addCustomIngredient}
+                        onRemoveCustom={removeCustomIngredient}
+                        onRemove={toggleSelectedRecipe}
+                        newIngredientInput={newIngredientInput}
+                        onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
+                        preferences={preferences}
+                        onAcceptSubstitution={acceptSubstitution}
+                      />
+                    );
+                  })}
                 </div>
               </>
             ) : (
               <div className="text-center py-16 text-orange-300">
                 <Calendar size={48} className="mx-auto mb-3 opacity-50" />
-                <p className="font-medium text-orange-400">No recipes selected yet</p>
-                <p className="text-sm mt-1">Search for recipes and add them to your plan</p>
-                <button
-                  onClick={() => setActiveTab("search")}
-                  className="mt-4 px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition"
-                >
+                <p className="font-medium text-orange-400">No recipes in your plan yet</p>
+                <p className="text-sm mt-1">Search for recipes and add them</p>
+                <button onClick={() => setActiveTab("search")}
+                  className="mt-4 px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition">
                   Browse Recipes
                 </button>
               </div>
@@ -620,49 +765,31 @@ export default function App() {
           <div>
             {shoppingList.length > 0 ? (
               <>
-                {/* Progress */}
                 <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <ShoppingCart size={16} className="text-orange-500" />
-                      <span className="text-sm font-semibold text-orange-800">
-                        {shoppingList.length} items
-                      </span>
+                      <span className="text-sm font-semibold text-orange-800">{shoppingList.length} items</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm text-orange-500">
-                        {checkedCount}/{shoppingList.length} checked
-                      </span>
+                      <span className="text-sm text-orange-500">{checkedCount}/{shoppingList.length} checked</span>
                       {checkedCount > 0 && (
-                        <button
-                          onClick={clearCheckedItems}
-                          className="text-xs text-orange-400 hover:text-orange-600 transition"
-                        >
-                          Clear
-                        </button>
+                        <button onClick={clearCheckedItems} className="text-xs text-orange-400 hover:text-orange-600 transition">Clear</button>
                       )}
                     </div>
                   </div>
                   <div className="w-full bg-orange-100 rounded-full h-2">
-                    <div
-                      className="bg-orange-500 h-2 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${(checkedCount / shoppingList.length) * 100}%`,
-                      }}
-                    />
+                    <div className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${shoppingList.length ? (checkedCount / shoppingList.length) * 100 : 0}%` }} />
                   </div>
                   {checkedCount === shoppingList.length && shoppingList.length > 0 && (
-                    <p className="text-center text-sm text-green-600 font-semibold mt-2">
-                      All done! Happy cooking!
-                    </p>
+                    <p className="text-center text-sm text-green-600 font-semibold mt-2">All done! Happy cooking!</p>
                   )}
                 </div>
 
-                {/* Items */}
                 <div className="bg-white rounded-xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
-                  {shoppingList
+                  {[...shoppingList]
                     .sort((a, b) => {
-                      // unchecked first
                       const ac = checkedItems[a.name] ? 1 : 0;
                       const bc = checkedItems[b.name] ? 1 : 0;
                       return ac - bc || a.name.localeCompare(b.name);
@@ -670,42 +797,20 @@ export default function App() {
                     .map((item) => {
                       const checked = !!checkedItems[item.name];
                       return (
-                        <button
-                          key={item.name}
-                          onClick={() => toggleItem(item.name)}
-                          className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-orange-50 transition active:bg-orange-100"
-                        >
-                          <div
-                            className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                              checked
-                                ? "bg-green-500 border-green-500 text-white"
-                                : item.isCustom
-                                ? "border-blue-300"
-                                : "border-orange-300"
-                            }`}
-                          >
+                        <button key={item.name} onClick={() => toggleItem(item.name)}
+                          className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-orange-50 transition active:bg-orange-100">
+                          <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                            checked ? "bg-green-500 border-green-500 text-white" : item.isCustom ? "border-blue-300" : "border-orange-300"}`}>
                             {checked && <Check size={13} />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span
-                              className={`text-sm font-medium transition-all ${
-                                checked ? "line-through text-gray-400" : "text-orange-900"
-                              }`}
-                            >
+                            <span className={`text-sm font-medium transition-all ${checked ? "line-through text-gray-400" : "text-orange-900"}`}>
                               {item.name}
-                              {item.isCustom && (
-                                <span className="ml-1.5 text-xs text-blue-500 font-normal">custom</span>
-                              )}
+                              {item.isCustom && <span className="ml-1.5 text-xs text-blue-500 font-normal">custom</span>}
                             </span>
                           </div>
                           {item.amount && (
-                            <span
-                              className={`text-xs flex-shrink-0 transition-all ${
-                                checked ? "text-gray-300" : "text-orange-500"
-                              }`}
-                            >
-                              {item.amount}
-                            </span>
+                            <span className={`text-xs flex-shrink-0 ${checked ? "text-gray-300" : "text-orange-500"}`}>{item.amount}</span>
                           )}
                         </button>
                       );
@@ -716,11 +821,9 @@ export default function App() {
               <div className="text-center py-16 text-orange-300">
                 <ShoppingCart size={48} className="mx-auto mb-3 opacity-50" />
                 <p className="font-medium text-orange-400">Your shopping list is empty</p>
-                <p className="text-sm mt-1">Select recipes to build your shopping list</p>
-                <button
-                  onClick={() => setActiveTab("search")}
-                  className="mt-4 px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition"
-                >
+                <p className="text-sm mt-1">Select recipes to build your list</p>
+                <button onClick={() => setActiveTab("search")}
+                  className="mt-4 px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition">
                   Find Recipes
                 </button>
               </div>
@@ -729,26 +832,17 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom tab navigation */}
+      {/* Bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/90 backdrop-blur-md border-t border-orange-100 safe-bottom">
         <div className="max-w-2xl mx-auto flex items-stretch">
           {[
-            { id: "search", icon: Search, label: "Search" },
-            { id: "recipes", icon: Calendar, label: "Recipes", badge: selectedRecipes.length },
-            {
-              id: "shopping",
-              icon: ShoppingCart,
-              label: "Shopping",
-              badge: shoppingList.length > 0 ? shoppingList.length - checkedCount || null : null,
-            },
+            { id: "search",   icon: Search,       label: "Search" },
+            { id: "recipes",  icon: Calendar,     label: "Recipes",  badge: selectedIds.size },
+            { id: "shopping", icon: ShoppingCart, label: "Shopping", badge: shoppingList.length > 0 ? shoppingList.length - checkedCount || null : null },
           ].map(({ id, icon: Icon, label, badge }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
+            <button key={id} onClick={() => setActiveTab(id)}
               className={`flex-1 flex flex-col items-center justify-center py-3 gap-0.5 transition-all relative ${
-                activeTab === id ? "text-orange-600" : "text-gray-400 hover:text-orange-400"
-              }`}
-            >
+                activeTab === id ? "text-orange-600" : "text-gray-400 hover:text-orange-400"}`}>
               {activeTab === id && (
                 <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-orange-500 rounded-full" />
               )}
