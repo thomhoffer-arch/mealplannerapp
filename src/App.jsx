@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, Calendar, ChevronDown, ChevronUp,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles, Star,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles, Star, Package,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
@@ -85,6 +85,40 @@ function FilterSection({ title, options, selected, onToggle }) {
   );
 }
 
+function WeeklyNutritionCard({ recipes }) {
+  const totals = recipes.reduce(
+    (acc, r) => {
+      const s = r.servings || 1;
+      acc.calories += (r.macros?.calories || 0) * s;
+      acc.protein  += (r.macros?.protein  || 0) * s;
+      acc.carbs    += (r.macros?.carbs    || 0) * s;
+      acc.fat      += (r.macros?.fat      || 0) * s;
+      return acc;
+    },
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+  const hasData = totals.calories > 0 || totals.protein > 0;
+  if (!hasData) return null;
+  return (
+    <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
+      <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">Weekly nutrition total</p>
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { label: "Calories", value: Math.round(totals.calories), unit: "" },
+          { label: "Protein",  value: Math.round(totals.protein),  unit: "g" },
+          { label: "Carbs",    value: Math.round(totals.carbs),    unit: "g" },
+          { label: "Fat",      value: Math.round(totals.fat),      unit: "g" },
+        ].map(({ label, value, unit }) => (
+          <div key={label} className="bg-orange-50 rounded-lg p-2 text-center">
+            <p className="text-sm font-bold text-orange-900">{value}{unit}</p>
+            <p className="text-xs text-orange-500">{label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RecipeCard({ recipe, isSelected, isStarred, onToggleSelect, onToggleStar }) {
   return (
     <div className={`rounded-xl border-2 p-4 transition-all ${isSelected ? "border-orange-400 bg-orange-50" : "border-orange-100 bg-white"}`}>
@@ -133,6 +167,7 @@ function SelectedRecipeCard({
   recipe, expanded, onToggleExpand, onToggleCooked, isCooked,
   customIngredients, onAddCustom, onRemoveCustom, onRemove,
   newIngredientInput, onInputChange, preferences, starredRecipes, onAcceptSubstitution,
+  rating,
 }) {
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
@@ -185,6 +220,9 @@ function SelectedRecipeCard({
             <h3 className={`font-semibold text-base leading-snug ${isCooked ? "line-through text-gray-500" : "text-orange-900"}`}>
               {recipe.name}
             </h3>
+            {rating && (
+              <p className="text-xs mt-0.5">{"⭐".repeat(rating)}</p>
+            )}
           </div>
           <button
             onClick={() => onToggleExpand(rid)}
@@ -360,6 +398,9 @@ export default function App() {
   const [recipes, setRecipes] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchTimer = useRef(null);
+  const [importUrl, setImportUrl] = useState("");
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState("");
 
   // ── Supabase-backed shared state
   const [mealPlanItems, setMealPlanItems] = useState([]);   // [{ id, recipe_id, recipe_data }]
@@ -367,6 +408,13 @@ export default function App() {
   const [cookedRecipes, setCookedRecipes] = useState({});   // { recipe_id: true }
   const [checkedItems, setCheckedItems] = useState({});     // { item_name: true }
   const [starredItems, setStarredItems] = useState([]);     // [{ recipe_id, recipe_data }]
+  const [recipeRatings, setRecipeRatings] = useState({});  // { recipe_id: 1-5 }
+  const [ratingPrompt, setRatingPrompt] = useState(null);  // recipe_id awaiting rating
+  const [pantryItems, setPantryItems] = useState([]);      // [{ id, name, amount }]
+  const [pantryInput, setPantryInput] = useState("");
+  const [templates, setTemplates] = useState([]);          // [{ id, name, recipes }]
+  const [templateName, setTemplateName] = useState("");
+  const [showTemplates, setShowTemplates] = useState(false);
 
   // ── Local UI state
   const [expandedRecipes, setExpandedRecipes] = useState({});
@@ -424,6 +472,8 @@ export default function App() {
     loadCheckedItems();
     loadPreferences();
     loadStarred();
+    loadPantry();
+    loadTemplates();
 
     const channel = supabase
       .channel(`hh-${household.id}`)
@@ -432,6 +482,7 @@ export default function App() {
       .on("postgres_changes", { event: "*", schema: "public", table: "cooked_recipes",     filter: `household_id=eq.${household.id}` }, loadCookedRecipes)
       .on("postgres_changes", { event: "*", schema: "public", table: "shopping_checks",    filter: `household_id=eq.${household.id}` }, loadCheckedItems)
       .on("postgres_changes", { event: "*", schema: "public", table: "starred_recipes",    filter: `household_id=eq.${household.id}` }, loadStarred)
+      .on("postgres_changes", { event: "*", schema: "public", table: "pantry_items",       filter: `household_id=eq.${household.id}` }, loadPantry)
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -457,10 +508,14 @@ export default function App() {
 
   async function loadCookedRecipes() {
     const { data } = await supabase
-      .from("cooked_recipes").select("recipe_id").eq("household_id", household.id);
-    const map = {};
-    (data || []).forEach((r) => { map[r.recipe_id] = true; });
-    setCookedRecipes(map);
+      .from("cooked_recipes").select("recipe_id, rating").eq("household_id", household.id);
+    const cooked = {}, ratings = {};
+    (data || []).forEach((r) => {
+      cooked[r.recipe_id] = true;
+      if (r.rating) ratings[r.recipe_id] = r.rating;
+    });
+    setCookedRecipes(cooked);
+    setRecipeRatings(ratings);
   }
 
   async function loadCheckedItems() {
@@ -494,6 +549,65 @@ export default function App() {
     setStarredItems(data || []);
   }
 
+  async function loadPantry() {
+    const { data } = await supabase
+      .from("pantry_items").select("id, name, amount").eq("household_id", household.id).order("added_at");
+    setPantryItems(data || []);
+  }
+
+  async function addPantryItem() {
+    const raw = pantryInput.trim();
+    if (!raw) return;
+    const match = raw.match(/^([\d.]+\s*(?:g|kg|ml|l|tsp|tbsp|cup|cups|oz|lb|pieces?|slices?|handful|pinch)\s*)/i);
+    let amount = "", name = raw;
+    if (match) { amount = match[0].trim(); name = raw.slice(match[0].length).trim() || raw; }
+    await supabase.from("pantry_items").insert({ household_id: household.id, name, amount });
+    setPantryInput("");
+  }
+
+  async function removePantryItem(id) {
+    await supabase.from("pantry_items").delete().eq("id", id);
+  }
+
+  async function loadTemplates() {
+    const { data } = await supabase
+      .from("plan_templates").select("id, name, recipes").eq("household_id", household.id).order("created_at");
+    setTemplates(data || []);
+  }
+
+  async function saveTemplate() {
+    const name = templateName.trim();
+    if (!name || selectedRecipeObjects.length === 0) return;
+    await supabase.from("plan_templates").insert({
+      household_id: household.id,
+      name,
+      recipes: selectedRecipeObjects,
+    });
+    setTemplateName("");
+    setShowTemplates(false);
+    await loadTemplates();
+  }
+
+  async function loadTemplate(template) {
+    // Clear current plan and load template recipes
+    for (const item of mealPlanItems) {
+      await supabase.from("meal_plan_items").delete().eq("id", item.id);
+    }
+    for (const recipe of template.recipes) {
+      await supabase.from("meal_plan_items").insert({
+        household_id: household.id,
+        recipe_id: String(recipe.id),
+        recipe_data: recipe,
+      });
+    }
+    setShowTemplates(false);
+  }
+
+  async function deleteTemplate(id) {
+    await supabase.from("plan_templates").delete().eq("id", id);
+    await loadTemplates();
+  }
+
   async function toggleStar(recipe) {
     const rid = String(recipe.id);
     const isStarred = starredItems.some((s) => s.recipe_id === rid);
@@ -518,6 +632,31 @@ export default function App() {
   }
 
   // ── Recipe search ─────────────────────────────────────────────────────────
+  async function importFromUrl() {
+    const url = importUrl.trim();
+    if (!url) return;
+    setImportLoading(true);
+    setImportError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/recipes/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      // Add directly to meal plan
+      await toggleSelectedRecipe(data);
+      setImportUrl("");
+      setActiveTab("recipes");
+    } catch (err) {
+      setImportError(err.message || 'Could not import recipe');
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
   const fetchRecipes = useCallback(async (query, filters) => {
     const hasFilters = Object.values(filters).some((f) => f.length > 0);
     if (!query.trim() && !hasFilters) { setRecipes([]); return; }
@@ -565,7 +704,16 @@ export default function App() {
         .eq("household_id", household.id).eq("recipe_id", rid);
     } else {
       await supabase.from("cooked_recipes").insert({ household_id: household.id, recipe_id: rid });
+      setRatingPrompt(rid);
     }
+  }
+
+  async function saveRating(rid, stars) {
+    setRatingPrompt(null);
+    setRecipeRatings((prev) => ({ ...prev, [rid]: stars }));
+    await supabase.from("cooked_recipes")
+      .update({ rating: stars })
+      .eq("household_id", household.id).eq("recipe_id", rid);
   }
 
   // ── Custom ingredient handlers ────────────────────────────────────────────
@@ -623,7 +771,9 @@ export default function App() {
   const selectedIds = new Set(mealPlanItems.map((i) => i.recipe_id));
   const starredIds = new Set(starredItems.map((s) => s.recipe_id));
   const starredRecipes = starredItems.map((s) => s.recipe_data);
-  const shoppingList = consolidateIngredients(selectedRecipeObjects, customIngredients);
+  const pantryNames = new Set(pantryItems.map((p) => p.name.toLowerCase().trim()));
+  const shoppingList = consolidateIngredients(selectedRecipeObjects, customIngredients)
+    .map((item) => ({ ...item, inPantry: pantryNames.has(item.name.toLowerCase().trim()) }));
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
   const totalFiltersActive = Object.values(selectedFilters).reduce((s, f) => s + f.length, 0);
 
@@ -720,6 +870,29 @@ export default function App() {
         />
       )}
 
+      {/* Post-cook rating prompt */}
+      {ratingPrompt && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 text-center">
+            <p className="text-2xl mb-2">🍽️</p>
+            <h3 className="text-base font-bold text-orange-900 mb-1">How was it?</h3>
+            <p className="text-xs text-orange-400 mb-4">Rate the recipe to help your household remember the winners.</p>
+            <div className="flex justify-center gap-2 mb-4">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button key={s} onClick={() => saveRating(ratingPrompt, s)}
+                  className="text-3xl hover:scale-110 transition-transform">
+                  ⭐
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setRatingPrompt(null)}
+              className="text-xs text-orange-400 hover:text-orange-600 transition">
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main content */}
       <main className="max-w-2xl mx-auto px-4 pt-4 pb-28">
 
@@ -735,6 +908,27 @@ export default function App() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300 text-base"
               />
+            </div>
+
+            {/* URL import */}
+            <div className="bg-white rounded-xl border border-orange-100 p-3 mb-4">
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Import from any website</p>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  placeholder="Paste a recipe URL…"
+                  value={importUrl}
+                  onChange={(e) => { setImportUrl(e.target.value); setImportError(""); }}
+                  onKeyDown={(e) => e.key === "Enter" && importFromUrl()}
+                  className="flex-1 border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                />
+                <button onClick={importFromUrl} disabled={importLoading || !importUrl.trim()}
+                  className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
+                  <Link2 size={14} />
+                  {importLoading ? "Importing…" : "Import"}
+                </button>
+              </div>
+              {importError && <p className="text-xs text-red-500 mt-1.5">{importError}</p>}
             </div>
 
             <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
@@ -783,11 +977,68 @@ export default function App() {
         {/* ── RECIPES TAB ── */}
         {activeTab === "recipes" && (
           <div>
+            {/* Templates panel */}
+            <div className="mb-4">
+              <button onClick={() => setShowTemplates((v) => !v)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-800 transition">
+                <Calendar size={13} />
+                {showTemplates ? "Hide templates" : "Saved week templates"}
+                {showTemplates ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </button>
+
+              {showTemplates && (
+                <div className="mt-2 bg-white rounded-xl border border-orange-100 p-4 space-y-3">
+                  {templates.length > 0 && (
+                    <div className="space-y-2">
+                      {templates.map((t) => (
+                        <div key={t.id} className="flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2">
+                          <div>
+                            <p className="text-sm font-semibold text-orange-900">{t.name}</p>
+                            <p className="text-xs text-orange-400">{t.recipes.length} recipe{t.recipes.length !== 1 ? "s" : ""}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => loadTemplate(t)}
+                              className="text-xs px-2.5 py-1 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition">
+                              Load
+                            </button>
+                            <button onClick={() => deleteTemplate(t.id)}
+                              className="text-orange-300 hover:text-red-400 transition">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {selectedRecipeObjects.length > 0 && (
+                    <div className="flex gap-2 pt-1">
+                      <input
+                        type="text"
+                        placeholder="Name this week (e.g. "Light summer week")"
+                        value={templateName}
+                        onChange={(e) => setTemplateName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && saveTemplate()}
+                        className="flex-1 border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                      />
+                      <button onClick={saveTemplate} disabled={!templateName.trim()}
+                        className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
+                        Save
+                      </button>
+                    </div>
+                  )}
+                  {templates.length === 0 && selectedRecipeObjects.length === 0 && (
+                    <p className="text-xs text-orange-400">Add recipes to your plan, then save the week as a template to reuse later.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {selectedRecipeObjects.length > 0 ? (
               <>
                 <p className="text-sm text-orange-600 font-medium mb-3">
                   {selectedRecipeObjects.length} recipe{selectedRecipeObjects.length !== 1 ? "s" : ""} in your meal plan
                 </p>
+                <WeeklyNutritionCard recipes={selectedRecipeObjects} />
                 <div className="space-y-3">
                   {selectedRecipeObjects.map((recipe) => {
                     const rid = String(recipe.id);
@@ -808,6 +1059,7 @@ export default function App() {
                         preferences={preferences}
                         starredRecipes={starredRecipes}
                         onAcceptSubstitution={acceptSubstitution}
+                        rating={recipeRatings[rid] || null}
                       />
                     );
                   })}
@@ -864,16 +1116,17 @@ export default function App() {
                     .map((item) => {
                       const checked = !!checkedItems[item.name];
                       return (
-                        <button key={item.name} onClick={() => toggleItem(item.name)}
-                          className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-orange-50 transition active:bg-orange-100">
+                        <button key={item.name} onClick={() => !item.inPantry && toggleItem(item.name)}
+                          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
                           <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                            checked ? "bg-green-500 border-green-500 text-white" : item.isCustom ? "border-blue-300" : "border-orange-300"}`}>
-                            {checked && <Check size={13} />}
+                            item.inPantry ? "bg-gray-100 border-gray-200" : checked ? "bg-green-500 border-green-500 text-white" : item.isCustom ? "border-blue-300" : "border-orange-300"}`}>
+                            {(checked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-gray-400" : ""} />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span className={`text-sm font-medium transition-all ${checked ? "line-through text-gray-400" : "text-orange-900"}`}>
+                            <span className={`text-sm font-medium transition-all ${checked || item.inPantry ? "line-through text-gray-400" : "text-orange-900"}`}>
                               {item.name}
                               {item.isCustom && <span className="ml-1.5 text-xs text-blue-500 font-normal">custom</span>}
+                              {item.inPantry && <span className="ml-1.5 text-xs text-gray-400 font-normal">in pantry</span>}
                             </span>
                           </div>
                           {item.amount && (
@@ -897,6 +1150,52 @@ export default function App() {
             )}
           </div>
         )}
+        {/* ── PANTRY TAB ── */}
+        {activeTab === "pantry" && (
+          <div>
+            <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">What's already at home</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. 500g pasta, olive oil…"
+                  value={pantryInput}
+                  onChange={(e) => setPantryInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addPantryItem()}
+                  className="flex-1 border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                />
+                <button onClick={addPantryItem} disabled={!pantryInput.trim()}
+                  className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
+                  Add
+                </button>
+              </div>
+              <p className="text-xs text-orange-400 mt-2">Items here are skipped (greyed out) in your shopping list.</p>
+            </div>
+
+            {pantryItems.length > 0 ? (
+              <div className="bg-white rounded-xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+                {pantryItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <span className="text-sm font-medium text-orange-900">{item.name}</span>
+                      {item.amount && <span className="text-xs text-orange-400 ml-2">{item.amount}</span>}
+                    </div>
+                    <button onClick={() => removePantryItem(item.id)}
+                      className="text-orange-300 hover:text-red-400 transition ml-3">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 text-orange-300">
+                <Package size={48} className="mx-auto mb-3 opacity-50" />
+                <p className="font-medium text-orange-400">Your pantry is empty</p>
+                <p className="text-sm mt-1">Add ingredients you already have at home</p>
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       <InstallBanner />
@@ -907,7 +1206,8 @@ export default function App() {
           {[
             { id: "search",   icon: Search,       label: "Search" },
             { id: "recipes",  icon: Calendar,     label: "Recipes",  badge: selectedIds.size },
-            { id: "shopping", icon: ShoppingCart, label: "Shopping", badge: shoppingList.length > 0 ? shoppingList.length - checkedCount || null : null },
+            { id: "shopping", icon: ShoppingCart, label: "Shopping", badge: shoppingList.filter((i) => !i.inPantry).length - checkedCount > 0 ? shoppingList.filter((i) => !i.inPantry).length - checkedCount : null },
+            { id: "pantry",   icon: Package,      label: "Pantry",   badge: pantryItems.length || null },
           ].map(({ id, icon: Icon, label, badge }) => (
             <button key={id} onClick={() => setActiveTab(id)}
               className={`flex-1 flex flex-col items-center justify-center py-3 gap-0.5 transition-all relative ${

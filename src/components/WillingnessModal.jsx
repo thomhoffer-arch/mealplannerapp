@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { X, Sparkles, ChevronRight, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
-const PRICE_OPTIONS = ['€2 / month', '€5 / month', '€10 / month', '€15+ / month'];
+// Anchored to real competitor pricing: Mealime €2.99, Plan to Eat €5.49, Samsung Food €6.49
+const PRICE_OPTIONS = ['€1–2 / month', '€3–4 / month', '€5–7 / month', '€8+ / month'];
 
 export default function WillingnessModal({ household, onClose }) {
   const [step, setStep] = useState('intro');   // 'intro' | 'price' | 'done'
