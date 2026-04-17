@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, Calendar, ChevronDown, ChevronUp,
-  Check, Plus, X, Trash2, LogOut, Link2, Users,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
+import PreferencesModal from "./components/PreferencesModal";
 
 // ─── Filter configuration ─────────────────────────────────────────────────────
 const FILTERS = {
@@ -118,10 +119,32 @@ function RecipeCard({ recipe, isSelected, onToggleSelect }) {
 function SelectedRecipeCard({
   recipe, expanded, onToggleExpand, onToggleCooked, isCooked,
   customIngredients, onAddCustom, onRemoveCustom, onRemove,
-  newIngredientInput, onInputChange,
+  newIngredientInput, onInputChange, preferences, onAcceptSubstitution,
 }) {
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
+  const [aiError, setAiError] = useState(null);
+
+  async function fetchSuggestions() {
+    setAiLoading(true);
+    setAiError(null);
+    setAiResult(null);
+    try {
+      const res = await fetch('/api/ai/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipe, preferences }),
+      });
+      if (!res.ok) throw new Error('AI request failed');
+      setAiResult(await res.json());
+    } catch {
+      setAiError('Could not get suggestions. Try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  }
   return (
     <div className={`rounded-xl border-2 transition-all ${isCooked ? "border-green-300 bg-green-50 opacity-80" : "border-orange-100 bg-white"}`}>
       <div className="p-4">
@@ -231,6 +254,60 @@ function SelectedRecipeCard({
             )}
           </div>
 
+          {/* AI adaptation */}
+          <div className="rounded-xl border border-purple-100 bg-purple-50 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Adapt for your household</p>
+              <button
+                onClick={fetchSuggestions}
+                disabled={aiLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-white rounded-lg text-xs font-medium hover:bg-purple-600 transition disabled:opacity-50"
+              >
+                <Sparkles size={12} />
+                {aiLoading ? "Thinking…" : aiResult ? "Refresh" : "Suggest adaptations"}
+              </button>
+            </div>
+
+            {aiError && <p className="text-xs text-red-500">{aiError}</p>}
+
+            {aiResult && (
+              <div className="space-y-2 mt-1">
+                {aiResult.suitable && !aiResult.substitutions?.length ? (
+                  <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
+                    This recipe already fits your household preferences.
+                    {aiResult.tips && <span className="block mt-1 text-green-600">{aiResult.tips}</span>}
+                  </p>
+                ) : (
+                  <>
+                    {(aiResult.issues || []).length > 0 && (
+                      <div className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 space-y-0.5">
+                        {aiResult.issues.map((issue, i) => (
+                          <p key={i}>⚠ {issue}</p>
+                        ))}
+                      </div>
+                    )}
+                    {(aiResult.substitutions || []).map((sub, i) => (
+                      <div key={i} className="bg-white rounded-lg border border-purple-100 px-3 py-2">
+                        <p className="text-xs text-gray-400 line-through">{sub.original}</p>
+                        <p className="text-sm font-medium text-purple-900">{sub.replacement}</p>
+                        <p className="text-xs text-purple-500 mt-0.5">{sub.reason}</p>
+                        <button
+                          onClick={() => onAcceptSubstitution(rid, sub)}
+                          className="mt-1.5 text-xs text-purple-600 font-semibold hover:text-purple-800 transition"
+                        >
+                          + Add as note
+                        </button>
+                      </div>
+                    ))}
+                    {aiResult.tips && (
+                      <p className="text-xs text-purple-600 italic px-1">{aiResult.tips}</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => onRemove(recipe)}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-red-200 text-red-500 hover:bg-red-50 transition text-sm font-medium"
@@ -252,6 +329,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [preferences, setPreferences] = useState({});
 
   // ── Search state
   const [activeTab, setActiveTab] = useState("search");
@@ -321,6 +400,7 @@ export default function App() {
     loadCustomIngredients();
     loadCookedRecipes();
     loadCheckedItems();
+    loadPreferences();
 
     const channel = supabase
       .channel(`hh-${household.id}`)
@@ -365,6 +445,22 @@ export default function App() {
     const map = {};
     (data || []).forEach((r) => { map[r.item_name] = true; });
     setCheckedItems(map);
+  }
+
+  async function loadPreferences() {
+    const { data } = await supabase
+      .from("household_preferences").select("*").eq("household_id", household.id).single();
+    setPreferences(data || {});
+  }
+
+  // Accept an AI substitution — saves it as a custom ingredient note on the recipe
+  async function acceptSubstitution(rid, sub) {
+    await supabase.from("custom_ingredients").insert({
+      household_id: household.id,
+      recipe_id: rid,
+      name: sub.replacement,
+      amount: `replaces: ${sub.original}`,
+    });
   }
 
   // ── Recipe search ─────────────────────────────────────────────────────────
@@ -532,6 +628,14 @@ export default function App() {
                 </div>
               )}
             </div>
+            {/* Preferences */}
+            <button
+              onClick={() => setShowPreferences(true)}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
+              title="Household preferences"
+            >
+              <Settings size={18} />
+            </button>
             {/* Sign out */}
             <button
               onClick={() => supabase.auth.signOut()}
@@ -543,6 +647,14 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Preferences modal */}
+      {showPreferences && (
+        <PreferencesModal
+          household={household}
+          onClose={() => { setShowPreferences(false); loadPreferences(); }}
+        />
+      )}
 
       {/* Main content */}
       <main className="max-w-2xl mx-auto px-4 pt-4 pb-28">
@@ -627,6 +739,8 @@ export default function App() {
                         onRemove={toggleSelectedRecipe}
                         newIngredientInput={newIngredientInput}
                         onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
+                        preferences={preferences}
+                        onAcceptSubstitution={acceptSubstitution}
                       />
                     );
                   })}
