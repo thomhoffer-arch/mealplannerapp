@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, Calendar, ChevronDown, ChevronUp,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles, Star, Package,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles, Star, Package, PenLine,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
 import PreferencesModal from "./components/PreferencesModal";
 import WillingnessModal from "./components/WillingnessModal";
 import InstallBanner from "./components/InstallBanner";
+import CreateRecipeModal from "./components/CreateRecipeModal";
+import StarredPanel from "./components/StarredPanel";
+import WeekSuggestModal from "./components/WeekSuggestModal";
 
 // ─── Filter configuration ─────────────────────────────────────────────────────
 const FILTERS = {
@@ -18,10 +21,13 @@ const FILTERS = {
 };
 
 const SOURCE_COLORS = {
-  HelloFresh:    "bg-green-100 text-green-700",
-  "Marley Spoon":"bg-purple-100 text-purple-700",
-  "NYT Cooking": "bg-red-100 text-red-700",
-  Spoonacular:   "bg-blue-100 text-blue-700",
+  HelloFresh:      "bg-green-100 text-green-700",
+  "Marley Spoon":  "bg-purple-100 text-purple-700",
+  "NYT Cooking":   "bg-red-100 text-red-700",
+  Spoonacular:     "bg-blue-100 text-blue-700",
+  "My Recipes":    "bg-amber-100 text-amber-700",
+  "AI Suggestion": "bg-purple-100 text-purple-600",
+  "Web import":    "bg-gray-100 text-gray-600",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -389,6 +395,10 @@ export default function App() {
   const [inviteCopied, setInviteCopied] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
+  const [showCreateRecipe, setShowCreateRecipe] = useState(false);
+  const [showStarred, setShowStarred] = useState(false);
+  const [showWeekSuggest, setShowWeekSuggest] = useState(false);
+  const [showReminderBanner, setShowReminderBanner] = useState(false);
   const [preferences, setPreferences] = useState({});
 
   // ── Search state
@@ -407,7 +417,8 @@ export default function App() {
   const [customIngredients, setCustomIngredients] = useState({});  // { recipe_id: [{id,name,amount}] }
   const [cookedRecipes, setCookedRecipes] = useState({});   // { recipe_id: true }
   const [checkedItems, setCheckedItems] = useState({});     // { item_name: true }
-  const [starredItems, setStarredItems] = useState([]);     // [{ recipe_id, recipe_data }]
+  const [starredItems, setStarredItems] = useState([]);     // [{ recipe_id, recipe_data, rotation_priority }]
+  const [userRecipes, setUserRecipes] = useState([]);       // household-created recipes
   const [recipeRatings, setRecipeRatings] = useState({});  // { recipe_id: 1-5 }
   const [ratingPrompt, setRatingPrompt] = useState(null);  // recipe_id awaiting rating
   const [pantryItems, setPantryItems] = useState([]);      // [{ id, name, amount }]
@@ -474,6 +485,7 @@ export default function App() {
     loadStarred();
     loadPantry();
     loadTemplates();
+    loadUserRecipes();
 
     const channel = supabase
       .channel(`hh-${household.id}`)
@@ -483,6 +495,7 @@ export default function App() {
       .on("postgres_changes", { event: "*", schema: "public", table: "shopping_checks",    filter: `household_id=eq.${household.id}` }, loadCheckedItems)
       .on("postgres_changes", { event: "*", schema: "public", table: "starred_recipes",    filter: `household_id=eq.${household.id}` }, loadStarred)
       .on("postgres_changes", { event: "*", schema: "public", table: "pantry_items",       filter: `household_id=eq.${household.id}` }, loadPantry)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_recipes",       filter: `household_id=eq.${household.id}` }, loadUserRecipes)
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -543,10 +556,39 @@ export default function App() {
     }
   }, [user, household, preferences.survey_completed_at, mealPlanItems.length, cookedRecipes]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Planning reminder ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!preferences.reminder_enabled || !preferences.reminder_day) return;
+    const todayName = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"][new Date().getDay()];
+    if (todayName !== preferences.reminder_day) return;
+    // Only show once per day (use ISO date as key)
+    const today = new Date().toISOString().slice(0, 10);
+    const dismissKey = `reminder_dismissed_${today}`;
+    if (localStorage.getItem(dismissKey)) return;
+    // Check if plan was already updated this week
+    const mostRecent = mealPlanItems[mealPlanItems.length - 1];
+    const daysSinceLastPlan = mostRecent
+      ? (Date.now() - new Date(mostRecent.added_at)) / (1000 * 60 * 60 * 24)
+      : 999;
+    if (daysSinceLastPlan >= 6) {
+      setShowReminderBanner(true);
+    }
+  }, [preferences.reminder_enabled, preferences.reminder_day, mealPlanItems]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function loadStarred() {
     const { data } = await supabase
-      .from("starred_recipes").select("recipe_id, recipe_data").eq("household_id", household.id);
+      .from("starred_recipes").select("recipe_id, recipe_data, rotation_priority").eq("household_id", household.id);
     setStarredItems(data || []);
+  }
+
+  async function loadUserRecipes() {
+    const { data } = await supabase
+      .from("user_recipes").select("*").eq("household_id", household.id).order("created_at");
+    setUserRecipes((data || []).map((r) => ({
+      id: r.id, name: r.name, source: "My Recipes", overview: r.overview,
+      prepTime: r.prep_time, cookTime: r.cook_time, servings: r.servings,
+      ingredients: r.ingredients, steps: r.steps, keywords: [], macros: {},
+    })));
   }
 
   async function loadPantry() {
@@ -842,6 +884,19 @@ export default function App() {
             >
               <Settings size={18} />
             </button>
+            {/* Starred recipes panel */}
+            <button
+              onClick={() => setShowStarred(true)}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition relative"
+              title="Starred recipes"
+            >
+              <Star size={18} />
+              {starredItems.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-amber-400 rounded-full text-white text-[9px] font-bold flex items-center justify-center">
+                  {starredItems.length}
+                </span>
+              )}
+            </button>
             {/* Sign out */}
             <button
               onClick={() => supabase.auth.signOut()}
@@ -853,6 +908,30 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Reminder banner */}
+      {showReminderBanner && (
+        <div className="bg-purple-50 border-b border-purple-100 px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+            <p className="text-sm text-purple-800">
+              🗓️ <span className="font-semibold">Time to plan your week!</span> You haven't planned in a while.
+            </p>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button onClick={() => { setShowWeekSuggest(true); setShowReminderBanner(false); }}
+                className="text-xs px-3 py-1.5 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition">
+                Plan now
+              </button>
+              <button onClick={() => {
+                  localStorage.setItem(`reminder_dismissed_${new Date().toISOString().slice(0, 10)}`, '1');
+                  setShowReminderBanner(false);
+                }}
+                className="text-purple-400 hover:text-purple-600 transition">
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Preferences modal */}
       {showPreferences && (
@@ -867,6 +946,39 @@ export default function App() {
         <WillingnessModal
           household={household}
           onClose={() => { setShowSurvey(false); loadPreferences(); }}
+        />
+      )}
+
+      {/* Create recipe modal */}
+      {showCreateRecipe && (
+        <CreateRecipeModal
+          household={household}
+          onClose={() => setShowCreateRecipe(false)}
+          onAddToPlan={toggleSelectedRecipe}
+        />
+      )}
+
+      {/* Starred panel */}
+      {showStarred && (
+        <StarredPanel
+          starredItems={starredItems}
+          household={household}
+          onClose={() => setShowStarred(false)}
+          onAddToPlan={(recipe) => { toggleSelectedRecipe(recipe); setShowStarred(false); setActiveTab("recipes"); }}
+          onUnstar={toggleStar}
+          onPlanWeek={() => { setShowStarred(false); setShowWeekSuggest(true); }}
+        />
+      )}
+
+      {/* AI week suggestion modal */}
+      {showWeekSuggest && (
+        <WeekSuggestModal
+          household={household}
+          onClose={() => setShowWeekSuggest(false)}
+          onLoadPlan={async (recipes) => {
+            for (const recipe of recipes) await toggleSelectedRecipe(recipe);
+            setActiveTab("recipes");
+          }}
         />
       )}
 
@@ -910,9 +1022,15 @@ export default function App() {
               />
             </div>
 
-            {/* URL import */}
+            {/* URL import + manual create */}
             <div className="bg-white rounded-xl border border-orange-100 p-3 mb-4">
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Import from any website</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Import from any website</p>
+                <button onClick={() => setShowCreateRecipe(true)}
+                  className="flex items-center gap-1 text-xs font-semibold text-orange-500 hover:text-orange-700 transition">
+                  <PenLine size={12} /> Create your own
+                </button>
+              </div>
               <div className="flex gap-2">
                 <input
                   type="url"
@@ -949,6 +1067,23 @@ export default function App() {
               ))}
             </div>
 
+            {/* User-created recipes */}
+            {userRecipes.length > 0 && (
+              <div className="mb-4">
+                <p className="text-sm text-orange-600 font-medium mb-2">Your recipes</p>
+                <div className="space-y-3">
+                  {userRecipes.map((recipe) => (
+                    <RecipeCard key={recipe.id} recipe={recipe}
+                      isSelected={selectedIds.has(String(recipe.id))}
+                      isStarred={starredIds.has(String(recipe.id))}
+                      onToggleSelect={toggleSelectedRecipe}
+                      onToggleStar={toggleStar} />
+                  ))}
+                </div>
+                {recipes.length > 0 && <div className="border-t border-orange-100 my-4" />}
+              </div>
+            )}
+
             {searchLoading ? (
               <div className="flex justify-center py-12">
                 <div className="w-7 h-7 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
@@ -977,6 +1112,13 @@ export default function App() {
         {/* ── RECIPES TAB ── */}
         {activeTab === "recipes" && (
           <div>
+            {/* AI week planner button */}
+            <button onClick={() => setShowWeekSuggest(true)}
+              className="w-full mb-3 py-2.5 bg-purple-500 text-white rounded-xl font-semibold text-sm hover:bg-purple-600 transition flex items-center justify-center gap-2">
+              <Sparkles size={14} />
+              Plan my week with AI
+            </button>
+
             {/* Templates panel */}
             <div className="mb-4">
               <button onClick={() => setShowTemplates((v) => !v)}

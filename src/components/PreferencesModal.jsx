@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { X, Check, Eye, EyeOff, Trash2, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function PreferencesModal({ household, onClose }) {
   const [text, setText] = useState('');
   const [keyInput, setKeyInput] = useState('');
-  const [keyHint, setKeyHint] = useState(null);   // e.g. "xK9f" — means a key is stored
+  const [keyHint, setKeyHint] = useState(null);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderDay, setReminderDay] = useState('sunday');
+  const [savingReminder, setSavingReminder] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [keyError, setKeyError] = useState('');
   const [savingPrefs, setSavingPrefs] = useState(false);
@@ -16,13 +19,15 @@ export default function PreferencesModal({ household, onClose }) {
   useEffect(() => {
     supabase
       .from('household_preferences')
-      .select('preferences_text, gemini_api_key_hint')
+      .select('preferences_text, gemini_api_key_hint, reminder_enabled, reminder_day')
       .eq('household_id', household.id)
       .single()
       .then(({ data }) => {
         if (data) {
           setText(data.preferences_text || '');
           setKeyHint(data.gemini_api_key_hint || null);
+          setReminderEnabled(data.reminder_enabled || false);
+          setReminderDay(data.reminder_day || 'sunday');
         }
       });
   }, [household.id]);
@@ -57,6 +62,15 @@ export default function PreferencesModal({ household, onClose }) {
     setKeyInput('');
     setSavedKey(true);
     setTimeout(() => setSavedKey(false), 2000);
+  }
+
+  async function handleSaveReminder() {
+    setSavingReminder(true);
+    await supabase.from('household_preferences').upsert(
+      { household_id: household.id, reminder_enabled: reminderEnabled, reminder_day: reminderDay, updated_at: new Date().toISOString() },
+      { onConflict: 'household_id' }
+    );
+    setSavingReminder(false);
   }
 
   async function handleRemoveKey() {
@@ -102,6 +116,39 @@ export default function PreferencesModal({ household, onClose }) {
             <button onClick={handleSavePrefs} disabled={savingPrefs}
               className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
               {savedPrefs ? <><Check size={14} /> Saved</> : savingPrefs ? 'Saving…' : 'Save preferences'}
+            </button>
+          </div>
+
+          {/* ── Planning reminder ── */}
+          <div className="space-y-2 border-t border-orange-100 pt-4">
+            <div className="flex items-center gap-2">
+              <Bell size={14} className="text-orange-600" />
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Weekly planning reminder</p>
+            </div>
+            <p className="text-xs text-orange-400">Get an in-app nudge on your chosen day when you haven't planned yet.</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-orange-800 font-medium">Enable reminder</span>
+              <button
+                onClick={() => setReminderEnabled((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${reminderEnabled ? 'bg-orange-500' : 'bg-orange-200'}`}
+              >
+                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${reminderEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            {reminderEnabled && (
+              <select
+                value={reminderDay}
+                onChange={(e) => setReminderDay(e.target.value)}
+                className="w-full border border-orange-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 text-orange-900 bg-white"
+              >
+                {['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map((d) => (
+                  <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
+                ))}
+              </select>
+            )}
+            <button onClick={handleSaveReminder} disabled={savingReminder}
+              className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm">
+              {savingReminder ? 'Saving…' : 'Save reminder'}
             </button>
           </div>
 
