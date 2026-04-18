@@ -1160,7 +1160,7 @@ export default function App() {
                     <div className="flex gap-2 pt-1">
                       <input
                         type="text"
-                        placeholder="Name this week (e.g. "Light summer week")"
+                        placeholder={'Name this week (e.g. "Light summer week")'}
                         value={templateName}
                         onChange={(e) => setTemplateName(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && saveTemplate()}
