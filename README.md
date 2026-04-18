@@ -28,7 +28,7 @@ A collaborative household meal planning PWA built with React, Tailwind CSS, Supa
 ## Architecture
 
 ```
-React 18 + Tailwind CSS (Create React App)
+React 18 + Tailwind CSS (Vite)
   └── Vercel (hosting + serverless functions in /api/)
         └── Supabase (PostgreSQL + Auth + Realtime + Row Level Security)
               └── Gemini 2.5 Flash (AI: recipe import, adaptation, week planning)
@@ -128,6 +128,30 @@ The frontend is built with **Vite** and runs at `http://localhost:3000`. API req
 
 ---
 
+## Third-party services
+
+You need accounts on these services before the app works. Free tiers are sufficient for personal use.
+
+| Service | Required? | What it's for | Free tier | Sign up |
+|---|---|---|---|---|
+| **Vercel** | yes | Hosting, serverless functions, cron | Hobby plan is free | [vercel.com/signup](https://vercel.com/signup) |
+| **Supabase** | yes | Postgres DB, auth, realtime, storage | 2 projects, 500 MB DB | [supabase.com](https://supabase.com) |
+| **Google AI Studio (Gemini)** | yes | Recipe import, recipe adaptation, week planning | 1,500 free requests/day on Gemini Flash | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) |
+| **Spoonacular** | recommended | External recipe search | 150 requests/day | [spoonacular.com/food-api](https://spoonacular.com/food-api) |
+| **GitHub** | yes | Source hosting (Vercel deploys from it) | Free for private repos | [github.com](https://github.com) |
+| **Domain registrar** | optional | Custom domain (e.g. `meals.thomhoffer.nl`) | N/A — you already own `thomhoffer.nl` | — |
+
+### Setup order
+
+1. **GitHub** — push the repo so Vercel can import it.
+2. **Supabase** — create a project, then run the SQL from `supabase/` (see "Database schema" section). Copy the project URL, `anon` key, and `service_role` key.
+3. **Google AI Studio** — create an API key. One key per Google account.
+4. **Spoonacular** — optional but recommended; sign up, copy the API key from your profile.
+5. **Vercel** — import the GitHub repo as a new project, paste env vars during import (see below).
+6. **Domain** (optional) — add `meals.thomhoffer.nl` in Vercel, then create a CNAME at your registrar (see "Custom domain" section).
+
+---
+
 ## Environment variables
 
 The app uses two groups of env vars: **client-side** (exposed to the browser bundle, prefixed `VITE_`) and **server-side** (used only by `/api/*` serverless functions, never shipped to the browser).
@@ -156,6 +180,41 @@ The app uses two groups of env vars: **client-side** (exposed to the browser bun
 4. After editing vars on a project that's already deployed, trigger a **Redeploy** (Deployments tab → `⋯` menu → Redeploy) so the build picks them up.
 
 **Important:** `VITE_*` vars get inlined into the JS bundle at build time. Never put secrets in them — anything `VITE_`-prefixed is public. Secrets go in the server-side vars only.
+
+---
+
+## Custom domain
+
+The app is currently reachable at `meals.thomhoffer.nl` (subdomain of the owner's root domain). To set up a custom subdomain on your own Vercel project:
+
+### 1. Add the domain in Vercel
+
+1. **Project → Settings → Domains**
+2. Enter the subdomain you want (e.g. `meals.thomhoffer.nl`) and click **Add**
+3. Vercel shows a DNS record to configure. For a subdomain this is usually:
+
+   | Type  | Name    | Value                   |
+   |-------|---------|-------------------------|
+   | CNAME | `meals` | `cname.vercel-dns.com`  |
+
+### 2. Add the DNS record at your registrar
+
+Go to the DNS panel of whoever manages `thomhoffer.nl` (TransIP, Versio, Cloudflare, Namecheap, Google Domains, etc.) and create the CNAME. The `Name` field is usually just the subdomain part (`meals`), not the full hostname.
+
+### 3. Wait for propagation
+
+Usually under 10 minutes, occasionally up to an hour. You can verify from a terminal:
+
+```bash
+dig meals.thomhoffer.nl +short
+# should return → cname.vercel-dns.com
+```
+
+Vercel's Domains page flips from "Invalid Configuration" to "Valid Configuration" once it resolves, and it auto-issues a Let's Encrypt SSL cert — no action needed.
+
+### Using an apex/root domain instead
+
+If you ever want `thomhoffer.nl` itself (not a subdomain) to point to a Vercel project, use the A records Vercel lists (usually `76.76.21.21`). Note this will conflict with your main site hosting — don't do this unless the Vercel project is the *primary* site for that domain.
 
 ---
 
