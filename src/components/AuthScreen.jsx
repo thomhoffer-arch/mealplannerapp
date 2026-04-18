@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Check, Sparkles, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight } from 'lucide-react';
 
 const FEATURES = [
   { emoji: '🔍', title: 'Discover recipes',        desc: 'From HelloFresh, Marley Spoon, Spoonacular and more — filtered by diet, time, and cuisine.' },
@@ -124,17 +124,13 @@ export default function AuthScreen() {
         </nav>
 
         {/* Hero */}
-        <section className="max-w-2xl mx-auto px-6 pt-20 pb-14 text-center">
-          <div className="inline-flex items-center gap-1.5 bg-sage-100 text-sage-600 text-xs font-medium px-3 py-1.5 rounded-full mb-7">
-            <Sparkles size={12} />
-            AI-powered meal planning
-          </div>
-          <h1 className="font-display text-5xl sm:text-6xl font-semibold text-orange-900 leading-[1.05] mb-5">
+        <section className="max-w-2xl mx-auto px-6 pt-24 pb-16 text-center">
+          <h1 className="font-display text-5xl sm:text-6xl font-semibold text-orange-900 leading-[1.05] mb-6">
             Plan your week.<br />
             <span className="italic font-normal text-orange-600">Together.</span>
           </h1>
           <p className="text-base text-orange-700/80 max-w-md mx-auto leading-relaxed mb-9">
-            A shared meal planner for couples and households. Discover recipes, let AI plan your week, and build your shopping list automatically.
+            A shared kitchen for the two of you. Save the recipes you love, plan the week in minutes, and let the shopping list build itself.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
@@ -188,7 +184,7 @@ export default function AuthScreen() {
 
         {/* CTA footer */}
         <section className="max-w-2xl mx-auto px-6 py-20 text-center">
-          <h2 className="font-display text-3xl font-semibold text-orange-900 mb-3">Ready to plan smarter?</h2>
+          <h2 className="font-display text-3xl font-semibold text-orange-900 mb-3">Cook together this week.</h2>
           <p className="text-sm text-orange-700/80 mb-7">Free to use. No credit card needed.</p>
           <button
             onClick={() => setView('plan')}
