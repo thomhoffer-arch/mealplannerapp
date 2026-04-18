@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { getUserAndHousehold } = require('../_lib/auth');
 const { decrypt } = require('../_lib/crypto');
+const { VOICE_GUIDE } = require('../_lib/voice');
 
 const DAILY_FREE_LIMIT = 50;
 
@@ -112,7 +113,11 @@ function buildPrompt(recipe, preferences, starredRecipes) {
     ? `RECIPES THIS HOUSEHOLD HAS STARRED (use to infer taste preferences):\n${starredRecipes.map((r) => `- ${r.name} (${r.source})`).join('\n')}`
     : '';
 
-  return `You are a helpful cooking assistant. Analyse this recipe against the household's preferences and suggest specific adaptations.
+  return `${VOICE_GUIDE}
+
+---
+
+You help a household adapt a recipe to their preferences. Write any prose (substitution reasons, tips) in the voice above. Analyse this recipe and suggest specific adaptations.
 
 HOUSEHOLD PREFERENCES:
 ${preferencesText || 'No preferences provided — suggest general improvements if any.'}

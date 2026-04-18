@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { getUserAndHousehold } = require('../_lib/auth');
 const { decrypt } = require('../_lib/crypto');
+const { VOICE_GUIDE } = require('../_lib/voice');
 
 const DAILY_FREE_LIMIT = 50;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -126,7 +127,11 @@ function buildPrompt(preferences, byPriority, recentNames, numWeeks) {
   const weeksText = numWeeks === 2 ? 'two separate weeks (week 1 and week 2)' : 'one week';
   const avoidList = recentNames.length ? recentNames.slice(0, 10).join(', ') : 'none';
 
-  return `You are a creative meal planning assistant. Plan ${weeksText} of dinner meals for this household.
+  return `${VOICE_GUIDE}
+
+---
+
+You plan weeknight dinners for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinner meals for this household.
 
 HOUSEHOLD DIETARY PREFERENCES:
 ${preferences || 'No specific preferences — be creative and varied.'}
