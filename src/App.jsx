@@ -12,6 +12,7 @@ import CreateRecipeModal from "./components/CreateRecipeModal";
 import StarredPanel from "./components/StarredPanel";
 import WeekSuggestModal from "./components/WeekSuggestModal";
 import NotificationBell from "./components/NotificationBell";
+import UpdateToast from "./components/UpdateToast";
 
 // ─── Filter configuration ─────────────────────────────────────────────────────
 const FILTERS = {
@@ -1345,6 +1346,7 @@ export default function App() {
       </main>
 
       <InstallBanner />
+      <UpdateToast />
 
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/90 backdrop-blur-md border-t border-orange-100 safe-bottom">
@@ -1373,6 +1375,9 @@ export default function App() {
             </button>
           ))}
         </div>
+        <p className="text-[10px] text-orange-300/70 text-center pb-0.5 select-none">
+          v{import.meta.env.VITE_APP_VERSION || "dev"}
+        </p>
       </nav>
     </div>
   );
