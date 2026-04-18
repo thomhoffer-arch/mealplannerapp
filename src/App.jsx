@@ -13,6 +13,8 @@ import StarredPanel from "./components/StarredPanel";
 import WeekSuggestModal from "./components/WeekSuggestModal";
 import NotificationBell from "./components/NotificationBell";
 import UpdateToast from "./components/UpdateToast";
+import ThemeToggle from "./components/ThemeToggle";
+import { applyTheme } from "./lib/theme";
 
 // ─── Filter configuration ─────────────────────────────────────────────────────
 const FILTERS = {
@@ -437,11 +439,17 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) applyTheme();
+      else document.documentElement.classList.remove('dark');
       if (!session?.user) setAuthLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null);
-      if (!session?.user) {
+      if (session?.user) {
+        applyTheme();
+      } else {
+        // Reset to light for the landing/auth pages on sign-out.
+        document.documentElement.classList.remove('dark');
         setAuthLoading(false);
         setHousehold(null);
         setMealPlanItems([]);
@@ -834,13 +842,13 @@ export default function App() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 font-outfit">
+    <div className="min-h-screen bg-paper font-outfit">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-orange-100 px-4 py-3">
+      <header className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-3.5">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-orange-900 leading-none">Meal Planner</h1>
-            <p className="text-xs text-orange-500 mt-0.5">{household.name}</p>
+            <h1 className="font-display text-xl font-semibold text-orange-900 leading-none tracking-tight">Meal Planner</h1>
+            <p className="text-xs text-orange-500 mt-1">{household.name}</p>
           </div>
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (

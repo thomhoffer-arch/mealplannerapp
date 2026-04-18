@@ -169,6 +169,28 @@ The app uses two groups of env vars: **client-side** (exposed to the browser bun
 | `ENCRYPTION_KEY` | server | AES-256-GCM key for user-provided Gemini keys | `openssl rand -hex 32` |
 | `CRON_SECRET` | server | Auth for the weekly scrape cron | **Auto-set by Vercel** — don't add manually |
 
+### Google sign-in (OAuth)
+
+Users can sign up / log in with Google as an alternative to email + password. To enable this:
+
+1. **Google Cloud Console** — create an OAuth client
+   - Go to [console.cloud.google.com](https://console.cloud.google.com) → create (or pick) a project
+   - **APIs & Services → OAuth consent screen** → User Type: **External** → fill in app name, support email, logo (optional), authorized domains (`yourdomain.com` + `supabase.co`)
+   - **APIs & Services → Credentials → Create Credentials → OAuth client ID** → type: **Web application**
+   - **Authorized JavaScript origins**: your site URL (e.g. `https://meals.thomhoffer.nl`) plus `http://localhost:3000` for dev
+   - **Authorized redirect URIs**: `https://<your-project-ref>.supabase.co/auth/v1/callback` (copy this exact URL from the Supabase Google-provider page)
+   - Copy the **Client ID** and **Client secret**
+
+2. **Supabase Dashboard** — enable the provider
+   - Project → **Authentication → Providers → Google** → toggle **Enable**
+   - Paste the Client ID and Client secret → **Save**
+
+3. **(Optional) Vercel** — if you use a custom domain, make sure it's in **Supabase → Authentication → URL Configuration → Site URL** so the redirect works correctly.
+
+That's it. The "Continue with Google" button in `AuthScreen.jsx` calls `supabase.auth.signInWithOAuth({ provider: 'google' })` and the rest is handled by Supabase. No extra env vars needed in the app.
+
+---
+
 ### Setting them in Vercel
 
 1. Go to **Project → Settings → Environment Variables**
@@ -237,6 +259,25 @@ A willingness-to-pay survey appears after 3 days of use once the household has a
 - `src/components/UpdateToast.jsx` — "New version available — refresh" toast when a new SW is waiting
 - `src/lib/serviceWorker.js` — SW registration + update-detection logic
 - Install prompt only shown to authenticated users (component lives inside the auth gate)
+
+---
+
+## Theming (light / dark)
+
+The app ships with both a **light** and a **dark** theme. The landing / plan selection / auth screens always render in light mode; dark mode only applies once a user is signed in, so first-time visitors see a consistent welcome.
+
+**How it's wired:**
+
+- `src/index.css` defines CSS custom properties for the full `orange` + `amber` + `sage` palettes, with a flipped scale in `.dark` (so `bg-orange-50` is cream in light mode and deep espresso in dark).
+- `tailwind.config.js` remaps Tailwind's `orange`/`amber` color tokens to those CSS variables, so existing utility classes auto-theme without per-component refactors.
+- `src/lib/theme.js` — preference persistence (`system` | `light` | `dark`) via localStorage, with a `matchMedia` listener for OS changes.
+- `src/main.jsx` applies the theme early **only if** a Supabase session already exists (prevents a flash for returning users, keeps signed-out landing light).
+- `src/App.jsx` applies / removes the `.dark` class on the `<html>` element on sign-in / sign-out.
+- `src/components/ThemeToggle.jsx` — segmented control (Light / System / Dark), mounted inside the Preferences modal.
+
+**Typography:**
+- Body: **Outfit** (Google Fonts) — clean sans
+- Display: **Fraunces** (Google Fonts) — warm editorial serif, used for headings (`font-display` class)
 
 ---
 

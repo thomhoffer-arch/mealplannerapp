@@ -2,33 +2,113 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Theme tokens ────────────────────────────────────────────────────────── */
+/* The orange/amber scales below are remapped from Tailwind's defaults toward a
+   warmer terracotta + cream palette. In dark mode the scale flips so that
+   existing classes like `bg-orange-50` (light bg) or `text-orange-900` (dark
+   text) keep their semantic meaning without touching every className. */
+:root {
+  /* background / soft surfaces */
+  --c-orange-50:  250 244 235;   /* soft cream */
+  --c-orange-100: 243 233 217;   /* warm sand */
+  --c-orange-200: 232 213 183;   /* muted peach */
+  --c-orange-300: 217 183 143;   /* clay */
+  --c-orange-400: 201 149 100;   /* amber clay */
+  /* primary accents */
+  --c-orange-500: 189 111  62;   /* terracotta */
+  --c-orange-600: 165  90  45;   /* deep terracotta */
+  --c-orange-700: 139  69  33;   /* rich rust */
+  --c-orange-800: 107  51  24;   /* mahogany */
+  --c-orange-900:  62  33  22;   /* deep coffee (text) */
+
+  --c-amber-50:  254 249 240;    /* lightest bg */
+  --c-amber-100: 247 236 216;
+
+  /* sage — used for "shared / together" moments (partner activity, success) */
+  --c-sage-100: 228 236 222;
+  --c-sage-400: 156 184 140;
+  --c-sage-500: 126 158 108;
+  --c-sage-600: 100 130  85;
+
+  --body-bg: radial-gradient(60% 50% at 50% 0%, rgb(var(--c-amber-50)) 0%, rgb(var(--c-orange-50)) 100%);
+}
+
+.dark {
+  /* Scale flipped: 50 = darkest, 900 = lightest, so all existing Tailwind
+     orange classes (bg-orange-50, text-orange-900, etc.) re-theme for free. */
+  --c-orange-50:   26  21  17;
+  --c-orange-100:  36  30  24;
+  --c-orange-200:  54  45  36;
+  --c-orange-300:  94  80  66;
+  --c-orange-400: 140 121 102;
+  --c-orange-500: 224 120  86;   /* terracotta stays as accent */
+  --c-orange-600: 232 144 113;
+  --c-orange-700: 215 179 152;
+  --c-orange-800: 229 211 189;
+  --c-orange-900: 245 238 228;   /* near-white cream for headings */
+
+  --c-amber-50:   21  17  14;
+  --c-amber-100:  30  25  20;
+
+  --c-sage-100:  33  44  28;
+  --c-sage-400: 164 192 144;
+  --c-sage-500: 180 204 160;
+  --c-sage-600: 195 215 175;
+
+  --body-bg: radial-gradient(60% 50% at 50% 0%, rgb(var(--c-amber-100)) 0%, rgb(var(--c-orange-50)) 100%);
+}
+
 * {
   font-family: "Outfit", sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
+.font-display {
+  font-family: "Fraunces", Georgia, serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+}
+
 body {
   margin: 0;
-  background: linear-gradient(to bottom, #fffbf5, #fff7ed);
+  background: var(--body-bg);
+  background-attachment: fixed;
   min-height: 100vh;
   overflow-x: hidden;
+  color: rgb(var(--c-orange-900));
+  transition: background-color 0.3s ease;
 }
 
-/* iOS safe area padding */
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+html { scroll-behavior: smooth; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Subtle warm decorative backdrop — used on hero/auth backgrounds */
+.bg-paper {
+  background-image:
+    radial-gradient(circle at 18% 12%, rgb(var(--c-orange-200) / 0.22) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgb(var(--c-sage-400) / 0.14) 0%, transparent 45%);
 }
 
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
-}
+/* In dark mode, re-map bg-white surfaces (cards, modals, sticky chrome) to a
+   warm lifted surface so we don't have to touch every className in App.jsx.
+   AuthScreen never sees .dark (applied only after sign-in), so bg-white there
+   stays pure white — preserving the landing's intended look. */
+.dark .bg-white          { background-color: rgb(var(--c-orange-100)); }
+.dark .bg-white\/90      { background-color: rgb(var(--c-orange-100) / 0.90); }
+.dark .bg-white\/80      { background-color: rgb(var(--c-orange-100) / 0.80); }
+.dark .bg-white\/70      { background-color: rgb(var(--c-orange-100) / 0.70); }
+.dark .bg-white\/60      { background-color: rgb(var(--c-orange-100) / 0.60); }
 
-/* Hide scrollbar but keep functionality */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+/* Green "success" tints used for cooked items etc. also read too bright in
+   dark mode — soften to a sage-on-dark. */
+.dark .bg-green-50       { background-color: rgb(var(--c-sage-100)); }
+.dark .bg-green-100      { background-color: rgb(var(--c-sage-100)); }
+.dark .text-green-500,
+.dark .text-green-600,
+.dark .text-green-700    { color: rgb(var(--c-sage-500)); }
+.dark .border-green-200,
+.dark .border-green-300  { border-color: rgb(var(--c-sage-400) / 0.4); }
