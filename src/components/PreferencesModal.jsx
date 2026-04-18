@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Eye, EyeOff, Trash2, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import ThemeToggle from './ThemeToggle';
 
 export default function PreferencesModal({ household, onClose }) {
   const [text, setText] = useState('');
@@ -103,8 +104,17 @@ export default function PreferencesModal({ household, onClose }) {
         </div>
 
         <div className="px-5 pb-5 space-y-5">
-          {/* ── Dietary & taste preferences ── */}
+          {/* ── Appearance ── */}
           <div className="space-y-2">
+            <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Appearance</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-orange-800 font-medium">Theme</span>
+              <ThemeToggle />
+            </div>
+          </div>
+
+          {/* ── Dietary & taste preferences ── */}
+          <div className="space-y-2 border-t border-orange-100 pt-4">
             <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Dietary &amp; taste preferences</p>
             <textarea
               rows={4}

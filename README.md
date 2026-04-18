@@ -28,7 +28,7 @@ A collaborative household meal planning PWA built with React, Tailwind CSS, Supa
 ## Architecture
 
 ```
-React 18 + Tailwind CSS (Create React App)
+React 18 + Tailwind CSS (Vite)
   └── Vercel (hosting + serverless functions in /api/)
         └── Supabase (PostgreSQL + Auth + Realtime + Row Level Security)
               └── Gemini 2.5 Flash (AI: recipe import, adaptation, week planning)
@@ -128,6 +128,30 @@ The frontend is built with **Vite** and runs at `http://localhost:3000`. API req
 
 ---
 
+## Third-party services
+
+You need accounts on these services before the app works. Free tiers are sufficient for personal use.
+
+| Service | Required? | What it's for | Free tier | Sign up |
+|---|---|---|---|---|
+| **Vercel** | yes | Hosting, serverless functions, cron | Hobby plan is free | [vercel.com/signup](https://vercel.com/signup) |
+| **Supabase** | yes | Postgres DB, auth, realtime, storage | 2 projects, 500 MB DB | [supabase.com](https://supabase.com) |
+| **Google AI Studio (Gemini)** | yes | Recipe import, recipe adaptation, week planning | 1,500 free requests/day on Gemini Flash | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) |
+| **Spoonacular** | recommended | External recipe search | 150 requests/day | [spoonacular.com/food-api](https://spoonacular.com/food-api) |
+| **GitHub** | yes | Source hosting (Vercel deploys from it) | Free for private repos | [github.com](https://github.com) |
+| **Domain registrar** | optional | Custom domain (e.g. `meals.thomhoffer.nl`) | N/A — you already own `thomhoffer.nl` | — |
+
+### Setup order
+
+1. **GitHub** — push the repo so Vercel can import it.
+2. **Supabase** — create a project, then run the SQL from `supabase/` (see "Database schema" section). Copy the project URL, `anon` key, and `service_role` key.
+3. **Google AI Studio** — create an API key. One key per Google account.
+4. **Spoonacular** — optional but recommended; sign up, copy the API key from your profile.
+5. **Vercel** — import the GitHub repo as a new project, paste env vars during import (see below).
+6. **Domain** (optional) — add `meals.thomhoffer.nl` in Vercel, then create a CNAME at your registrar (see "Custom domain" section).
+
+---
+
 ## Environment variables
 
 The app uses two groups of env vars: **client-side** (exposed to the browser bundle, prefixed `VITE_`) and **server-side** (used only by `/api/*` serverless functions, never shipped to the browser).
@@ -145,6 +169,28 @@ The app uses two groups of env vars: **client-side** (exposed to the browser bun
 | `ENCRYPTION_KEY` | server | AES-256-GCM key for user-provided Gemini keys | `openssl rand -hex 32` |
 | `CRON_SECRET` | server | Auth for the weekly scrape cron | **Auto-set by Vercel** — don't add manually |
 
+### Google sign-in (OAuth)
+
+Users can sign up / log in with Google as an alternative to email + password. To enable this:
+
+1. **Google Cloud Console** — create an OAuth client
+   - Go to [console.cloud.google.com](https://console.cloud.google.com) → create (or pick) a project
+   - **APIs & Services → OAuth consent screen** → User Type: **External** → fill in app name, support email, logo (optional), authorized domains (`yourdomain.com` + `supabase.co`)
+   - **APIs & Services → Credentials → Create Credentials → OAuth client ID** → type: **Web application**
+   - **Authorized JavaScript origins**: your site URL (e.g. `https://meals.thomhoffer.nl`) plus `http://localhost:3000` for dev
+   - **Authorized redirect URIs**: `https://<your-project-ref>.supabase.co/auth/v1/callback` (copy this exact URL from the Supabase Google-provider page)
+   - Copy the **Client ID** and **Client secret**
+
+2. **Supabase Dashboard** — enable the provider
+   - Project → **Authentication → Providers → Google** → toggle **Enable**
+   - Paste the Client ID and Client secret → **Save**
+
+3. **(Optional) Vercel** — if you use a custom domain, make sure it's in **Supabase → Authentication → URL Configuration → Site URL** so the redirect works correctly.
+
+That's it. The "Continue with Google" button in `AuthScreen.jsx` calls `supabase.auth.signInWithOAuth({ provider: 'google' })` and the rest is handled by Supabase. No extra env vars needed in the app.
+
+---
+
 ### Setting them in Vercel
 
 1. Go to **Project → Settings → Environment Variables**
@@ -156,6 +202,41 @@ The app uses two groups of env vars: **client-side** (exposed to the browser bun
 4. After editing vars on a project that's already deployed, trigger a **Redeploy** (Deployments tab → `⋯` menu → Redeploy) so the build picks them up.
 
 **Important:** `VITE_*` vars get inlined into the JS bundle at build time. Never put secrets in them — anything `VITE_`-prefixed is public. Secrets go in the server-side vars only.
+
+---
+
+## Custom domain
+
+The app is currently reachable at `meals.thomhoffer.nl` (subdomain of the owner's root domain). To set up a custom subdomain on your own Vercel project:
+
+### 1. Add the domain in Vercel
+
+1. **Project → Settings → Domains**
+2. Enter the subdomain you want (e.g. `meals.thomhoffer.nl`) and click **Add**
+3. Vercel shows a DNS record to configure. For a subdomain this is usually:
+
+   | Type  | Name    | Value                   |
+   |-------|---------|-------------------------|
+   | CNAME | `meals` | `cname.vercel-dns.com`  |
+
+### 2. Add the DNS record at your registrar
+
+Go to the DNS panel of whoever manages `thomhoffer.nl` (TransIP, Versio, Cloudflare, Namecheap, Google Domains, etc.) and create the CNAME. The `Name` field is usually just the subdomain part (`meals`), not the full hostname.
+
+### 3. Wait for propagation
+
+Usually under 10 minutes, occasionally up to an hour. You can verify from a terminal:
+
+```bash
+dig meals.thomhoffer.nl +short
+# should return → cname.vercel-dns.com
+```
+
+Vercel's Domains page flips from "Invalid Configuration" to "Valid Configuration" once it resolves, and it auto-issues a Let's Encrypt SSL cert — no action needed.
+
+### Using an apex/root domain instead
+
+If you ever want `thomhoffer.nl` itself (not a subdomain) to point to a Vercel project, use the A records Vercel lists (usually `76.76.21.21`). Note this will conflict with your main site hosting — don't do this unless the Vercel project is the *primary* site for that domain.
 
 ---
 
@@ -178,6 +259,25 @@ A willingness-to-pay survey appears after 3 days of use once the household has a
 - `src/components/UpdateToast.jsx` — "New version available — refresh" toast when a new SW is waiting
 - `src/lib/serviceWorker.js` — SW registration + update-detection logic
 - Install prompt only shown to authenticated users (component lives inside the auth gate)
+
+---
+
+## Theming (light / dark)
+
+The app ships with both a **light** and a **dark** theme. The landing / plan selection / auth screens always render in light mode; dark mode only applies once a user is signed in, so first-time visitors see a consistent welcome.
+
+**How it's wired:**
+
+- `src/index.css` defines CSS custom properties for the full `orange` + `amber` + `sage` palettes, with a flipped scale in `.dark` (so `bg-orange-50` is cream in light mode and deep espresso in dark).
+- `tailwind.config.js` remaps Tailwind's `orange`/`amber` color tokens to those CSS variables, so existing utility classes auto-theme without per-component refactors.
+- `src/lib/theme.js` — preference persistence (`system` | `light` | `dark`) via localStorage, with a `matchMedia` listener for OS changes.
+- `src/main.jsx` applies the theme early **only if** a Supabase session already exists (prevents a flash for returning users, keeps signed-out landing light).
+- `src/App.jsx` applies / removes the `.dark` class on the `<html>` element on sign-in / sign-out.
+- `src/components/ThemeToggle.jsx` — segmented control (Light / System / Dark), mounted inside the Preferences modal.
+
+**Typography:**
+- Body: **Outfit** (Google Fonts) — clean sans
+- Display: **Fraunces** (Google Fonts) — warm editorial serif, used for headings (`font-display` class)
 
 ---
 
