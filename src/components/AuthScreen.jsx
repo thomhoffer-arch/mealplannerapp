@@ -2,13 +2,110 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Check, ArrowRight } from 'lucide-react';
 
+// Hand-drawn line glyphs — same single-weight stroke so they read like
+// one illustrator's set rather than a stock pack.
+const glyph = { viewBox: '0 0 32 32', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' };
+
+function GlyphSprig() {
+  return (
+    <svg {...glyph} className="w-7 h-7">
+      <path d="M16 28 C 16 22 14.5 17 14 14 C 13.5 10 13.5 6 14.5 3" />
+      <path d="M14 8 Q 10 7 7.5 9" />
+      <path d="M14.4 12 Q 18 11 20.5 12.5" />
+      <path d="M14.2 17 Q 10 16 7.5 18" />
+      <path d="M15 22 Q 19 21 21.5 22.5" />
+    </svg>
+  );
+}
+function GlyphCalendar() {
+  return (
+    <svg {...glyph} className="w-7 h-7">
+      <rect x="5" y="7" width="22" height="21" rx="2" />
+      <path d="M5 13 H27" />
+      <path d="M10 4 V10" />
+      <path d="M22 4 V10" />
+      <circle cx="11" cy="18" r="0.9" fill="currentColor" />
+      <circle cx="16" cy="18" r="0.9" fill="currentColor" />
+      <circle cx="21" cy="18" r="0.9" fill="currentColor" />
+      <circle cx="11" cy="23" r="0.9" fill="currentColor" />
+      <circle cx="16" cy="23" r="0.9" fill="currentColor" />
+    </svg>
+  );
+}
+function GlyphBasket() {
+  return (
+    <svg {...glyph} className="w-7 h-7">
+      <path d="M4 12 H28 L25 26 H7 Z" />
+      <path d="M10 12 L14 5" />
+      <path d="M22 12 L18 5" />
+      <path d="M12 17 V22" />
+      <path d="M16 17 V22" />
+      <path d="M20 17 V22" />
+    </svg>
+  );
+}
+function GlyphStar() {
+  return (
+    <svg {...glyph} className="w-7 h-7">
+      <path d="M16 5 L19.4 12 L27 13 L21.5 18.3 L23 26 L16 22.5 L9 26 L10.5 18.3 L5 13 L12.6 12 Z" />
+    </svg>
+  );
+}
+function GlyphTwo() {
+  return (
+    <svg {...glyph} className="w-7 h-7">
+      <circle cx="12" cy="12" r="3.5" />
+      <path d="M5.5 24 Q 5.5 18 12 18 Q 14 18 15.5 18.5" />
+      <circle cx="21" cy="14" r="3.5" />
+      <path d="M14.5 26 Q 14.5 20 21 20 Q 27 20 27 26" />
+    </svg>
+  );
+}
+function GlyphLink() {
+  return (
+    <svg {...glyph} className="w-7 h-7">
+      <path d="M14 10 H8.5 Q 4 10 4 14 Q 4 18 8.5 18 H14" />
+      <path d="M18 22 H23.5 Q 28 22 28 18 Q 28 14 23.5 14 H18" />
+      <path d="M10 16 H22" />
+    </svg>
+  );
+}
+
+// Hand-drawn scribble underline under the hero italic — the kind of
+// single mark a designer would draw with a red pencil on a proof.
+function Scribble({ className = '' }) {
+  return (
+    <svg viewBox="0 0 200 14" className={className} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M4 9 C 28 3, 58 12, 92 6 S 158 12, 196 4" />
+    </svg>
+  );
+}
+
 const FEATURES = [
-  { emoji: '🔍', title: 'Discover recipes',        desc: 'From HelloFresh, Marley Spoon, Spoonacular and more — filtered by diet, time, and cuisine.' },
-  { emoji: '✨', title: 'AI week planner',          desc: 'Generate a full varied week of dinners in one tap, grounded in your favourites.' },
-  { emoji: '🛒', title: 'Shared shopping list',     desc: 'Ingredients from your plan, auto-merged. Tick off items together in real time.' },
-  { emoji: '⭐', title: 'Star your favourites',     desc: 'Save recipes and set how often they return — weekly, biweekly, or occasionally.' },
-  { emoji: '👫', title: 'Made for two',             desc: 'Invite your partner. Every change syncs instantly on both phones.' },
-  { emoji: '🔗', title: 'Import from anywhere',     desc: 'Paste a recipe URL and we parse it. Or write your own from scratch.' },
+  {
+    glyph: GlyphSprig, span: 'sm:col-span-4', title: "Recipes you'd actually cook",
+    desc: "We pull from HelloFresh, Marley Spoon, Spoonacular and a few more — filtered by what you eat, how long you've got, and what's in season. No clickbait, no fifteen-ingredient lists.",
+  },
+  {
+    glyph: GlyphStar, span: 'sm:col-span-2', title: 'Your favourites, on rotation',
+    desc: "Star the ones you love. Set 'weekly', 'biweekly' or 'sometimes'.",
+  },
+  {
+    glyph: GlyphCalendar, span: 'sm:col-span-2', title: 'A whole week, one tap',
+    desc: 'Built around what you actually like — not what trended on TikTok yesterday.',
+  },
+  {
+    glyph: GlyphBasket, span: 'sm:col-span-4', title: 'The shopping list builds itself',
+    desc: "Every ingredient from the plan, merged and sorted. Tick things off at the shop — your partner sees it tick off on the bus.",
+  },
+  {
+    glyph: GlyphTwo, span: 'sm:col-span-3', title: 'One kitchen, two phones',
+    desc: "No more 'did we already have pasta this week?' Every change syncs the moment it happens.",
+  },
+  {
+    glyph: GlyphLink, span: 'sm:col-span-3', title: 'Bring your own recipes',
+    desc: 'Paste any recipe URL — we parse it. Or write your own the way grandma did.',
+  },
 ];
 
 const PREMIUM_PRICE     = 5.99;
@@ -123,72 +220,98 @@ export default function AuthScreen() {
           </button>
         </nav>
 
-        {/* Hero */}
-        <section className="max-w-2xl mx-auto px-6 pt-24 pb-16 text-center">
-          <h1 className="font-display text-5xl sm:text-6xl font-semibold text-orange-900 leading-[1.05] mb-6">
-            Plan your week.<br />
-            <span className="italic font-normal text-orange-600">Together.</span>
+        {/* Hero — intentionally asymmetric: headline hangs left of centre, the
+            small kitchen-note sits in the right margin like a post-it.  */}
+        <section className="max-w-3xl mx-auto px-6 pt-20 sm:pt-28 pb-20">
+          <p className="font-display italic text-orange-500/80 text-sm mb-5 tracking-wide">— for the two of you.</p>
+          <h1 className="font-display text-[3.25rem] sm:text-[5.5rem] font-semibold text-orange-900 leading-[0.95] mb-3 tracking-tight">
+            Plan the<br />
+            week.
+            <span className="relative inline-block italic font-normal text-orange-600 ml-3 sm:ml-5">
+              Together.
+              <Scribble className="absolute left-0 -bottom-3 sm:-bottom-4 w-full text-orange-500/70 pointer-events-none" aria-hidden="true" />
+            </span>
           </h1>
-          <p className="text-base text-orange-700/80 max-w-md mx-auto leading-relaxed mb-9">
-            A shared kitchen for the two of you. Save the recipes you love, plan the week in minutes, and let the shopping list build itself.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => setView('plan')}
-              className="px-7 py-3.5 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition text-sm flex items-center justify-center gap-2 shadow-warm-lg"
-            >
-              Get started free <ArrowRight size={16} />
-            </button>
-            <button
-              onClick={() => { setMode('login'); setView('auth'); }}
-              className="px-7 py-3.5 border border-orange-300 text-orange-800 rounded-full font-medium hover:bg-orange-50 transition text-sm"
-            >
-              I already have an account
-            </button>
-          </div>
-        </section>
-
-        {/* Feature grid */}
-        <section className="max-w-2xl mx-auto px-6 pb-20">
-          <h2 className="font-display text-2xl font-semibold text-orange-900 text-center mb-10">Everything your kitchen needs</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="bg-white/70 backdrop-blur-sm rounded-2xl border border-orange-100 p-5 hover:border-orange-200 transition">
-                <div className="text-2xl mb-3">{f.emoji}</div>
-                <p className="font-display text-base font-semibold text-orange-900 mb-1">{f.title}</p>
-                <p className="text-xs text-orange-700/80 leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* How it works */}
-        <section className="bg-white/60 backdrop-blur-sm border-y border-orange-100 py-16 px-6">
-          <div className="max-w-2xl mx-auto text-center">
-            <h2 className="font-display text-2xl font-semibold text-orange-900 mb-12">How it works</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
-              {[
-                { step: '1', title: 'Star your favourites', desc: 'Search recipes and star the ones you love. Set how often you want them in rotation.' },
-                { step: '2', title: 'Let AI plan the week', desc: 'One tap and AI builds a varied 7-day dinner plan around your preferences.' },
-                { step: '3', title: 'Shop together',        desc: 'Your list is auto-built from the plan. Check items off in real time with your partner.' },
-              ].map((s) => (
-                <div key={s.step} className="flex flex-col items-center">
-                  <div className="w-11 h-11 rounded-full bg-orange-100 text-orange-700 font-display font-semibold text-lg flex items-center justify-center mb-4">{s.step}</div>
-                  <p className="font-display font-semibold text-orange-900 mb-1.5">{s.title}</p>
-                  <p className="text-xs text-orange-700/80 leading-relaxed max-w-[18ch]">{s.desc}</p>
-                </div>
-              ))}
+          <div className="mt-10 sm:mt-14 grid sm:grid-cols-12 gap-6 items-end">
+            <p className="sm:col-span-7 text-base text-orange-800/85 leading-relaxed max-w-md">
+              Save the recipes you love. Let the week plan itself. The shopping list builds itself too — and your partner sees everything the moment you change it.
+            </p>
+            <div className="sm:col-span-5 flex flex-col gap-3">
+              <button
+                onClick={() => setView('plan')}
+                className="px-6 py-3.5 bg-orange-500 text-white rounded-2xl font-medium hover:bg-orange-600 transition text-sm flex items-center justify-center gap-2 shadow-warm-lg"
+              >
+                Start cooking together <ArrowRight size={16} />
+              </button>
+              <button
+                onClick={() => { setMode('login'); setView('auth'); }}
+                className="px-6 py-3 text-orange-700 hover:text-orange-900 transition text-sm underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
+              >
+                I already have an account →
+              </button>
             </div>
           </div>
         </section>
 
+        {/* Feature bento — varied column widths so the eye doesn't scan three
+            identical cards. Glyphs are hand-drawn, same stroke weight. */}
+        <section className="max-w-3xl mx-auto px-6 pb-20">
+          <div className="flex items-baseline gap-3 mb-8">
+            <span className="font-display italic text-orange-500 text-sm tracking-wide">01 &nbsp;/&nbsp;</span>
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold text-orange-900">What's in the kitchen</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
+            {FEATURES.map((f) => {
+              const Glyph = f.glyph;
+              return (
+                <div
+                  key={f.title}
+                  className={`${f.span} bg-white/70 backdrop-blur-sm rounded-[22px] border border-orange-100 p-5 sm:p-6 hover:border-orange-300 transition`}
+                >
+                  <div className="text-orange-600 mb-4"><Glyph /></div>
+                  <p className="font-display text-lg font-semibold text-orange-900 mb-1.5 leading-tight">{f.title}</p>
+                  <p className="text-[13px] text-orange-800/75 leading-relaxed">{f.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* How it works — notebook-style numbered chapters, not a pipeline
+            with three identical circles. */}
+        <section className="bg-white/60 backdrop-blur-sm border-y border-orange-100 py-20 px-6">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-baseline gap-3 mb-10">
+              <span className="font-display italic text-orange-500 text-sm tracking-wide">02 &nbsp;/&nbsp;</span>
+              <h2 className="font-display text-2xl sm:text-3xl font-semibold text-orange-900">How it works</h2>
+            </div>
+            <ol className="space-y-9">
+              {[
+                { n: '01', title: 'Star the ones you love',     desc: 'Search, save, and tell us how often you want each recipe back — weekly, biweekly, or just when the mood strikes.' },
+                { n: '02', title: 'Let the week plan itself',   desc: 'One tap builds seven dinners from what you actually eat. Swap anything you don\u2019t fancy — the rest shuffles around it.' },
+                { n: '03', title: 'Shop in sync',               desc: 'The list is auto-built from the plan. Check off milk at the shop, your partner sees it at home. No texting.' },
+              ].map((s) => (
+                <li key={s.n} className="grid grid-cols-[auto_1fr] gap-5 sm:gap-7 items-start">
+                  <span className="font-display italic text-4xl sm:text-5xl text-orange-300 leading-none pt-1 select-none">{s.n}</span>
+                  <div>
+                    <p className="font-display text-xl font-semibold text-orange-900 mb-1.5">{s.title}</p>
+                    <p className="text-sm text-orange-800/80 leading-relaxed max-w-lg">{s.desc}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
         {/* CTA footer */}
-        <section className="max-w-2xl mx-auto px-6 py-20 text-center">
-          <h2 className="font-display text-3xl font-semibold text-orange-900 mb-3">Cook together this week.</h2>
-          <p className="text-sm text-orange-700/80 mb-7">Free to use. No credit card needed.</p>
+        <section className="max-w-3xl mx-auto px-6 py-24 text-center">
+          <h2 className="font-display text-3xl sm:text-4xl font-semibold text-orange-900 mb-3 leading-tight">
+            Cook together this week.
+          </h2>
+          <p className="text-sm text-orange-700/80 mb-8 italic font-display">Free to use. No credit card. No-one asks you to rate the app.</p>
           <button
             onClick={() => setView('plan')}
-            className="px-8 py-3.5 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition text-sm shadow-warm-lg"
+            className="px-8 py-3.5 bg-orange-500 text-white rounded-2xl font-medium hover:bg-orange-600 transition text-sm shadow-warm-lg"
           >
             Create your free account
           </button>
