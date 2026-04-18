@@ -4,9 +4,12 @@ backend/node_modules/
 
 # Build
 build/
+dist/
 
 # Environment
 .env
+.env.local
+.env.*.local
 backend/.env
 
 # Logs
