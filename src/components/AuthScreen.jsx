@@ -96,15 +96,15 @@ const FEATURES = [
   },
   {
     glyph: GlyphBasket, span: 'sm:col-span-4', title: 'The shopping list builds itself',
-    desc: "Every ingredient from the plan, merged and sorted. Tick things off at the shop — your partner sees it tick off on the bus.",
+    desc: "Every ingredient from the plan, merged and sorted. Tick things off as you walk the aisles — the rest of your household sees each one update live.",
   },
   {
-    glyph: GlyphTwo, span: 'sm:col-span-3', title: 'One kitchen, two phones',
-    desc: "No more 'did we already have pasta this week?' Every change syncs the moment it happens.",
+    glyph: GlyphTwo, span: 'sm:col-span-3', title: "Share it — or don't",
+    desc: "Invite a partner, a flatmate, or nobody at all. When you do share, no more 'did we already have pasta this week?'",
   },
   {
     glyph: GlyphLink, span: 'sm:col-span-3', title: 'Bring your own recipes',
-    desc: 'Paste any recipe URL — we parse it. Or write your own the way grandma did.',
+    desc: "Paste a recipe URL and we'll pull the ingredients and steps. Or type it out yourself — notes in the margins and all.",
   },
 ];
 
@@ -223,7 +223,7 @@ export default function AuthScreen() {
         {/* Hero — intentionally asymmetric: headline hangs left of centre, the
             small kitchen-note sits in the right margin like a post-it.  */}
         <section className="max-w-3xl mx-auto px-6 pt-20 sm:pt-28 pb-20">
-          <p className="font-display italic text-orange-500/80 text-sm mb-5 tracking-wide">— for the two of you.</p>
+          <p className="font-display italic text-orange-500/80 text-sm mb-5 tracking-wide">— for one, two, or a full flat.</p>
           <h1 className="font-display text-[3.25rem] sm:text-[5.5rem] font-semibold text-orange-900 leading-[0.95] mb-3 tracking-tight">
             Plan the<br />
             week.
@@ -234,14 +234,14 @@ export default function AuthScreen() {
           </h1>
           <div className="mt-10 sm:mt-14 grid sm:grid-cols-12 gap-6 items-end">
             <p className="sm:col-span-7 text-base text-orange-800/85 leading-relaxed max-w-md">
-              Save the recipes you love. Let the week plan itself. The shopping list builds itself too — and your partner sees everything the moment you change it.
+              Star the recipes you keep coming back to. The week plans itself from there, and so does the shopping list. Anyone else in your household sees every change the moment you make it.
             </p>
             <div className="sm:col-span-5 flex flex-col gap-3">
               <button
                 onClick={() => setView('plan')}
                 className="px-6 py-3.5 bg-orange-500 text-white rounded-2xl font-medium hover:bg-orange-600 transition text-sm flex items-center justify-center gap-2 shadow-warm-lg"
               >
-                Start cooking together <ArrowRight size={16} />
+                Start this week <ArrowRight size={16} />
               </button>
               <button
                 onClick={() => { setMode('login'); setView('auth'); }}
@@ -289,7 +289,7 @@ export default function AuthScreen() {
               {[
                 { n: '01', title: 'Star the ones you love',     desc: 'Search, save, and tell us how often you want each recipe back — weekly, biweekly, or just when the mood strikes.' },
                 { n: '02', title: 'Let the week plan itself',   desc: 'One tap builds seven dinners from what you actually eat. Swap anything you don\u2019t fancy — the rest shuffles around it.' },
-                { n: '03', title: 'Shop in sync',               desc: 'The list is auto-built from the plan. Check off milk at the shop, your partner sees it at home. No texting.' },
+                { n: '03', title: 'Shop in sync',               desc: 'The list is auto-built from the plan. Tick off milk at the shop, the rest of your household sees it land at home. No texting.' },
               ].map((s) => (
                 <li key={s.n} className="grid grid-cols-[auto_1fr] gap-5 sm:gap-7 items-start">
                   <span className="font-display italic text-4xl sm:text-5xl text-orange-300 leading-none pt-1 select-none">{s.n}</span>
@@ -306,9 +306,9 @@ export default function AuthScreen() {
         {/* CTA footer */}
         <section className="max-w-3xl mx-auto px-6 py-24 text-center">
           <h2 className="font-display text-3xl sm:text-4xl font-semibold text-orange-900 mb-3 leading-tight">
-            Cook together this week.
+            Give it a week.
           </h2>
-          <p className="text-sm text-orange-700/80 mb-8 italic font-display">Free to use. No credit card. No-one asks you to rate the app.</p>
+          <p className="text-sm text-orange-700/80 mb-8">Free to use. No card needed.</p>
           <button
             onClick={() => setView('plan')}
             className="px-8 py-3.5 bg-orange-500 text-white rounded-2xl font-medium hover:bg-orange-600 transition text-sm shadow-warm-lg"
@@ -460,7 +460,7 @@ export default function AuthScreen() {
 
         <h1 className="font-display text-3xl font-semibold text-orange-900 leading-none mb-1.5">Welcome</h1>
         <p className="text-xs text-orange-500 mb-6 leading-relaxed">
-          {mode === 'login' ? 'Sign in to your shared kitchen.' : 'Start your shared kitchen — takes a minute.'}
+          {mode === 'login' ? 'Good to see you again.' : 'Two fields and you\u2019re in.'}
         </p>
 
         {inviteToken && (

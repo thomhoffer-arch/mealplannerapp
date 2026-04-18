@@ -96,7 +96,7 @@ export default function PreferencesModal({ household, onClose }) {
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
           <div>
             <h2 className="text-base font-bold text-orange-900">Household preferences</h2>
-            <p className="text-xs text-orange-500 mt-0.5">Shared with your partner</p>
+            <p className="text-xs text-orange-500 mt-0.5">Shared with your household</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
             <X size={16} />
