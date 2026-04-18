@@ -1,35 +1,43 @@
-const CACHE = 'meal-planner-v2';
+// The BUILD_ID value is rewritten at build time by vite.config.js so that the
+// worker's bytes change on every deploy, forcing browsers to install the new
+// worker and drop the old cache.
+const BUILD_ID = '__BUILD_ID__';
+const CACHE = `meal-planner-${BUILD_ID}`;
 
-// On install: cache just the HTML shell (static assets are content-hashed by the build tool)
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.add('/'))
-  );
-  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.add('/')));
+  // Do NOT call skipWaiting() here — the new worker stays in "waiting" until
+  // the app sends a SKIP_WAITING message (triggered by the update toast).
 });
 
-// On activate: delete any caches from previous versions
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
+      ),
   );
   self.clients.claim();
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Never intercept API calls or non-GET requests — always hit the network
   if (request.method !== 'GET' || url.pathname.startsWith('/api/')) {
     return;
   }
 
-  // Static assets (JS/CSS/fonts with content hashes): cache-first, update in background
+  // Vite emits hashed assets under /assets/ — safe to cache-first forever.
   if (
-    url.pathname.startsWith('/static/') ||
+    url.pathname.startsWith('/assets/') ||
     url.pathname.match(/\.(woff2?|ttf|otf|ico|png|svg|webp|jpg)$/)
   ) {
     event.respondWith(
@@ -40,16 +48,13 @@ self.addEventListener('fetch', (event) => {
           return res;
         });
         return cached || networkFetch;
-      })
+      }),
     );
     return;
   }
 
-  // HTML navigations: network-first, fall back to cached shell for offline use
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match('/'))
-    );
+    event.respondWith(fetch(request).catch(() => caches.match('/')));
     return;
   }
 });

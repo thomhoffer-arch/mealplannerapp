@@ -119,17 +119,43 @@ All `Bearer` routes resolve the household via the JWT, then check for a personal
 
 ```bash
 npm install
-cp .env.example .env.local
-# Fill in:
-#   SUPABASE_URL
-#   SUPABASE_ANON_KEY
-#   SUPABASE_SERVICE_ROLE_KEY
-#   GEMINI_API_KEY          (shared server key for the free tier)
-#   ENCRYPTION_KEY          (32-byte hex string for AES-256-GCM)
-npm start
+cp .env.local.example .env.local
+# Fill in the values — see "Environment variables" below
+npm run dev
 ```
 
-API requests from the dev server are proxied to Vercel serverless functions via `vercel dev`, or you can run them separately.
+The frontend is built with **Vite** and runs at `http://localhost:3000`. API requests are proxied to the Vercel serverless functions via `vercel dev`, or you can run them separately.
+
+---
+
+## Environment variables
+
+The app uses two groups of env vars: **client-side** (exposed to the browser bundle, prefixed `VITE_`) and **server-side** (used only by `/api/*` serverless functions, never shipped to the browser).
+
+| Variable | Scope | What it's for | Where to get it |
+|---|---|---|---|
+| `VITE_SUPABASE_URL` | client | Supabase project URL | Supabase → Project Settings → API |
+| `VITE_SUPABASE_ANON_KEY` | client | Supabase public anon key | Supabase → Project Settings → API |
+| `SUPABASE_URL` | server | Same URL, used by `/api/*` | Supabase → Project Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | server | Service-role key (bypasses RLS) | Supabase → Project Settings → API → **never expose** |
+| `SPOONACULAR_API_KEY` | server | Recipe search API | spoonacular.com/food-api |
+| `HELLOFRESH_CLIENT_ID` | server | HelloFresh scraper auth | `.env.local.example` has community defaults |
+| `HELLOFRESH_CLIENT_SECRET` | server | HelloFresh scraper auth | `.env.local.example` has community defaults |
+| `GEMINI_API_KEY` | server | Shared AI key (free tier) | aistudio.google.com/app/apikey |
+| `ENCRYPTION_KEY` | server | AES-256-GCM key for user-provided Gemini keys | `openssl rand -hex 32` |
+| `CRON_SECRET` | server | Auth for the weekly scrape cron | **Auto-set by Vercel** — don't add manually |
+
+### Setting them in Vercel
+
+1. Go to **Project → Settings → Environment Variables**
+2. For each row above, click **Add New**:
+   - **Key**: variable name
+   - **Value**: the real value
+   - **Environments**: tick **Production**, **Preview**, and **Development**
+3. Shortcut for bulk import: on the "Add New" view, click **Import .env** and paste your filled-in `.env.local` contents — Vercel parses it into rows.
+4. After editing vars on a project that's already deployed, trigger a **Redeploy** (Deployments tab → `⋯` menu → Redeploy) so the build picks them up.
+
+**Important:** `VITE_*` vars get inlined into the JS bundle at build time. Never put secrets in them — anything `VITE_`-prefixed is public. Secrets go in the server-side vars only.
 
 ---
 
@@ -146,10 +172,27 @@ A willingness-to-pay survey appears after 3 days of use once the household has a
 ## PWA
 
 - `public/manifest.json` — app name, icons, theme colour
-- `public/service-worker.js` — caches the app shell for offline use
-- `public/index.html` — Apple PWA meta tags (`apple-mobile-web-app-capable`, `apple-touch-icon`)
+- `public/service-worker.js` — caches the app shell for offline use (cache name is versioned per deploy, see "Versioning & cache busting" below)
+- `index.html` (repo root) — Apple PWA meta tags (`apple-mobile-web-app-capable`, `apple-touch-icon`)
 - `src/components/InstallBanner.jsx` — Chrome/Android native prompt + iOS manual hint
+- `src/components/UpdateToast.jsx` — "New version available — refresh" toast when a new SW is waiting
+- `src/lib/serviceWorker.js` — SW registration + update-detection logic
 - Install prompt only shown to authenticated users (component lives inside the auth gate)
+
+---
+
+## Versioning & cache busting
+
+Every deploy gets a unique build ID (`<git-sha>.<timestamp>`) that's injected into:
+
+- The **service worker's cache name** (`vite.config.js` rewrites `__BUILD_ID__` in `public/service-worker.js` at build time), so the SW file bytes change on every deploy → browsers install the new worker and purge old caches.
+- **`import.meta.env.VITE_APP_VERSION`** — available anywhere in the frontend code; currently rendered as a tiny `v<id>` label under the bottom nav.
+
+Cache-Control headers in `vercel.json`:
+- `/index.html` and `/service-worker.js` → `max-age=0, must-revalidate` (always fetch fresh)
+- `/assets/*` → `max-age=31536000, immutable` (safe — Vite content-hashes filenames)
+
+When a new deploy lands, the flow is: user opens the app → browser fetches fresh `index.html` → SW registration detects a new worker → new worker installs and goes into "waiting" → `UpdateToast` shows → user clicks **Refresh** → `SKIP_WAITING` message → old tabs reload onto the new version.
 
 ---
 
@@ -160,8 +203,8 @@ Once a name is chosen, update:
 | File | What to change |
 |---|---|
 | `public/manifest.json` | `name`, `short_name` |
-| `public/index.html` | `<title>`, meta description, `apple-mobile-web-app-title` |
-| `public/service-worker.js` | `CACHE` constant string |
-| `src/App.jsx` | `<h1>` header text (~line 841) |
+| `index.html` | `<title>`, meta description, `apple-mobile-web-app-title` |
+| `public/service-worker.js` | `meal-planner-` prefix in the `CACHE` constant (optional) |
+| `src/App.jsx` | `<h1>` header text |
 | `src/components/AuthScreen.jsx` | `<h1>` and `<span>` in nav + auth form |
 | `README.md` | Title and description |
