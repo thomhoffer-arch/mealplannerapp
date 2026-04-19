@@ -213,7 +213,7 @@ export default function AuthScreen() {
                 No scribble here; the hero already has the one per screen. */}
             <p className="mt-16 sm:mt-20 ml-auto max-w-md text-right font-display italic text-orange-700/80 text-base leading-relaxed">
               — cooking for one, for two, or a full flat? It scales. Share the
-              kitchen when you want. <span className="text-orange-600">Don't</span> when you don't.
+              kitchen with whoever you want — a partner, a flatmate, your mum.
             </p>
           </div>
         </section>
