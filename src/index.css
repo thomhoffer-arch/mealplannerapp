@@ -9,8 +9,8 @@
    text) keep their semantic meaning without touching every className. */
 :root {
   /* background / soft surfaces */
-  --c-orange-50:  250 244 235;   /* soft cream */
-  --c-orange-100: 243 233 217;   /* warm sand */
+  --c-orange-50:  250 248 244;   /* clean cream — nearly white */
+  --c-orange-100: 243 236 224;   /* warm sand */
   --c-orange-200: 232 213 183;   /* muted peach */
   --c-orange-300: 217 183 143;   /* clay */
   --c-orange-400: 201 149 100;   /* amber clay */
@@ -18,11 +18,11 @@
   --c-orange-500: 189 111  62;   /* terracotta */
   --c-orange-600: 165  90  45;   /* deep terracotta */
   --c-orange-700: 139  69  33;   /* rich rust */
-  --c-orange-800: 107  51  24;   /* mahogany */
-  --c-orange-900:  62  33  22;   /* deep coffee (text) */
+  --c-orange-800:  58  46  36;   /* dark warm brown (body text) */
+  --c-orange-900:  22  18  14;   /* near-black with warmth (headings) */
 
-  --c-amber-50:  254 249 240;    /* lightest bg */
-  --c-amber-100: 247 236 216;
+  --c-amber-50:  252 250 247;    /* lightest bg — clean off-white */
+  --c-amber-100: 244 238 228;
 
   /* sage — used for "shared / together" moments (partner activity, success) */
   --c-sage-100: 228 236 222;

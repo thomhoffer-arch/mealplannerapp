@@ -163,9 +163,8 @@ export default function AuthScreen() {
           </button>
         </nav>
 
-        {/* Hero — intentionally asymmetric: headline hangs left of centre, the
-            small kitchen-note sits in the right margin like a post-it.  */}
-        <section className="max-w-3xl mx-auto px-6 pt-20 sm:pt-28 pb-20">
+        {/* Hero */}
+        <section className="max-w-3xl mx-auto px-6 pt-20 sm:pt-28 pb-24">
           <p className="font-display italic text-orange-500/80 text-sm mb-5 tracking-wide">— for one, two, or a full flat.</p>
           <h1 className="font-display text-[3.25rem] sm:text-[5.5rem] font-semibold text-orange-900 leading-[0.95] mb-3 tracking-tight">
             Plan the<br />
@@ -175,26 +174,43 @@ export default function AuthScreen() {
               <Scribble className="absolute left-0 -bottom-3 sm:-bottom-4 w-full text-orange-500/70 pointer-events-none" aria-hidden="true" />
             </span>
           </h1>
-          <div className="mt-10 sm:mt-14 grid sm:grid-cols-12 gap-6 items-end">
-            <p className="sm:col-span-7 text-base text-orange-800/85 leading-relaxed max-w-md">
-              Star the recipes you keep coming back to. The week plans itself from there, and so does the shopping list. Anyone else in your household sees every change the moment you make it.
-            </p>
-            <div className="sm:col-span-5 flex flex-col gap-3">
-              <Button
-                onClick={() => setView('plan')}
-                size="lg"
-                className="px-6 py-3.5 flex items-center gap-2 shadow-warm-lg"
-              >
-                Start this week <ArrowRight size={16} />
-              </Button>
-
+          <p className="mt-10 sm:mt-12 text-base text-orange-800/85 leading-relaxed max-w-md">
+            Star the recipes you keep coming back to. The week plans itself from there, and so does the shopping list. Anyone else in your household sees every change the moment you make it.
+          </p>
+          <div className="mt-10 sm:mt-12 flex flex-col items-start gap-4">
+            <LayoutGroup>
               <button
-                onClick={() => { setMode('login'); setView('auth'); }}
-                className="px-6 py-3 text-orange-700 hover:text-orange-900 transition text-sm underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
+                type="button"
+                onClick={() => setView('plan')}
+                className="text-left group"
               >
-                I already have an account →
+                <motion.p
+                  className="flex flex-wrap items-baseline gap-x-2 font-display text-2xl sm:text-3xl font-semibold text-orange-900"
+                  layout
+                  transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                >
+                  <motion.span layout transition={{ type: 'spring', damping: 30, stiffness: 400 }}>Give it a</motion.span>
+                  <TextRotate
+                    texts={['week.', 'try.', 'go.', 'Monday.', 'dinner.']}
+                    mainClassName="text-white px-3 bg-orange-500 overflow-hidden py-0.5 sm:py-1 justify-center rounded-full"
+                    staggerFrom="last"
+                    initial={{ y: '100%' }}
+                    animate={{ y: 0 }}
+                    exit={{ y: '-120%' }}
+                    staggerDuration={0.025}
+                    splitLevelClassName="overflow-hidden pb-0.5"
+                    transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                    rotationInterval={2500}
+                  />
+                </motion.p>
               </button>
-            </div>
+            </LayoutGroup>
+            <button
+              onClick={() => { setMode('login'); setView('auth'); }}
+              className="text-sm text-orange-700 hover:text-orange-900 transition underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
+            >
+              I already have an account →
+            </button>
           </div>
         </section>
 
@@ -280,32 +296,9 @@ export default function AuthScreen() {
 
         {/* CTA footer */}
         <section className="max-w-3xl mx-auto px-6 py-24 text-center">
-          <LayoutGroup>
-            <motion.h2
-              className="font-display text-3xl sm:text-4xl font-semibold text-orange-900 mb-3 leading-tight flex flex-wrap items-baseline justify-center"
-              layout
-              transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-            >
-              <motion.span
-                layout
-                transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-              >
-                Give it a{' '}
-              </motion.span>
-              <TextRotate
-                texts={['week.', 'try.', 'go.', 'Monday.', 'dinner.']}
-                mainClassName="text-white px-3 bg-orange-500 overflow-hidden py-0.5 sm:py-1 justify-center rounded-2xl"
-                staggerFrom="last"
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '-120%' }}
-                staggerDuration={0.025}
-                splitLevelClassName="overflow-hidden pb-0.5"
-                transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-                rotationInterval={2500}
-              />
-            </motion.h2>
-          </LayoutGroup>
+          <h2 className="font-display text-3xl sm:text-4xl font-semibold text-orange-900 mb-3 leading-tight">
+            Give it a week.
+          </h2>
           <p className="text-sm text-orange-700/80 mb-8">Free to use. No card needed.</p>
           <Button
             onClick={() => setView('plan')}
