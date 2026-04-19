@@ -120,9 +120,8 @@ export default function AuthScreen() {
         if (inviteToken) {
           await supabase.rpc('join_household_by_token', { p_token: inviteToken, p_user_id: user.id });
           window.history.replaceState({}, '', window.location.pathname);
-        } else {
-          await supabase.rpc('create_household_for_user', { uid: user.id });
         }
+        // household creation handled by loadHousehold() in App.jsx once onAuthStateChange fires
       }
     } catch (err) {
       setError(err.message);
@@ -257,7 +256,7 @@ export default function AuthScreen() {
 
           {/* One large note + two smaller ones: deliberately non-identical layout */}
           <div className="space-y-5 sm:space-y-6">
-            <blockquote className={`bg-orange-50 rounded-[22px] border border-orange-100 px-7 py-6 shadow-warm ${TESTIMONIALS[0].rotate}`}>
+            <blockquote className={`bg-white rounded-[22px] border border-orange-200 px-7 py-6 shadow-warm ${TESTIMONIALS[0].rotate}`}>
               <p className="font-display text-xl sm:text-2xl font-semibold text-orange-900 leading-snug mb-4">
                 "{TESTIMONIALS[0].quote}"
               </p>
@@ -268,7 +267,7 @@ export default function AuthScreen() {
 
             <div className="grid sm:grid-cols-2 gap-5 sm:gap-6">
               {TESTIMONIALS.slice(1).map((t) => (
-                <blockquote key={t.name} className={`bg-white/70 rounded-[18px] border border-orange-100 px-6 py-5 shadow-warm ${t.rotate}`}>
+                <blockquote key={t.name} className={`bg-white rounded-[18px] border border-orange-200 px-6 py-5 shadow-warm ${t.rotate}`}>
                   <p className="text-orange-800/85 text-[15px] leading-relaxed mb-3">"{t.quote}"</p>
                   <p className="font-display italic text-orange-500 text-xs">
                     — {t.name}, {t.location} · {t.household}

@@ -50,10 +50,10 @@
   --c-amber-50:   21  17  14;
   --c-amber-100:  30  25  20;
 
-  --c-sage-100:  33  44  28;
-  --c-sage-400: 164 192 144;
-  --c-sage-500: 180 204 160;
-  --c-sage-600: 195 215 175;
+  --c-sage-100:  30  42  26;   /* dark surface tint — unchanged */
+  --c-sage-400:  82  98  72;   /* muted border — was 164 192 144 (too bright) */
+  --c-sage-500: 108 130  96;   /* earthy fill — was 180 204 160 (too electric) */
+  --c-sage-600: 126 150 112;   /* muted text  — was 195 215 175 (too washed) */
 
   --body-bg: radial-gradient(60% 50% at 50% 0%, rgb(var(--c-amber-100)) 0%, rgb(var(--c-orange-50)) 100%);
 }
