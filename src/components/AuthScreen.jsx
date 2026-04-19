@@ -1,8 +1,38 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Check, ArrowRight } from 'lucide-react';
+import { LayoutGroup, motion } from 'motion/react';
 import { GlyphStar, GlyphCalendar, GlyphBasket, Scribble } from './glyphs';
 import NotebookWeekScene from './NotebookWeekScene';
+import { TextRotate } from './ui/text-rotate';
+import { Button } from './ui/button';
+
+const TESTIMONIALS = [
+  {
+    quote: "We've been using this for three months and I've stopped texting 'what do you want for dinner tonight?' That question alone was worth it.",
+    name: 'Marit',
+    location: 'Amsterdam',
+    household: 'household of two',
+    large: true,
+    rotate: '-rotate-[0.5deg]',
+  },
+  {
+    quote: "I starred about twenty recipes in the first week. Now the planner just… knows. The shopping list comes out pre-sorted by aisle, which is honestly ridiculous.",
+    name: 'James',
+    location: 'Edinburgh',
+    household: 'three flatmates',
+    large: false,
+    rotate: 'rotate-[0.7deg]',
+  },
+  {
+    quote: "We had pasta four nights in a row before this. No longer.",
+    name: 'Sophie',
+    location: 'London',
+    household: 'couple',
+    large: false,
+    rotate: '-rotate-[0.4deg]',
+  },
+];
 
 const CHAPTERS = [
   {
@@ -90,9 +120,8 @@ export default function AuthScreen() {
         if (inviteToken) {
           await supabase.rpc('join_household_by_token', { p_token: inviteToken, p_user_id: user.id });
           window.history.replaceState({}, '', window.location.pathname);
-        } else {
-          await supabase.rpc('create_household_for_user', { uid: user.id });
         }
+        // household creation handled by loadHousehold() in App.jsx once onAuthStateChange fires
       }
     } catch (err) {
       setError(err.message);
@@ -151,12 +180,14 @@ export default function AuthScreen() {
               Star the recipes you keep coming back to. The week plans itself from there, and so does the shopping list. Anyone else in your household sees every change the moment you make it.
             </p>
             <div className="sm:col-span-5 flex flex-col gap-3">
-              <button
+              <Button
                 onClick={() => setView('plan')}
-                className="px-6 py-3.5 bg-orange-500 text-white rounded-2xl font-medium hover:bg-orange-600 transition text-sm flex items-center justify-center gap-2 shadow-warm-lg"
+                size="lg"
+                className="px-6 py-3.5 flex items-center gap-2 shadow-warm-lg"
               >
                 Start this week <ArrowRight size={16} />
-              </button>
+              </Button>
+
               <button
                 onClick={() => { setMode('login'); setView('auth'); }}
                 className="px-6 py-3 text-orange-700 hover:text-orange-900 transition text-sm underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
@@ -219,18 +250,70 @@ export default function AuthScreen() {
           </div>
         </section>
 
+        {/* Testimonials — scattered notebook notes, not a feature grid */}
+        <section className="max-w-3xl mx-auto px-6 py-20 sm:py-24">
+          <p className="font-display italic text-orange-500/80 text-sm mb-10 tracking-wide">— people who cook at home</p>
+
+          {/* One large note + two smaller ones: deliberately non-identical layout */}
+          <div className="space-y-5 sm:space-y-6">
+            <blockquote className={`bg-white rounded-[22px] border border-orange-200 px-7 py-6 shadow-warm ${TESTIMONIALS[0].rotate}`}>
+              <p className="font-display text-xl sm:text-2xl font-semibold text-orange-900 leading-snug mb-4">
+                "{TESTIMONIALS[0].quote}"
+              </p>
+              <p className="font-display italic text-orange-500 text-sm">
+                — {TESTIMONIALS[0].name}, {TESTIMONIALS[0].location} · {TESTIMONIALS[0].household}
+              </p>
+            </blockquote>
+
+            <div className="grid sm:grid-cols-2 gap-5 sm:gap-6">
+              {TESTIMONIALS.slice(1).map((t) => (
+                <blockquote key={t.name} className={`bg-white rounded-[18px] border border-orange-200 px-6 py-5 shadow-warm ${t.rotate}`}>
+                  <p className="text-orange-800/85 text-[15px] leading-relaxed mb-3">"{t.quote}"</p>
+                  <p className="font-display italic text-orange-500 text-xs">
+                    — {t.name}, {t.location} · {t.household}
+                  </p>
+                </blockquote>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* CTA footer */}
         <section className="max-w-3xl mx-auto px-6 py-24 text-center">
-          <h2 className="font-display text-3xl sm:text-4xl font-semibold text-orange-900 mb-3 leading-tight">
-            Give it a week.
-          </h2>
+          <LayoutGroup>
+            <motion.h2
+              className="font-display text-3xl sm:text-4xl font-semibold text-orange-900 mb-3 leading-tight flex flex-wrap items-baseline justify-center"
+              layout
+              transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+            >
+              <motion.span
+                layout
+                transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+              >
+                Give it a{' '}
+              </motion.span>
+              <TextRotate
+                texts={['week.', 'try.', 'go.', 'Monday.', 'dinner.']}
+                mainClassName="text-white px-3 bg-orange-500 overflow-hidden py-0.5 sm:py-1 justify-center rounded-2xl"
+                staggerFrom="last"
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '-120%' }}
+                staggerDuration={0.025}
+                splitLevelClassName="overflow-hidden pb-0.5"
+                transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                rotationInterval={2500}
+              />
+            </motion.h2>
+          </LayoutGroup>
           <p className="text-sm text-orange-700/80 mb-8">Free to use. No card needed.</p>
-          <button
+          <Button
             onClick={() => setView('plan')}
-            className="px-8 py-3.5 bg-orange-500 text-white rounded-2xl font-medium hover:bg-orange-600 transition text-sm shadow-warm-lg"
+            size="lg"
+            className="px-8 py-3.5 shadow-warm-lg"
           >
             Create your free account
-          </button>
+          </Button>
         </section>
       </div>
     );

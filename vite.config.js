@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 function getBuildId() {
   try {
@@ -40,6 +41,9 @@ process.env.VITE_APP_VERSION = buildId;
 
 export default defineConfig({
   plugins: [react(), injectBuildIdIntoServiceWorker(buildId)],
+  resolve: {
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+  },
   server: { port: 3000, open: true },
   build: { outDir: 'build' },
 });

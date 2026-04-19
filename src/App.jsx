@@ -469,7 +469,10 @@ export default function App() {
   // ── Load household when user is ready ────────────────────────────────────
   const loadingForUser = React.useRef(null);
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      loadingForUser.current = null; // reset so the next sign-in always triggers loadHousehold
+      return;
+    }
     if (loadingForUser.current === user.id) return; // guard against duplicate onAuthStateChange fires
     loadingForUser.current = user.id;
     loadHousehold();

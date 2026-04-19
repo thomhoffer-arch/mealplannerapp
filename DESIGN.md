@@ -59,9 +59,9 @@ is tempting because it's "safe." Resist.
    another. If you're tempted to make three things identical, vary
    at least one axis.
 
-5. **Squircle radius on CTAs.** `rounded-2xl` or `rounded-full` for
-   primary buttons. `rounded-[22px]` for feature cards. Avoid the
-   default `rounded-lg` — it's forgettable.
+5. **Radius on CTAs.** `rounded-lg` for primary buttons via
+   `src/components/ui/button.jsx`. `rounded-full` for pill-shaped
+   secondary actions. `rounded-[22px]` for feature cards.
 
 6. **Warm paper palette.** `bg-paper`, orange-50/orange-100 borders,
    orange-900 for display type. Sage for success. Purple ONLY for
@@ -143,15 +143,16 @@ Fraunces at weights below 400.
 | `rounded-[10px]` | 10     | Day tiles in a week grid                                 |
 | `rounded-[14px]` | 14     | Small floating chips (basket button, pinned counter)     |
 | `rounded-[16px]` | 16     | Inner cards within a sheet (menu popover, list popover)  |
-| `rounded-2xl`    | 16     | Primary buttons, input fields, plan cards                |
+| `rounded-lg`     | 8      | Primary buttons via `components/ui/button.jsx`           |
+| `rounded-2xl`    | 16     | Input fields, plan cards                                 |
 | `rounded-[18px]` | 18     | Mid-level cards that want less squircle                  |
 | `rounded-[22px]` | 22     | Feature / notebook sheets — the signature squircle       |
 | `rounded-3xl`    | 24     | Auth card, full-screen modal sheets                      |
 | `rounded-full`   | ∞      | Pills, chips, avatars, pill-shaped CTAs                  |
 
-**Never `rounded-lg`.** Per the table at the top, it's the `div` of
-design — too forgettable. If you find yourself typing it, switch to
-`rounded-2xl` or the squircle brackets.
+Use `rounded-lg` only via `<Button>` — don't reach for it directly in
+one-off elements. For anything that isn't a Button, use `rounded-2xl`
+or the squircle brackets.
 
 ### Shadows
 
@@ -366,7 +367,7 @@ Run this before calling a screen done:
 - [ ] No three identical cards in a row — broken in at least one axis
 - [ ] Numbered chapter pattern considered for any "list of 3 options"
 - [ ] Copy passes the voice guide (no tricolons, no marketing verbs)
-- [ ] Primary CTA uses `rounded-2xl` or `rounded-full`, not `rounded-lg`
+- [ ] Primary CTA uses `<Button>` from `components/ui/button.jsx`
 - [ ] Warm paper palette — no surprise blues or greys
 - [ ] Any day/meal/list states follow the conventions in "State conventions"
 - [ ] Realtime/other-user activity uses sage, never blue

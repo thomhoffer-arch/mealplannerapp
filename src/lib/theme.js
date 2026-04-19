@@ -3,7 +3,9 @@ const STORAGE_KEY = 'mp-theme';
 // Returns the user's preference — 'system' | 'light' | 'dark'.
 export function getPreference() {
   const v = typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY);
-  return v === 'light' || v === 'dark' ? v : 'system';
+  // 'system' must be explicitly stored — default is 'light' so new users
+  // always start in light mode rather than inheriting a dark OS theme.
+  return v === 'light' || v === 'dark' || v === 'system' ? v : 'light';
 }
 
 // Resolves the effective theme ('light' | 'dark') given a preference.
