@@ -480,27 +480,46 @@ export default function App() {
 
   async function loadHousehold() {
     setAuthLoading(true);
-    const { data: member } = await supabase
+    const RLS_HINT =
+      "If this is a 403, the RLS SELECT policies on household_members / households " +
+      "are missing. Run supabase/migration_add_rls_select_policies.sql in the " +
+      "Supabase SQL editor, then sign in again.";
+
+    const { data: member, error: memberErr } = await supabase
       .from("household_members")
       .select("household_id, households(*)")
       .eq("user_id", user.id)
       .maybeSingle();
 
+    if (memberErr) {
+      console.error("[auth] household_members read failed:", memberErr, "\n" + RLS_HINT);
+      await supabase.auth.signOut();
+      setAuthLoading(false);
+      return;
+    }
+
     if (member?.households) {
       setHousehold(member.households);
-    } else {
-      const { data: hid, error: rpcError } = await supabase.rpc("create_household_for_user", { uid: user.id });
-      if (rpcError || !hid) {
-        console.error("create_household_for_user failed:", rpcError);
-        // Session is valid but DB setup may be incomplete — sign out so the
-        // user gets a clean retry rather than being silently stuck.
-        await supabase.auth.signOut();
-        setAuthLoading(false);
-        return;
-      }
-      const { data: h } = await supabase.from("households").select("*").eq("id", hid).single();
-      setHousehold(h);
+      setAuthLoading(false);
+      return;
     }
+
+    const { data: hid, error: rpcError } = await supabase.rpc("create_household_for_user", { uid: user.id });
+    if (rpcError || !hid) {
+      console.error("[auth] create_household_for_user failed:", rpcError);
+      await supabase.auth.signOut();
+      setAuthLoading(false);
+      return;
+    }
+
+    const { data: h, error: hErr } = await supabase.from("households").select("*").eq("id", hid).single();
+    if (hErr || !h) {
+      console.error("[auth] households read after create failed:", hErr, "\n" + RLS_HINT);
+      await supabase.auth.signOut();
+      setAuthLoading(false);
+      return;
+    }
+    setHousehold(h);
     setAuthLoading(false);
   }
 
