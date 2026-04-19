@@ -1,35 +1,27 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Check, ArrowRight } from 'lucide-react';
-import {
-  GlyphSprig, GlyphCalendar, GlyphBasket, GlyphStar,
-  GlyphTwo, GlyphLink, Scribble,
-} from './glyphs';
+import { GlyphStar, GlyphCalendar, GlyphBasket, Scribble } from './glyphs';
+import NotebookWeekScene from './NotebookWeekScene';
 
-const FEATURES = [
+const CHAPTERS = [
   {
-    glyph: GlyphSprig, span: 'sm:col-span-4', title: "Recipes you'd actually cook",
-    desc: "We pull from HelloFresh, Marley Spoon, Spoonacular and a few more — filtered by what you eat, how long you've got, and what's in season. No clickbait, no fifteen-ingredient lists.",
+    n: '01',
+    glyph: GlyphStar,
+    title: 'Star the ones you love',
+    desc: "Search HelloFresh, Marley Spoon, Spoonacular and a few more. Paste any URL and we'll pull the ingredients. Or type one yourself — notes in the margins and all. Tell us how often you want each one back: weekly, biweekly, or just when the mood strikes.",
   },
   {
-    glyph: GlyphStar, span: 'sm:col-span-2', title: 'Your favourites, on rotation',
-    desc: "Star the ones you love. Set 'weekly', 'biweekly' or 'sometimes'.",
+    n: '02',
+    glyph: GlyphCalendar,
+    title: 'Let the week plan itself',
+    desc: "One tap builds seven dinners from what you actually eat — filtered by what's in season and how long you've got. Swap anything you don't fancy; the rest shuffles around it.",
   },
   {
-    glyph: GlyphCalendar, span: 'sm:col-span-2', title: 'A whole week, one tap',
-    desc: 'Built around what you actually like — not what trended on TikTok yesterday.',
-  },
-  {
-    glyph: GlyphBasket, span: 'sm:col-span-4', title: 'The shopping list builds itself',
-    desc: "Every ingredient from the plan, merged and sorted. Tick things off as you walk the aisles — the rest of your household sees each one update live.",
-  },
-  {
-    glyph: GlyphTwo, span: 'sm:col-span-3', title: "Share it — or don't",
-    desc: "Invite a partner, a flatmate, or nobody at all. When you do share, no more 'did we already have pasta this week?'",
-  },
-  {
-    glyph: GlyphLink, span: 'sm:col-span-3', title: 'Bring your own recipes',
-    desc: "Paste a recipe URL and we'll pull the ingredients and steps. Or type it out yourself — notes in the margins and all.",
+    n: '03',
+    glyph: GlyphBasket,
+    title: 'Shop in sync, not by text',
+    desc: 'The list builds itself from the plan, merged and sorted aisle by aisle. Tick off milk at the shop and the rest of your household sees it land at home. Send the whole lot straight to AH, Jumbo or Picnic.',
   },
 ];
 
@@ -178,53 +170,58 @@ export default function AuthScreen() {
           </div>
         </section>
 
-        {/* Feature bento — varied column widths so the eye doesn't scan three
-            identical cards. Glyphs are hand-drawn, same stroke weight. */}
-        <section className="max-w-3xl mx-auto px-6 pb-20">
-          <div className="flex items-baseline gap-3 mb-8">
-            <span className="font-display italic text-orange-500 text-sm tracking-wide">01 &nbsp;/&nbsp;</span>
-            <h2 className="font-display text-2xl sm:text-3xl font-semibold text-orange-900">What's in the kitchen</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
-            {FEATURES.map((f) => {
-              const Glyph = f.glyph;
-              return (
-                <div
-                  key={f.title}
-                  className={`${f.span} bg-white/70 backdrop-blur-sm rounded-[22px] border border-orange-100 p-5 sm:p-6 hover:border-orange-300 transition`}
-                >
-                  <div className="text-orange-600 mb-4"><Glyph /></div>
-                  <p className="font-display text-lg font-semibold text-orange-900 mb-1.5 leading-tight">{f.title}</p>
-                  <p className="text-[13px] text-orange-800/75 leading-relaxed">{f.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* How it works — notebook-style numbered chapters, not a pipeline
-            with three identical circles. */}
-        <section className="bg-white/60 backdrop-blur-sm border-y border-orange-100 py-20 px-6">
+        {/* How a week goes — the illustrated scene leads, three numbered
+            chapters beneath, and a share-it-or-don't aside in the margin.
+            Replaces the old bento + how-it-works pair which said the same
+            thing twice. */}
+        <section className="bg-white/60 backdrop-blur-sm border-y border-orange-100 py-20 sm:py-24 px-6">
           <div className="max-w-3xl mx-auto">
-            <div className="flex items-baseline gap-3 mb-10">
-              <span className="font-display italic text-orange-500 text-sm tracking-wide">02 &nbsp;/&nbsp;</span>
-              <h2 className="font-display text-2xl sm:text-3xl font-semibold text-orange-900">How it works</h2>
+            <div className="flex items-baseline gap-3 mb-2">
+              <span className="font-display italic text-orange-500 text-sm tracking-wide">01 &nbsp;/&nbsp;</span>
+              <h2 className="font-display text-2xl sm:text-3xl font-semibold text-orange-900">How a week goes</h2>
             </div>
-            <ol className="space-y-9">
-              {[
-                { n: '01', title: 'Star the ones you love',     desc: 'Search, save, and tell us how often you want each recipe back — weekly, biweekly, or just when the mood strikes.' },
-                { n: '02', title: 'Let the week plan itself',   desc: 'One tap builds seven dinners from what you actually eat. Swap anything you don\u2019t fancy — the rest shuffles around it.' },
-                { n: '03', title: 'Shop in sync',               desc: 'The list is auto-built from the plan. Tick off milk at the shop, the rest of your household sees it land at home. No texting.' },
-              ].map((s) => (
-                <li key={s.n} className="grid grid-cols-[auto_1fr] gap-5 sm:gap-7 items-start">
-                  <span className="font-display italic text-4xl sm:text-5xl text-orange-300 leading-none pt-1 select-none">{s.n}</span>
-                  <div>
-                    <p className="font-display text-xl font-semibold text-orange-900 mb-1.5">{s.title}</p>
-                    <p className="text-sm text-orange-800/80 leading-relaxed max-w-lg">{s.desc}</p>
-                  </div>
-                </li>
-              ))}
+            <p className="font-display italic text-orange-700/70 text-sm mb-12 ml-11 max-w-lg">
+              roughly like this —
+            </p>
+
+            {/* The notebook week itself */}
+            <NotebookWeekScene />
+
+            {/* Three chapters underneath — numbered like journal entries,
+                glyph on the right for 02 to break the symmetry. */}
+            <ol className="mt-20 sm:mt-24 space-y-12">
+              {CHAPTERS.map((c, i) => {
+                const Glyph = c.glyph;
+                const glyphRight = i === 1;
+                return (
+                  <li key={c.n} className="flex gap-5 sm:gap-7 items-start">
+                    <span className="font-display italic text-5xl sm:text-6xl text-orange-300 leading-none pt-1 select-none flex-shrink-0 w-14">{c.n}</span>
+                    {!glyphRight && (
+                      <div className="text-orange-400/80 pt-2 flex-shrink-0 hidden sm:block">
+                        <Glyph className="w-9 h-9" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-display text-xl sm:text-2xl font-semibold text-orange-900 mb-2 leading-tight">{c.title}</p>
+                      <p className="text-[15px] text-orange-800/80 leading-relaxed max-w-lg">{c.desc}</p>
+                    </div>
+                    {glyphRight && (
+                      <div className="text-orange-400/80 pt-2 flex-shrink-0 hidden sm:block">
+                        <Glyph className="w-9 h-9" />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ol>
+
+            {/* Aside — not numbered, italic, pinned slightly to the right
+                so it reads as a margin note. Breaks the rhythm on purpose.
+                No scribble here; the hero already has the one per screen. */}
+            <p className="mt-16 sm:mt-20 ml-auto max-w-md text-right font-display italic text-orange-700/80 text-base leading-relaxed">
+              — cooking for one, for two, or a full flat? It scales. Share the
+              kitchen when you want. <span className="text-orange-600">Don't</span> when you don't.
+            </p>
           </div>
         </section>
 
