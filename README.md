@@ -88,16 +88,27 @@ React 18 + Tailwind CSS (Vite)
 
 ### Migrations
 
-Run these in order against your Supabase project (earlier migrations live in the Supabase dashboard history):
+For a fresh Supabase project, run these in order via **SQL Editor** (one file per tab, paste + Run):
 
 ```
-supabase/migration_add_ai_usage.sql              — ai_usage table + RLS
-supabase/migration_add_user_recipes.sql          — user_recipes table + RLS
-supabase/migration_add_rotation_reminder.sql     — rotation_priority on starred_recipes;
-                                                   reminder_enabled + reminder_day on household_preferences
-supabase/migration_add_puter_token.sql           — puter_token_encrypted + puter_token_hint on
-                                                   household_preferences (optional, for Puter BYOK)
+1.  supabase/schema.sql                             — base tables + RLS helper + core policies
+2.  supabase/migration_add_preferences.sql          — household_preferences table
+3.  supabase/migration_add_gemini_key.sql           — gemini_key_encrypted on household_preferences
+4.  supabase/migration_add_ai_usage.sql             — ai_usage table + RLS
+5.  supabase/migration_add_rating.sql               — rating on cooked_recipes
+6.  supabase/migration_add_starred.sql              — starred_recipes table
+7.  supabase/migration_add_pantry.sql               — pantry_items table
+8.  supabase/migration_add_templates.sql            — plan_templates table
+9.  supabase/migration_add_user_recipes.sql         — user_recipes table + RLS
+10. supabase/migration_add_rotation_reminder.sql    — rotation_priority on starred_recipes;
+                                                      reminder_enabled + reminder_day on household_preferences
+11. supabase/migration_add_survey.sql               — survey response columns
+12. supabase/migration_add_puter_token.sql          — puter_token_encrypted + puter_token_hint on
+                                                      household_preferences (optional, for Puter BYOK)
+13. supabase/migration_add_dinner_invitations.sql   — dinner_invitations table
 ```
+
+**Editor gotcha:** Supabase's SQL editor can misparse multiple `$$`-quoted functions pasted in one batch and raise `relation "hid" does not exist`. If that happens, run each `create or replace function` block in its own tab.
 
 ---
 
