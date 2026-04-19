@@ -17,6 +17,7 @@ import NotificationBell from "./components/NotificationBell";
 import UpdateToast from "./components/UpdateToast";
 import ThemeToggle from "./components/ThemeToggle";
 import { applyTheme } from "./lib/theme";
+import { GlyphPot, GlyphSpyglass, GlyphLink, Scribble } from "./components/glyphs";
 
 // ─── Filter configuration ─────────────────────────────────────────────────────
 const FILTERS = {
@@ -1258,50 +1259,66 @@ export default function App() {
                 </div>
               </>
             ) : (
-              <div className="py-8">
-                <p className="font-display italic text-orange-500/80 text-xs tracking-wide text-center mb-2">Your week is empty</p>
-                <h3 className="font-display text-2xl font-semibold text-orange-900 leading-tight text-center mb-2">Start your first week.</h3>
-                <p className="text-sm text-orange-700/80 leading-relaxed text-center max-w-sm mx-auto mb-6">
-                  Three ways in. None of them take longer than a minute.
-                </p>
-                <div className="space-y-2 max-w-md mx-auto">
-                  <button
-                    onClick={() => setShowWeekSuggest(true)}
-                    className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-100 bg-white hover:border-purple-300 px-4 py-4 transition"
-                  >
-                    <span className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
-                      <Sparkles size={18} />
-                    </span>
-                    <span className="flex-1">
-                      <span className="block font-display text-base font-semibold text-orange-900 mb-0.5">Let AI plan the week</span>
-                      <span className="block text-xs text-orange-800/75 leading-snug">Seven dinners, picked to your household's taste. Swap anything you don't fancy.</span>
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("search")}
-                    className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-orange-100 bg-white hover:border-orange-300 px-4 py-4 transition"
-                  >
-                    <span className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
-                      <Search size={18} />
-                    </span>
-                    <span className="flex-1">
-                      <span className="block font-display text-base font-semibold text-orange-900 mb-0.5">Browse recipes</span>
-                      <span className="block text-xs text-orange-800/75 leading-snug">Search, filter, and star the ones you keep coming back to.</span>
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => { setActiveTab("search"); setTimeout(() => document.querySelector('input[type=url]')?.focus(), 0); }}
-                    className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-orange-100 bg-white hover:border-orange-300 px-4 py-4 transition"
-                  >
-                    <span className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
-                      <Link2 size={18} />
-                    </span>
-                    <span className="flex-1">
-                      <span className="block font-display text-base font-semibold text-orange-900 mb-0.5">Paste a recipe you love</span>
-                      <span className="block text-xs text-orange-800/75 leading-snug">Any URL — we'll pull ingredients and steps straight in.</span>
-                    </span>
-                  </button>
-                </div>
+              <div className="py-6">
+                <p className="font-display italic text-orange-500/80 text-xs tracking-wide mb-2">— no plan yet</p>
+                <h3 className="font-display text-[2rem] sm:text-4xl font-semibold text-orange-900 leading-[0.95] mb-6 tracking-tight">
+                  Start your{' '}
+                  <span className="relative inline-block italic font-normal text-orange-600">
+                    first
+                    <Scribble className="absolute left-0 -bottom-2 w-full text-orange-500/70 pointer-events-none" aria-hidden="true" />
+                  </span>{' '}
+                  week.
+                </h3>
+
+                <ol className="space-y-6">
+                  <li>
+                    <button
+                      onClick={() => setShowWeekSuggest(true)}
+                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition"
+                    >
+                      <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">01</span>
+                      <span className="pt-1">
+                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Let AI plan the week</span>
+                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">
+                          Seven dinners picked to your household's taste. Swap anything you don't fancy.
+                        </span>
+                      </span>
+                      <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphPot /></span>
+                    </button>
+                  </li>
+
+                  <li>
+                    <button
+                      onClick={() => setActiveTab("search")}
+                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition"
+                    >
+                      <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">02</span>
+                      <span className="pt-1">
+                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Browse and star</span>
+                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">
+                          Search, filter, and star the ones you keep coming back to.
+                        </span>
+                      </span>
+                      <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphSpyglass /></span>
+                    </button>
+                  </li>
+
+                  <li>
+                    <button
+                      onClick={() => { setActiveTab("search"); setTimeout(() => document.querySelector('input[type=url]')?.focus(), 0); }}
+                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition"
+                    >
+                      <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">03</span>
+                      <span className="pt-1">
+                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Paste a recipe you love</span>
+                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">
+                          Any URL — we'll pull ingredients and steps straight in.
+                        </span>
+                      </span>
+                      <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphLink /></span>
+                    </button>
+                  </li>
+                </ol>
               </div>
             )}
           </div>

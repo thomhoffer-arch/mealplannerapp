@@ -1,85 +1,10 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Check, ArrowRight } from 'lucide-react';
-
-// Hand-drawn line glyphs — same single-weight stroke so they read like
-// one illustrator's set rather than a stock pack.
-const glyph = { viewBox: '0 0 32 32', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' };
-
-function GlyphSprig() {
-  return (
-    <svg {...glyph} className="w-7 h-7">
-      <path d="M16 28 C 16 22 14.5 17 14 14 C 13.5 10 13.5 6 14.5 3" />
-      <path d="M14 8 Q 10 7 7.5 9" />
-      <path d="M14.4 12 Q 18 11 20.5 12.5" />
-      <path d="M14.2 17 Q 10 16 7.5 18" />
-      <path d="M15 22 Q 19 21 21.5 22.5" />
-    </svg>
-  );
-}
-function GlyphCalendar() {
-  return (
-    <svg {...glyph} className="w-7 h-7">
-      <rect x="5" y="7" width="22" height="21" rx="2" />
-      <path d="M5 13 H27" />
-      <path d="M10 4 V10" />
-      <path d="M22 4 V10" />
-      <circle cx="11" cy="18" r="0.9" fill="currentColor" />
-      <circle cx="16" cy="18" r="0.9" fill="currentColor" />
-      <circle cx="21" cy="18" r="0.9" fill="currentColor" />
-      <circle cx="11" cy="23" r="0.9" fill="currentColor" />
-      <circle cx="16" cy="23" r="0.9" fill="currentColor" />
-    </svg>
-  );
-}
-function GlyphBasket() {
-  return (
-    <svg {...glyph} className="w-7 h-7">
-      <path d="M4 12 H28 L25 26 H7 Z" />
-      <path d="M10 12 L14 5" />
-      <path d="M22 12 L18 5" />
-      <path d="M12 17 V22" />
-      <path d="M16 17 V22" />
-      <path d="M20 17 V22" />
-    </svg>
-  );
-}
-function GlyphStar() {
-  return (
-    <svg {...glyph} className="w-7 h-7">
-      <path d="M16 5 L19.4 12 L27 13 L21.5 18.3 L23 26 L16 22.5 L9 26 L10.5 18.3 L5 13 L12.6 12 Z" />
-    </svg>
-  );
-}
-function GlyphTwo() {
-  return (
-    <svg {...glyph} className="w-7 h-7">
-      <circle cx="12" cy="12" r="3.5" />
-      <path d="M5.5 24 Q 5.5 18 12 18 Q 14 18 15.5 18.5" />
-      <circle cx="21" cy="14" r="3.5" />
-      <path d="M14.5 26 Q 14.5 20 21 20 Q 27 20 27 26" />
-    </svg>
-  );
-}
-function GlyphLink() {
-  return (
-    <svg {...glyph} className="w-7 h-7">
-      <path d="M14 10 H8.5 Q 4 10 4 14 Q 4 18 8.5 18 H14" />
-      <path d="M18 22 H23.5 Q 28 22 28 18 Q 28 14 23.5 14 H18" />
-      <path d="M10 16 H22" />
-    </svg>
-  );
-}
-
-// Hand-drawn scribble underline under the hero italic — the kind of
-// single mark a designer would draw with a red pencil on a proof.
-function Scribble({ className = '' }) {
-  return (
-    <svg viewBox="0 0 200 14" className={className} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M4 9 C 28 3, 58 12, 92 6 S 158 12, 196 4" />
-    </svg>
-  );
-}
+import {
+  GlyphSprig, GlyphCalendar, GlyphBasket, GlyphStar,
+  GlyphTwo, GlyphLink, Scribble,
+} from './glyphs';
 
 const FEATURES = [
   {
