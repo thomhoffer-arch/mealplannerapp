@@ -4,8 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { getUserAndHousehold } = require('../_lib/auth');
 const { VOICE_GUIDE } = require('../_lib/voice');
 const { resolveAiProvider, callAi } = require('../_lib/ai-call');
-
-const DAILY_FREE_LIMIT = 50;
+const { checkAndIncrementUsage, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
 
 // POST /api/ai/suggest
 // Body: { recipe, preferences, starredRecipes }
@@ -25,12 +24,12 @@ module.exports = async function handler(req, res) {
     : { provider: 'gemini', token: process.env.GEMINI_API_KEY || null, usingSharedKey: true };
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
-  // Enforce daily cap only when using the shared server key
+  // Enforce weekly cap only when using the shared server key
   if (usingSharedKey && ctx) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({
-        error: `Daily limit of ${DAILY_FREE_LIMIT} AI suggestions reached. Add your own Gemini key or Puter token in Settings for unlimited use.`,
+        error: `Weekly limit of ${WEEKLY_FREE_LIMIT} AI suggestions reached. Connect Puter or add your own Gemini key in Settings for unlimited use.`,
       });
     }
   }
@@ -52,26 +51,6 @@ module.exports = async function handler(req, res) {
     res.status(502).json({ error: 'Could not parse AI response' });
   }
 };
-
-async function checkAndIncrementUsage(supabase, householdId) {
-  const today = new Date().toISOString().slice(0, 10);
-
-  const { data } = await supabase
-    .from('ai_usage')
-    .select('call_count')
-    .eq('household_id', householdId)
-    .eq('usage_date', today)
-    .single();
-
-  if (data && data.call_count >= DAILY_FREE_LIMIT) return true;
-
-  await supabase.from('ai_usage').upsert(
-    { household_id: householdId, usage_date: today, call_count: (data?.call_count || 0) + 1 },
-    { onConflict: 'household_id,usage_date' }
-  );
-
-  return false;
-}
 
 function buildPrompt(recipe, preferences, starredRecipes) {
   const preferencesText = (preferences.preferences_text || '').trim();

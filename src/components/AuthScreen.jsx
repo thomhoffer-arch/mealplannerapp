@@ -354,8 +354,8 @@ export default function AuthScreen() {
               </p>
               <ul className="space-y-2 mt-5">
                 {[
-                  { ok: true,  text: '50 AI suggestions per day' },
-                  { ok: true,  text: 'Add your own key → unlimited AI' },
+                  { ok: true,  text: '15 AI suggestions per week' },
+                  { ok: true,  text: 'Connect Puter → unlimited AI' },
                   { ok: true,  text: 'HelloFresh & Spoonacular recipes' },
                   { ok: true,  text: 'Shared plan, list & pantry' },
                   { ok: false, text: 'Extended recipe database' },
