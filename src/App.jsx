@@ -485,10 +485,13 @@ export default function App() {
       "are missing. Run supabase/migration_add_rls_select_policies.sql in the " +
       "Supabase SQL editor, then sign in again.";
 
+    // limit(1) + maybeSingle so a duplicate-membership data bug can't
+    // crash the query with PGRST116 — we just take the first one.
     const { data: member, error: memberErr } = await supabase
       .from("household_members")
       .select("household_id, households(*)")
       .eq("user_id", user.id)
+      .limit(1)
       .maybeSingle();
 
     if (memberErr) {
