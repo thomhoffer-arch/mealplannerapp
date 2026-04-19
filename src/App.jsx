@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Search, ShoppingCart, Calendar, ChevronDown, ChevronUp,
+  Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp,
   Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles, Star, Package, PenLine,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
@@ -12,6 +12,7 @@ import CreateRecipeModal from "./components/CreateRecipeModal";
 import StarredPanel from "./components/StarredPanel";
 import WeekSuggestModal from "./components/WeekSuggestModal";
 import PuterWelcomeModal from "./components/PuterWelcomeModal";
+import GrocerHandoffModal from "./components/GrocerHandoffModal";
 import NotificationBell from "./components/NotificationBell";
 import UpdateToast from "./components/UpdateToast";
 import ThemeToggle from "./components/ThemeToggle";
@@ -404,6 +405,7 @@ export default function App() {
   const [showStarred, setShowStarred] = useState(false);
   const [showWeekSuggest, setShowWeekSuggest] = useState(false);
   const [showPuterWelcome, setShowPuterWelcome] = useState(false);
+  const [showGrocerHandoff, setShowGrocerHandoff] = useState(false);
   const [showReminderBanner, setShowReminderBanner] = useState(false);
   const [preferences, setPreferences] = useState({});
 
@@ -978,6 +980,17 @@ export default function App() {
         />
       )}
 
+      {/* Grocer handoff */}
+      {showGrocerHandoff && (
+        <GrocerHandoffModal
+          items={shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name])}
+          onClose={() => setShowGrocerHandoff(false)}
+          onMarkChecked={(name) => {
+            if (!checkedItems[name]) toggleItem(name);
+          }}
+        />
+      )}
+
       {/* Willingness-to-pay survey */}
       {showSurvey && !showPreferences && (
         <WillingnessModal
@@ -1282,6 +1295,15 @@ export default function App() {
                   </div>
                   {checkedCount === shoppingList.length && shoppingList.length > 0 && (
                     <p className="text-center text-sm text-green-600 font-semibold mt-2">All done! Happy cooking!</p>
+                  )}
+                  {shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length > 0 && (
+                    <button
+                      onClick={() => setShowGrocerHandoff(true)}
+                      className="w-full mt-3 py-2.5 bg-orange-900 text-white rounded-xl font-semibold text-sm hover:bg-orange-800 transition flex items-center justify-center gap-2"
+                    >
+                      <ShoppingBag size={14} />
+                      Send to AH, Jumbo or Picnic
+                    </button>
                   )}
                 </div>
 
