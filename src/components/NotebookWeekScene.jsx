@@ -166,12 +166,12 @@ export default function NotebookWeekScene() {
                 </button>
 
                 {day.swap && (
-                  <span className="absolute -bottom-7 -left-1 font-display italic text-orange-500 text-[10px] sm:text-xs whitespace-nowrap pointer-events-none">
+                  <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 font-display italic text-orange-500 text-[10px] sm:text-xs whitespace-nowrap pointer-events-none">
                     → {day.swap}
                   </span>
                 )}
                 {day.away && (
-                  <span className="absolute -bottom-7 -left-2 font-display italic text-sage-600 text-[10px] sm:text-xs whitespace-nowrap pointer-events-none">
+                  <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 font-display italic text-sage-600 text-[10px] sm:text-xs whitespace-nowrap pointer-events-none">
                     @ {day.away}
                   </span>
                 )}
