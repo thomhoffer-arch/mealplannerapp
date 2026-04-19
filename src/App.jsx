@@ -24,10 +24,10 @@ const SOURCE_COLORS = {
   HelloFresh:      "bg-green-100 text-green-700",
   "Marley Spoon":  "bg-amber-100 text-amber-700",
   "NYT Cooking":   "bg-red-100 text-red-700",
-  Spoonacular:     "bg-blue-100 text-blue-700",
+  Spoonacular:     "bg-orange-100 text-orange-700",
   "My Recipes":    "bg-amber-100 text-amber-700",
   "AI Suggestion": "bg-orange-100 text-orange-600",
-  "Web import":    "bg-gray-100 text-gray-600",
+  "Web import":    "bg-orange-50 text-orange-500",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ function RecipeCard({ recipe, isSelected, isStarred, onToggleSelect, onToggleSta
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-gray-100 text-gray-600"}`}>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-orange-50 text-orange-500"}`}>
               {recipe.source}
             </span>
             <span className="text-xs text-orange-500">{totalTime(recipe)} min · {recipe.servings} servings</span>
@@ -239,7 +239,7 @@ function SelectedRecipeCard({
           </button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-gray-100 text-gray-600"}`}>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-orange-50 text-orange-500"}`}>
                 {recipe.source}
               </span>
               <span className="text-xs text-orange-500">{totalTime(recipe)} min · {recipe.servings} servings</span>
@@ -263,7 +263,7 @@ function SelectedRecipeCard({
             <span key={ing.name} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{ing.name}</span>
           ))}
           {customs.map((c) => (
-            <span key={c.id} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{c.name}</span>
+            <span key={c.id} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{c.name}</span>
           ))}
         </div>
       </div>
@@ -1478,13 +1478,13 @@ export default function App() {
                         <button key={item.name} onClick={() => !item.inPantry && toggleItem(item.name)}
                           className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
                           <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                            item.inPantry ? "bg-gray-100 border-gray-200" : checked ? "bg-green-500 border-green-500 text-white" : item.isCustom ? "border-blue-300" : "border-orange-300"}`}>
+                            item.inPantry ? "bg-gray-100 border-gray-200" : checked ? "bg-green-500 border-green-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
                             {(checked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-gray-400" : ""} />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <span className={`text-sm font-medium transition-all ${checked || item.inPantry ? "line-through text-gray-400" : "text-orange-900"}`}>
                               {item.name}
-                              {item.isCustom && <span className="ml-1.5 text-xs text-blue-500 font-normal">custom</span>}
+                              {item.isCustom && <span className="ml-1.5 text-xs text-amber-600 font-normal">custom</span>}
                               {item.inPantry && <span className="ml-1.5 text-xs text-gray-400 font-normal">in pantry</span>}
                             </span>
                           </div>

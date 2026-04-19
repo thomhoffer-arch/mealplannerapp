@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const SOURCE_COLORS = {
   HelloFresh:       'bg-green-100 text-green-700',
@@ -10,9 +8,11 @@ const SOURCE_COLORS = {
   'NYT Cooking':    'bg-red-100 text-red-700',
   Spoonacular:      'bg-orange-100 text-orange-700',
   'My Recipes':     'bg-amber-100 text-amber-700',
-  'AI Suggestion':  'bg-orange-50 text-orange-500',
+  'AI Suggestion':  'bg-orange-100 text-orange-600',
   'Web import':     'bg-orange-50 text-orange-500',
 };
+
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
   const [numWeeks, setNumWeeks] = useState(1);
@@ -20,14 +20,18 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
   const [plan, setPlan]         = useState(null);
   const [notes, setNotes]       = useState('');
   const [error, setError]       = useState('');
-  const [selected, setSelected] = useState({});
+  const [selected, setSelected] = useState({});   // { "1-Monday": true }
+  const [servings, setServings] = useState({});   // { "1-Monday": 4 }  overrides per day
   const [showNotes, setShowNotes] = useState(false);
+  const [expandedDay, setExpandedDay] = useState(null); // key of day with controls open
 
   async function generate() {
     setLoading(true);
     setError('');
     setPlan(null);
     setSelected({});
+    setServings({});
+    setExpandedDay(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/ai/suggest-week', {
@@ -56,9 +60,15 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
     }
   }
 
-  function toggleDay(weekNum, day) {
-    const key = `${weekNum}-${day}`;
+  function toggleDay(key) {
     setSelected((prev) => ({ ...prev, [key]: !prev[key] }));
+    // Close expanded controls if deselecting
+    if (selected[key]) setExpandedDay(null);
+  }
+
+  function setDayServings(key, val) {
+    const n = Math.min(Math.max(parseInt(val) || 2, 1), 12);
+    setServings((prev) => ({ ...prev, [key]: n }));
   }
 
   function handleLoadPlan() {
@@ -66,8 +76,10 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
     const recipes = [];
     plan.forEach((week) => {
       week.days.forEach((day) => {
-        if (selected[`${week.week}-${day.day}`] && day.recipe) {
-          recipes.push(day.recipe);
+        const key = `${week.week}-${day.day}`;
+        if (selected[key] && day.recipe) {
+          const override = servings[key];
+          recipes.push(override ? { ...day.recipe, servings: override } : day.recipe);
         }
       });
     });
@@ -80,11 +92,12 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[92vh] flex flex-col">
+
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-orange-50">
           <div className="flex items-center gap-2">
             <Sparkles size={17} className="text-orange-500" />
-            <h2 className="text-base font-bold text-orange-900">AI week planner</h2>
+            <h2 className="font-display text-base font-bold text-orange-900">AI week planner</h2>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
             <X size={16} />
@@ -119,15 +132,15 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
             <div className="flex flex-col items-center py-12 gap-3">
               <div className="w-8 h-8 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
               <p className="text-sm text-orange-500">Planning your week…</p>
-              <p className="text-xs text-orange-300">Checking your preferences and starred recipes</p>
+              <p className="text-xs text-orange-300">Checking preferences and starred recipes</p>
             </div>
           )}
 
           {!loading && !plan && !error && (
             <div className="text-center py-10">
               <Sparkles size={40} className="mx-auto mb-3 text-orange-200" />
-              <p className="text-sm text-orange-500 font-medium">AI will plan a varied week for you</p>
-              <p className="text-xs text-orange-300 mt-1 leading-relaxed">Based on your preferences, starred recipes, and rotation priorities — no pasta two days in a row.</p>
+              <p className="text-sm text-orange-500 font-medium">AI plans a varied week for you</p>
+              <p className="text-xs text-orange-300 mt-1 leading-relaxed">Based on your preferences and starred recipes — no pasta two days in a row.</p>
             </div>
           )}
 
@@ -143,18 +156,25 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
                   const recipe = day.recipe;
                   const isAI = recipe?._aiSuggestion;
                   const isStarred = recipe?._fromStarred;
+                  const dayServings = servings[key] || recipe?.servings || 2;
+                  const isExpanded = expandedDay === key;
+
                   return (
-                    <button key={day.day} onClick={() => toggleDay(week.week, day.day)}
-                      className={`w-full text-left rounded-2xl border-2 px-3 py-3 transition-all ${
-                        isSelected ? 'border-orange-400 bg-orange-50' : 'border-orange-100 bg-white'
-                      }`}>
-                      <div className="flex items-start gap-2">
-                        <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all ${
-                          isSelected ? 'bg-orange-500 border-orange-500' : 'border-orange-300'
-                        }`}>
+                    <div key={day.day} className={`rounded-2xl border-2 transition-all ${
+                      isSelected ? 'border-orange-400 bg-orange-50' : 'border-orange-100 bg-white opacity-60'
+                    }`}>
+                      {/* Main row */}
+                      <div className="flex items-start gap-2 px-3 py-3">
+                        <button
+                          onClick={() => toggleDay(key)}
+                          className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all ${
+                            isSelected ? 'bg-orange-500 border-orange-500' : 'border-orange-300'
+                          }`}
+                        >
                           {isSelected && <Check size={11} className="text-white" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
+                        </button>
+
+                        <div className="flex-1 min-w-0" onClick={() => toggleDay(key)}>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-xs font-bold text-orange-500 uppercase">{day.day.slice(0, 3)}</span>
                             {isStarred && <span className="text-xs bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-semibold">⭐ Starred</span>}
@@ -170,8 +190,51 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
                             <p className="text-xs text-orange-500 mt-0.5 line-clamp-1">{recipe?.overview || day.overview}</p>
                           )}
                         </div>
+
+                        {/* Per-day options toggle — only when selected */}
+                        {isSelected && (
+                          <button
+                            onClick={() => setExpandedDay(isExpanded ? null : key)}
+                            className="flex-shrink-0 flex items-center gap-1 text-orange-300 hover:text-orange-500 transition ml-1 mt-0.5"
+                            title="Day options"
+                          >
+                            <Users size={14} />
+                            {servings[key] && servings[key] !== (recipe?.servings || 2) && (
+                              <span className="text-xs font-semibold text-orange-500">{servings[key]}</span>
+                            )}
+                          </button>
+                        )}
                       </div>
-                    </button>
+
+                      {/* Expanded day options */}
+                      {isSelected && isExpanded && (
+                        <div className="border-t border-orange-100 px-3 py-2.5 flex items-center gap-3 bg-white rounded-b-2xl">
+                          <div className="flex items-center gap-2 flex-1">
+                            <Users size={13} className="text-orange-400 flex-shrink-0" />
+                            <span className="text-xs text-orange-700">Portions</span>
+                            <div className="flex items-center gap-1.5 ml-auto">
+                              <button
+                                onClick={() => setDayServings(key, dayServings - 1)}
+                                className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-500 hover:bg-orange-50 transition text-sm font-bold"
+                              >−</button>
+                              <span className="text-sm font-semibold text-orange-900 w-4 text-center">{dayServings}</span>
+                              <button
+                                onClick={() => setDayServings(key, dayServings + 1)}
+                                className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-500 hover:bg-orange-50 transition text-sm font-bold"
+                              >+</button>
+                            </div>
+                          </div>
+                          <div className="w-px h-4 bg-orange-100" />
+                          <button
+                            onClick={() => { toggleDay(key); setExpandedDay(null); }}
+                            className="flex items-center gap-1 text-xs text-orange-400 hover:text-red-500 transition"
+                          >
+                            <MinusCircle size={13} />
+                            Skip day
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -198,7 +261,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
           <div className="px-5 py-4 border-t border-orange-50">
             <button onClick={handleLoadPlan} disabled={selectedCount === 0}
               className="w-full py-3 bg-orange-500 text-white rounded-full font-semibold text-sm hover:bg-orange-600 transition disabled:opacity-50">
-              Add {selectedCount} recipe{selectedCount !== 1 ? 's' : ''} to my plan
+              Add {selectedCount} meal{selectedCount !== 1 ? 's' : ''} to my plan
             </button>
           </div>
         )}
