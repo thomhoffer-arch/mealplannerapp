@@ -107,6 +107,41 @@ delete the old label — the swap *is* the story.
 pencil mark diagonal across the box — same colour family as a swap
 but no label.
 
+## Who's eating
+
+Dinner isn't just a dish — it's who's at the table. Every day tile
+and plan card should tell the household at a glance *who's in, who's
+out, and who's extra*.
+
+**Base row — household members.**
+Under each day tile, a row of small circular initial chips
+(`w-5 h-5`, monogrammed initial in Fraunces italic). One chip per
+household member, in a consistent order.
+
+**Home for dinner (default).**
+Chip filled `bg-orange-100 text-orange-700`, solid outline. Reads as
+"they're eating what's on the plan."
+
+**Away that night.**
+Chip goes faded — `bg-transparent text-orange-300 border-dashed
+border-orange-300`. Optionally a tiny location pinned below:
+`@ Vera's` in sage italic (same convention as the day-tile itself).
+The shopping-list portion scales down automatically.
+
+**Extra guest.**
+Append a `+` chip after the household initials:
+`bg-sage-100 text-sage-700 border-dashed border-sage-400`. If they
+have a name, show the initial; if they're unnamed ("a friend"),
+show `+1`. Two guests → `+2` or their two initials, whichever is
+clearer. The portion scales up automatically.
+
+**Order, always.**
+Household members first, guests last, separated by a hair-thin
+vertical divider in `border-orange-200` when both are present. The
+row should feel like a kitchen clipboard, not a roster.
+
+---
+
 ## Realtime collaboration cues
 
 When a flatmate does something in a shared view, we need to convey
