@@ -73,6 +73,63 @@ is tempting because it's "safe." Resist.
 
 ---
 
+## State conventions
+
+These signal *what a thing is* before the user reads the label. Reuse
+them everywhere a meal, day, or list item can be in one of these
+states — calendar grid, plan detail, shopping list, dashboards, etc.
+
+**Home dinner (default, cooking in).**
+Solid border, warm orange (`border-orange-300/80`, text `text-orange-800`).
+When the card is open: `border-orange-500`, `bg-orange-50`.
+
+**Eating out / dinner at someone else's.**
+Dashed sage border (`border-dashed border-sage-400/80`, text
+`text-sage-700`). The tile reads as different-but-belonging — same
+page of the notebook, not a different section. Pair with a tiny
+italic margin note pinned below the box: `@ Vera's` in
+`font-display italic text-sage-600 text-[10px]`. The detail card for
+that day tints sage (`border-sage-300/70 bg-sage-100/50`) and carries
+a tiny sage pill: "eating out".
+
+**Invited someone over.**
+Same visual family as eating-out but with the pill reversed — "hosting".
+(Not yet used in the sandbox but keep the colour convention aligned.)
+
+**Swapped / crossed out.**
+Keep the original dish on the page with a strikethrough
+(`line-through decoration-[1.5px] text-orange-400`) and a margin note
+in Fraunces italic pointing to the new choice: `→ ramen`. Don't
+delete the old label — the swap *is* the story.
+
+**Skipped / no dinner planned.**
+(When we need it.) Leave the tile empty except for a faint single
+pencil mark diagonal across the box — same colour family as a swap
+but no label.
+
+## Realtime collaboration cues
+
+When a flatmate does something in a shared view, we need to convey
+"that just happened, not by you" without pulling the user out.
+
+**Ticked by someone else.**
+Item shows as struck-through like any tick, but with a small
+sage-tinted initial chip on the right: `Alex` in
+`bg-sage-100 text-sage-600 rounded-full`. You ticked it → no chip.
+
+**Live activity toast.**
+A sage pill floats at the top of the panel with a circular initial
+avatar and one italic sentence: *"Alex ticked pecorino at the shop."*
+Lives ~4 seconds, no close button, no action. It's a nudge, not a
+notification.
+
+**Never use blue.**
+Blue is the default "notification" colour in every other app. We use
+sage for *someone else's activity* and orange for *your own state*.
+Keep this consistent across the product.
+
+---
+
 ## Primitives
 
 All live in `src/components/glyphs.jsx`:
@@ -116,3 +173,5 @@ Run this before calling a screen done:
 - [ ] Copy passes the voice guide (no tricolons, no marketing verbs)
 - [ ] Primary CTA uses `rounded-2xl` or `rounded-full`, not `rounded-lg`
 - [ ] Warm paper palette — no surprise blues or greys
+- [ ] Any day/meal/list states follow the conventions in "State conventions"
+- [ ] Realtime/other-user activity uses sage, never blue
