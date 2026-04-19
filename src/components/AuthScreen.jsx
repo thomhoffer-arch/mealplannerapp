@@ -325,12 +325,12 @@ export default function AuthScreen() {
     const displayPrice = premiumOwnKey ? `€${PREMIUM_OWN_PRICE.toFixed(2)}` : `€${PREMIUM_PRICE.toFixed(2)}`;
     return (
       <div className="min-h-screen bg-paper px-4 py-14">
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-3xl mx-auto">
           <button onClick={() => setView('landing')} className="text-xs text-orange-500 hover:text-orange-700 mb-8 transition">← Back</button>
           <h2 className="font-display text-3xl font-semibold text-orange-900 mb-1.5">Choose your plan</h2>
-          <p className="text-sm text-orange-700/80 mb-8">All core features are included in both.</p>
+          <p className="text-sm text-orange-700/80 mb-8">All core features are included in every plan. AI is the only difference.</p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
 
             {/* Free */}
             <button
@@ -371,6 +371,51 @@ export default function AuthScreen() {
               {selectedPlan === 'free' && (
                 <p className="text-xs text-orange-500 mt-4 pt-3 border-t border-orange-100 italic leading-relaxed">
                   Add your free Gemini key in Settings after signup for unlimited AI.
+                </p>
+              )}
+            </button>
+
+            {/* Puter — pay-as-you-go */}
+            <button
+              onClick={() => setSelectedPlan('puter')}
+              className={`text-left rounded-2xl border-2 p-5 transition-all ${
+                selectedPlan === 'puter'
+                  ? 'border-orange-900 bg-white shadow-warm-lg'
+                  : 'border-orange-100 bg-white/70 hover:border-orange-300'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-display text-base font-semibold text-orange-900">Pay-as-you-go</p>
+                  <span className="text-[10px] font-medium bg-orange-900 text-orange-50 px-2 py-0.5 rounded-full">via Puter</span>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
+                  selectedPlan === 'puter' ? 'bg-orange-900 border-orange-900' : 'border-orange-300'
+                }`}>
+                  {selectedPlan === 'puter' && <Check size={11} className="text-white" />}
+                </div>
+              </div>
+              <p className="font-display text-2xl font-semibold text-orange-900 mb-0.5">
+                €0 <span className="text-sm font-normal text-orange-500">/ month here</span>
+              </p>
+              <p className="text-[11px] text-orange-500 mb-4">You pay Puter only for what you use.</p>
+              <ul className="space-y-2">
+                {[
+                  'Unlimited AI — no daily cap',
+                  'Claude, GPT and Gemini to pick from',
+                  'One-click connect, no keys to copy',
+                  'HelloFresh & Spoonacular recipes',
+                  'Shared plan, list & pantry',
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-2">
+                    <Check size={12} className="text-sage-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-xs leading-snug text-orange-800">{t}</span>
+                  </li>
+                ))}
+              </ul>
+              {selectedPlan === 'puter' && (
+                <p className="text-xs text-orange-500 mt-4 pt-3 border-t border-orange-100 italic leading-relaxed">
+                  After signup we'll open Puter once so you can connect. Top up a couple of euros and it covers weeks of planning.
                 </p>
               )}
             </button>
@@ -434,16 +479,26 @@ export default function AuthScreen() {
           </div>
 
           <button
-            onClick={() => { setMode('register'); setView('auth'); }}
+            onClick={() => {
+              if (selectedPlan === 'puter') {
+                try { localStorage.setItem('mp-pending-puter-connect', '1'); } catch {}
+              }
+              setMode('register');
+              setView('auth');
+            }}
             className={`w-full py-3.5 text-white rounded-full font-medium transition text-sm flex items-center justify-center gap-2 shadow-warm-lg ${
-              selectedPlan === 'premium' ? 'bg-sage-500 hover:bg-sage-600' : 'bg-orange-500 hover:bg-orange-600'
+              selectedPlan === 'premium' ? 'bg-sage-500 hover:bg-sage-600'
+              : selectedPlan === 'puter' ? 'bg-orange-900 hover:bg-orange-800'
+              : 'bg-orange-500 hover:bg-orange-600'
             }`}
           >
-            {selectedPlan === 'premium' ? 'Join the waitlist' : 'Start for free'}
+            {selectedPlan === 'premium' ? 'Join the waitlist'
+             : selectedPlan === 'puter'  ? 'Create account & connect Puter'
+             : 'Start for free'}
             <ArrowRight size={15} />
           </button>
           <p className="text-xs text-orange-500 text-center mt-4 leading-relaxed">
-            You can upgrade or add your own API key any time in Settings.
+            You can switch plans or add your own key any time in Settings.
           </p>
         </div>
       </div>

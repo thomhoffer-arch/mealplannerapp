@@ -11,6 +11,7 @@ import InstallBanner from "./components/InstallBanner";
 import CreateRecipeModal from "./components/CreateRecipeModal";
 import StarredPanel from "./components/StarredPanel";
 import WeekSuggestModal from "./components/WeekSuggestModal";
+import PuterWelcomeModal from "./components/PuterWelcomeModal";
 import NotificationBell from "./components/NotificationBell";
 import UpdateToast from "./components/UpdateToast";
 import ThemeToggle from "./components/ThemeToggle";
@@ -402,6 +403,7 @@ export default function App() {
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
   const [showStarred, setShowStarred] = useState(false);
   const [showWeekSuggest, setShowWeekSuggest] = useState(false);
+  const [showPuterWelcome, setShowPuterWelcome] = useState(false);
   const [showReminderBanner, setShowReminderBanner] = useState(false);
   const [preferences, setPreferences] = useState({});
 
@@ -554,6 +556,21 @@ export default function App() {
       .from("household_preferences").select("*").eq("household_id", household.id).single();
     setPreferences(data || {});
   }
+
+  // ── Post-signup Puter connect prompt ──────────────────────────────────────
+  // Surfaces the welcome modal only if the user picked the pay-as-you-go plan
+  // and the household doesn't already have a token saved.
+  useEffect(() => {
+    if (!household) return;
+    let pending = false;
+    try { pending = localStorage.getItem('mp-pending-puter-connect') === '1'; } catch {}
+    if (!pending) return;
+    if (preferences && preferences.puter_token_hint) {
+      try { localStorage.removeItem('mp-pending-puter-connect'); } catch {}
+      return;
+    }
+    setShowPuterWelcome(true);
+  }, [household, preferences.puter_token_hint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Survey trigger ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -951,6 +968,13 @@ export default function App() {
         <PreferencesModal
           household={household}
           onClose={() => { setShowPreferences(false); loadPreferences(); }}
+        />
+      )}
+
+      {/* Post-signup Puter connect */}
+      {showPuterWelcome && (
+        <PuterWelcomeModal
+          onClose={() => { setShowPuterWelcome(false); loadPreferences(); }}
         />
       )}
 

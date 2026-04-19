@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Check, Eye, EyeOff, Trash2, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import ThemeToggle from './ThemeToggle';
+import PuterConnect from './PuterConnect';
 
 export default function PreferencesModal({ household, onClose }) {
   const [text, setText] = useState('');
@@ -254,47 +255,56 @@ export default function PreferencesModal({ household, onClose }) {
           {/* ── Puter token (pay-as-you-go) ── */}
           <div className="space-y-2 border-t border-orange-100 pt-4">
             <div>
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Personal Puter token</p>
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Pay-as-you-go via Puter</p>
               <p className="text-xs text-orange-400 mt-0.5">
-                Pay-as-you-go AI via your own Puter account — Claude, GPT, Gemini and more. Overrides the Gemini key above when set.{' '}
-                <a href="https://puter.com/" target="_blank" rel="noopener noreferrer"
-                  className="underline hover:text-orange-600">Sign up for Puter →</a>
-              </p>
-              <p className="text-xs text-orange-400/80 mt-1 italic">
-                After signing in at puter.com, open the browser console and run <span className="font-mono">puter.authToken</span> to copy your token. Tokens may need to be refreshed occasionally.
+                Connect a Puter account for unlimited AI — Claude, GPT, Gemini and more. Puter bills you directly for what you use. Overrides the Gemini key above when set.
               </p>
             </div>
 
             {puterHint ? (
               <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
                 <span className="text-sm text-green-800">
-                  Active token ending in <span className="font-mono font-semibold">···{puterHint}</span>
+                  Connected — token ending in <span className="font-mono font-semibold">···{puterHint}</span>
                 </span>
                 <button onClick={handleRemovePuter} disabled={savingPuter}
-                  className="text-red-400 hover:text-red-600 transition ml-3" title="Remove token">
+                  className="text-red-400 hover:text-red-600 transition ml-3" title="Disconnect">
                   <Trash2 size={15} />
                 </button>
               </div>
             ) : (
-              <div className="space-y-2">
-                <div className="relative">
-                  <input
-                    type={showPuter ? 'text' : 'password'}
-                    placeholder="Puter auth token"
-                    value={puterInput}
-                    onChange={(e) => { setPuterInput(e.target.value); setPuterError(''); }}
-                    className="w-full border border-orange-200 rounded-xl px-3 py-2.5 pr-10 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
-                  />
-                  <button onClick={() => setShowPuter((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-300 hover:text-orange-500 transition">
-                    {showPuter ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-                {puterError && <p className="text-xs text-red-500">{puterError}</p>}
-                <button onClick={handleSavePuter} disabled={savingPuter || !puterInput.trim()}
-                  className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
-                  {savedPuter ? <><Check size={14} /> Token saved</> : savingPuter ? 'Validating…' : 'Save token'}
-                </button>
+              <div className="space-y-3">
+                <PuterConnect
+                  label="Connect with Puter"
+                  onConnected={(hint) => { setPuterHint(hint || null); setSavedPuter(true); setTimeout(() => setSavedPuter(false), 2000); }}
+                />
+                {savedPuter && <p className="text-xs text-green-600 flex items-center gap-1"><Check size={12} /> Connected.</p>}
+
+                <details className="text-xs text-orange-400">
+                  <summary className="cursor-pointer hover:text-orange-600 transition">Paste a token manually instead</summary>
+                  <div className="mt-2 space-y-2">
+                    <p className="text-orange-400/80 italic">
+                      Sign in at puter.com, open the browser console, and run <span className="font-mono">puter.authToken</span> to copy it.
+                    </p>
+                    <div className="relative">
+                      <input
+                        type={showPuter ? 'text' : 'password'}
+                        placeholder="Puter auth token"
+                        value={puterInput}
+                        onChange={(e) => { setPuterInput(e.target.value); setPuterError(''); }}
+                        className="w-full border border-orange-200 rounded-xl px-3 py-2.5 pr-10 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                      />
+                      <button onClick={() => setShowPuter((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-300 hover:text-orange-500 transition">
+                        {showPuter ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                    {puterError && <p className="text-red-500">{puterError}</p>}
+                    <button onClick={handleSavePuter} disabled={savingPuter || !puterInput.trim()}
+                      className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+                      {savingPuter ? 'Validating…' : 'Save token'}
+                    </button>
+                  </div>
+                </details>
               </div>
             )}
           </div>
