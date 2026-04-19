@@ -5,6 +5,7 @@ import { LayoutGroup, motion } from 'motion/react';
 import { GlyphStar, GlyphCalendar, GlyphBasket, Scribble } from './glyphs';
 import NotebookWeekScene from './NotebookWeekScene';
 import { TextRotate } from './ui/text-rotate';
+import { Button } from './ui/button';
 
 const TESTIMONIALS = [
   {
@@ -180,12 +181,14 @@ export default function AuthScreen() {
               Star the recipes you keep coming back to. The week plans itself from there, and so does the shopping list. Anyone else in your household sees every change the moment you make it.
             </p>
             <div className="sm:col-span-5 flex flex-col gap-3">
-              <button
+              <Button
                 onClick={() => setView('plan')}
-                className="px-6 py-3.5 bg-orange-500 text-white rounded-2xl font-medium hover:bg-orange-600 transition text-sm flex items-center justify-center gap-2 shadow-warm-lg"
+                size="lg"
+                className="px-6 py-3.5 flex items-center gap-2 shadow-warm-lg"
               >
                 Start this week <ArrowRight size={16} />
-              </button>
+              </Button>
+
               <button
                 onClick={() => { setMode('login'); setView('auth'); }}
                 className="px-6 py-3 text-orange-700 hover:text-orange-900 transition text-sm underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
@@ -305,12 +308,13 @@ export default function AuthScreen() {
             </motion.h2>
           </LayoutGroup>
           <p className="text-sm text-orange-700/80 mb-8">Free to use. No card needed.</p>
-          <button
+          <Button
             onClick={() => setView('plan')}
-            className="px-8 py-3.5 bg-orange-500 text-white rounded-2xl font-medium hover:bg-orange-600 transition text-sm shadow-warm-lg"
+            size="lg"
+            className="px-8 py-3.5 shadow-warm-lg"
           >
             Create your free account
-          </button>
+          </Button>
         </section>
       </div>
     );
