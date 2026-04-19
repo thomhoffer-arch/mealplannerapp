@@ -73,7 +73,167 @@ is tempting because it's "safe." Resist.
 
 ---
 
-## State conventions
+## Design tokens — where every value lives
+
+**One source of truth.** Colours, fonts, shadows and radii are declared
+in two files and nowhere else:
+
+- `src/index.css` — raw CSS variables for the colour scales (light +
+  dark), the `bg-paper` utility, the body gradient, and dark-mode
+  surface remaps.
+- `tailwind.config.js` — re-exports those vars as Tailwind tokens
+  (`bg-orange-100`, `text-sage-600`, etc.), declares the two font
+  families, keyframes and `shadow-warm` / `shadow-warm-lg`.
+
+Feature code must not hardcode hex, rgb, or named colours. If a shade
+isn't in the scale, add it to both files — don't sneak in a one-off.
+
+### Colour palette — what each step means
+
+Light mode values are the defaults; the `.dark` block in
+`src/index.css` flips the scale so classes like `text-orange-900`
+automatically re-theme.
+
+| Token           | Role                                                                |
+|-----------------|---------------------------------------------------------------------|
+| `orange-50`     | Soft cream — page backgrounds, open-state card fills                |
+| `orange-100`    | Warm sand — subtle surfaces, member-chip fill, badge backgrounds    |
+| `orange-200`    | Muted peach — hair-thin dividers, second-tier borders               |
+| `orange-300`    | Clay — default tile borders, faded labels                           |
+| `orange-400`    | Amber clay — placeholder strokes, strikethrough text                |
+| `orange-500`    | Terracotta — primary accent, margin scribbles, links, CTA           |
+| `orange-600`    | Deep terracotta — hover states of primary                           |
+| `orange-700`    | Rich rust — body emphasis, sign-in link                             |
+| `orange-800`    | Mahogany — body copy                                                |
+| `orange-900`    | Deep coffee — display type, heading serif                           |
+| `amber-50`      | Lightest background tint for the hero gradient                      |
+| `amber-100`     | Slight background uplift in the hero radial                         |
+| `sage-100`      | Shared-with / success fill (chips, toast bg)                        |
+| `sage-400`      | Dashed "away" borders, success accent                               |
+| `sage-500`      | "Alex just ticked X" toast; check tick fills                        |
+| `sage-600`      | Success/shared-state text                                           |
+
+**No blue.** No grey. No pure black. If you catch yourself reaching
+for a neutral, use `orange-300` / `orange-400` instead.
+
+**Purple** is reserved for AI-owned surfaces (Puter, model prompts).
+Don't reach for it for anything else.
+
+### Typography
+
+Declared in `tailwind.config.js` + `src/index.css`. Two families only.
+
+| Class          | Family   | Used for                                              |
+|----------------|----------|-------------------------------------------------------|
+| `font-display` | Fraunces | Headings, italic accents, numerals, margin notes      |
+| *(default)*    | Outfit   | Body, UI chrome, inputs, buttons                      |
+
+Fraunces has `letter-spacing: -0.02em` baked in via the class — don't
+override. Italic Fraunces is the "handwritten" voice: reach for it
+for margin notes, asides, chapter markers, dish times.
+
+Never mix in a third family. Never use serif for body. Never render
+Fraunces at weights below 400.
+
+### Radius scale
+
+| Token            | Pixels | Use                                                      |
+|------------------|--------|----------------------------------------------------------|
+| `rounded-[4px]`  | 4      | Tiny checkboxes, hand-drawn tick boxes                   |
+| `rounded-[10px]` | 10     | Day tiles in a week grid                                 |
+| `rounded-[14px]` | 14     | Small floating chips (basket button, pinned counter)     |
+| `rounded-[16px]` | 16     | Inner cards within a sheet (menu popover, list popover)  |
+| `rounded-2xl`    | 16     | Primary buttons, input fields, plan cards                |
+| `rounded-[18px]` | 18     | Mid-level cards that want less squircle                  |
+| `rounded-[22px]` | 22     | Feature / notebook sheets — the signature squircle       |
+| `rounded-3xl`    | 24     | Auth card, full-screen modal sheets                      |
+| `rounded-full`   | ∞      | Pills, chips, avatars, pill-shaped CTAs                  |
+
+**Never `rounded-lg`.** Per the table at the top, it's the `div` of
+design — too forgettable. If you find yourself typing it, switch to
+`rounded-2xl` or the squircle brackets.
+
+### Shadows
+
+| Token          | Use                                                   |
+|----------------|-------------------------------------------------------|
+| `shadow-warm`  | Cards, plan items, basket chip — subtle warm lift     |
+| `shadow-warm-lg` | Hero CTAs, auth card, lifted modals — stronger    |
+
+Both use `rgb(120 70 30)` with low alpha so the shadow reads warm.
+Never use default Tailwind `shadow-md` / `shadow-lg` — they're blue-grey
+and fight the palette.
+
+### Stroke weights
+
+| Weight | Where                                                         |
+|--------|---------------------------------------------------------------|
+| `1.5`  | All glyphs (`GLYPH_PROPS.strokeWidth`), day-tile borders      |
+| `2.5`  | `<Scribble />` only — the hand-drawn underline                |
+| Never `1` | Reads as UI chrome, not drawn                              |
+
+`border-[1.5px]` is the default tile/plan-item border weight.
+
+### Opacity conventions
+
+We use fractional tints over solid colour stops so the palette feels
+washed-paper. Common ones you can reuse:
+
+| Class              | Reads as                                               |
+|--------------------|--------------------------------------------------------|
+| `/60`, `/70`       | Soft-surface bg (`bg-white/70`, `bg-sage-100/70`)      |
+| `/80`, `/85`       | Body copy on cream (`text-orange-800/85`)              |
+| `/40`              | Decorative strokes (Scribble, ghost arrows)            |
+| `/22`, `/14`       | Radial gradient tints in `bg-paper`                    |
+
+### Animations
+
+Declared in `tailwind.config.js`:
+
+- `animate-slide-up` — 0.3s ease-out, used on modal entries
+- `animate-fade-in`  — 0.4s ease-out, general fades
+
+No others. Don't ship bespoke keyframes without adding them here.
+
+### Illustration + glyph style
+
+Living source: `src/components/glyphs.jsx`. Every glyph:
+
+- 32×32 viewBox
+- `stroke="currentColor" fill="none"` — always
+- `strokeWidth 1.5`, round caps/joins (via `GLYPH_PROPS`)
+- Quadratic curves between points, never sharp polygons — edges
+  should bow slightly as if pencil-drawn
+- Slight asymmetry, imperfect returns at path end — an object
+  sketched on a napkin, not an icon set
+- One continuous pencil pass where possible
+
+For larger illustrated scenes (not glyphs — e.g. the landing's
+`NotebookWeekScene`), same principles scaled up: curvy outlines, slight
+rotation on inner elements, Fraunces italic for any "handwritten"
+text pinned to the illustration.
+
+### Dark mode
+
+Opt-in via `.dark` on `<html>`. The orange scale flips so existing
+classes keep their semantic meaning (`text-orange-900` is still
+"display heading colour"). A handful of remap rules in `src/index.css`
+re-tint `bg-white/*` surfaces and legacy `bg-green-*` / `text-green-*`
+uses. Don't add new green classes — use sage.
+
+### Brand exceptions
+
+Hardcoded hex is forbidden in feature code with two narrow exceptions
+where matching a foreign brand matters more than palette consistency:
+
+- `AuthScreen.jsx` Google brand mark: `#4285F4 #34A853 #FBBC05 #EA4335`
+- `GrocerHandoffModal.jsx` grocer brand chips:
+  `#00ADE6` (Albert Heijn), `#EEB017` (Jumbo), `#E1022F` (Picnic)
+
+If you add a new external brand, extend this list — never scatter
+unexplained hex in components.
+
+---
 
 These signal *what a thing is* before the user reads the label. Reuse
 them everywhere a meal, day, or list item can be in one of these
