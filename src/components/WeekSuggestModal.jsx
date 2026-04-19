@@ -6,12 +6,12 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 
 const SOURCE_COLORS = {
   HelloFresh:       'bg-green-100 text-green-700',
-  'Marley Spoon':   'bg-purple-100 text-purple-700',
+  'Marley Spoon':   'bg-amber-100 text-amber-700',
   'NYT Cooking':    'bg-red-100 text-red-700',
-  Spoonacular:      'bg-blue-100 text-blue-700',
+  Spoonacular:      'bg-orange-100 text-orange-700',
   'My Recipes':     'bg-amber-100 text-amber-700',
-  'AI Suggestion':  'bg-purple-50 text-purple-500',
-  'Web import':     'bg-gray-100 text-gray-600',
+  'AI Suggestion':  'bg-orange-50 text-orange-500',
+  'Web import':     'bg-orange-50 text-orange-500',
 };
 
 export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
@@ -20,7 +20,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
   const [plan, setPlan]         = useState(null);
   const [notes, setNotes]       = useState('');
   const [error, setError]       = useState('');
-  const [selected, setSelected] = useState({});  // { "week-1-Monday": true }
+  const [selected, setSelected] = useState({});
   const [showNotes, setShowNotes] = useState(false);
 
   async function generate() {
@@ -42,7 +42,6 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
       if (!res.ok) throw new Error(data.error || 'Could not generate plan');
       setPlan(data.weeks);
       setNotes(data.notes || '');
-      // Select all by default
       const sel = {};
       data.weeks.forEach((week) => {
         week.days.forEach((day) => {
@@ -84,7 +83,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-orange-50">
           <div className="flex items-center gap-2">
-            <Sparkles size={17} className="text-purple-500" />
+            <Sparkles size={17} className="text-orange-500" />
             <h2 className="text-base font-bold text-orange-900">AI week planner</h2>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
@@ -98,13 +97,13 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
           {[1, 2].map((w) => (
             <button key={w} onClick={() => setNumWeeks(w)}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold transition border-2 ${
-                numWeeks === w ? 'bg-purple-500 text-white border-purple-500' : 'border-orange-200 text-orange-700 hover:border-orange-400'
+                numWeeks === w ? 'bg-orange-500 text-white border-orange-500' : 'border-orange-200 text-orange-700 hover:border-orange-400'
               }`}>
               {w} week{w > 1 ? 's' : ''}
             </button>
           ))}
           <button onClick={generate} disabled={loading}
-            className="ml-auto px-4 py-1.5 bg-purple-500 text-white rounded-full text-sm font-semibold hover:bg-purple-600 transition disabled:opacity-50 flex items-center gap-1.5">
+            className="ml-auto px-4 py-1.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
             <Sparkles size={12} />
             {loading ? 'Planning…' : plan ? 'Regenerate' : 'Generate'}
           </button>
@@ -118,7 +117,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
 
           {loading && (
             <div className="flex flex-col items-center py-12 gap-3">
-              <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-500 rounded-full animate-spin" />
+              <div className="w-8 h-8 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
               <p className="text-sm text-orange-500">Planning your week…</p>
               <p className="text-xs text-orange-300">Checking your preferences and starred recipes</p>
             </div>
@@ -126,7 +125,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
 
           {!loading && !plan && !error && (
             <div className="text-center py-10">
-              <Sparkles size={40} className="mx-auto mb-3 text-purple-200" />
+              <Sparkles size={40} className="mx-auto mb-3 text-orange-200" />
               <p className="text-sm text-orange-500 font-medium">AI will plan a varied week for you</p>
               <p className="text-xs text-orange-300 mt-1 leading-relaxed">Based on your preferences, starred recipes, and rotation priorities — no pasta two days in a row.</p>
             </div>
@@ -146,12 +145,12 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
                   const isStarred = recipe?._fromStarred;
                   return (
                     <button key={day.day} onClick={() => toggleDay(week.week, day.day)}
-                      className={`w-full text-left rounded-xl border-2 px-3 py-3 transition-all ${
-                        isSelected ? 'border-purple-400 bg-purple-50' : 'border-orange-100 bg-white'
+                      className={`w-full text-left rounded-2xl border-2 px-3 py-3 transition-all ${
+                        isSelected ? 'border-orange-400 bg-orange-50' : 'border-orange-100 bg-white'
                       }`}>
                       <div className="flex items-start gap-2">
                         <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all ${
-                          isSelected ? 'bg-purple-500 border-purple-500' : 'border-orange-300'
+                          isSelected ? 'bg-orange-500 border-orange-500' : 'border-orange-300'
                         }`}>
                           {isSelected && <Check size={11} className="text-white" />}
                         </div>
@@ -159,9 +158,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-xs font-bold text-orange-500 uppercase">{day.day.slice(0, 3)}</span>
                             {isStarred && <span className="text-xs bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-semibold">⭐ Starred</span>}
-                            {isAI && <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-semibold">✨ New</span>}
+                            {isAI && <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">✨ New</span>}
                             {recipe?.source && !isAI && (
-                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${SOURCE_COLORS[recipe.source] || 'bg-gray-100 text-gray-600'}`}>
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${SOURCE_COLORS[recipe.source] || 'bg-orange-50 text-orange-500'}`}>
                                 {recipe.source}
                               </span>
                             )}
@@ -183,9 +182,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
           {notes && plan && !loading && (
             <div className="mt-2">
               <button onClick={() => setShowNotes((v) => !v)}
-                className="flex items-center gap-1 text-xs text-purple-500 font-medium hover:text-purple-700 transition">
+                className="flex items-center gap-1 text-xs text-orange-500 font-medium hover:text-orange-700 transition">
                 {showNotes ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                AI notes
+                Planner notes
               </button>
               {showNotes && (
                 <p className="text-xs text-orange-600 bg-orange-50 rounded-xl px-3 py-2 mt-1 leading-relaxed">{notes}</p>
@@ -198,7 +197,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
         {plan && !loading && (
           <div className="px-5 py-4 border-t border-orange-50">
             <button onClick={handleLoadPlan} disabled={selectedCount === 0}
-              className="w-full py-3 bg-orange-500 text-white rounded-xl font-semibold text-sm hover:bg-orange-600 transition disabled:opacity-50">
+              className="w-full py-3 bg-orange-500 text-white rounded-full font-semibold text-sm hover:bg-orange-600 transition disabled:opacity-50">
               Add {selectedCount} recipe{selectedCount !== 1 ? 's' : ''} to my plan
             </button>
           </div>

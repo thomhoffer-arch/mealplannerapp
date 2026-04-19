@@ -75,8 +75,8 @@ export default function WillingnessModal({ household, onClose }) {
         {step === 'intro' && (
           <>
             <div className="flex items-start justify-between px-5 pt-5 pb-1">
-              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                <Sparkles size={18} className="text-purple-600" />
+              <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                <Sparkles size={18} className="text-orange-500" />
               </div>
               <div className="flex-1">
                 <h2 className="text-base font-bold text-orange-900">Quick question</h2>

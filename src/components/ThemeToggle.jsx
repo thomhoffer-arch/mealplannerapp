@@ -24,7 +24,7 @@ export default function ThemeToggle() {
   };
 
   return (
-    <div className="inline-flex rounded-full border border-orange-200 bg-orange-50 p-0.5">
+    <div className="inline-flex rounded-full border border-orange-200 bg-orange-50 p-0.5 gap-0">
       {OPTIONS.map(({ value, icon: Icon, label }) => {
         const active = pref === value;
         return (
@@ -34,14 +34,13 @@ export default function ThemeToggle() {
             onClick={() => choose(value)}
             aria-label={`${label} theme`}
             title={label}
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${
+            className={`w-7 h-7 inline-flex items-center justify-center rounded-full transition-all ${
               active
-                ? 'bg-white text-orange-800 shadow-warm'
-                : 'text-orange-500 hover:text-orange-700'
+                ? 'bg-white text-orange-800 shadow-sm'
+                : 'text-orange-400 hover:text-orange-600'
             }`}
           >
-            <Icon size={13} />
-            <span className="hidden sm:inline">{label}</span>
+            <Icon size={12} />
           </button>
         );
       })}

@@ -22,11 +22,11 @@ import { GlyphPot, GlyphSpyglass, GlyphLink, Scribble } from "./components/glyph
 
 const SOURCE_COLORS = {
   HelloFresh:      "bg-green-100 text-green-700",
-  "Marley Spoon":  "bg-purple-100 text-purple-700",
+  "Marley Spoon":  "bg-amber-100 text-amber-700",
   "NYT Cooking":   "bg-red-100 text-red-700",
   Spoonacular:     "bg-blue-100 text-blue-700",
   "My Recipes":    "bg-amber-100 text-amber-700",
-  "AI Suggestion": "bg-purple-100 text-purple-600",
+  "AI Suggestion": "bg-orange-100 text-orange-600",
   "Web import":    "bg-gray-100 text-gray-600",
 };
 
