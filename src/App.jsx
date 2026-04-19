@@ -1078,7 +1078,7 @@ export default function App() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-300" size={18} />
               <input
                 type="search"
-                placeholder="Search recipes — try "quick pasta" or "vegetarian under 30 min"…"
+                placeholder="Search recipes — try 'quick pasta' or 'vegetarian under 30 min'…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 text-sm"
