@@ -917,9 +917,12 @@ export default function App() {
       <OnboardingScreen
         user={user}
         household={household}
-        onDone={() =>
-          setMemberProfile((m) => ({ ...m, onboarded_at: new Date().toISOString() }))
-        }
+        onDone={() => {
+          setMemberProfile((m) => ({ ...m, onboarded_at: new Date().toISOString() }));
+          // Land them straight in the suggest-week modal so "see some
+          // suggestions" actually delivers suggestions.
+          setShowWeekSuggest(true);
+        }}
       />
     );
   }
