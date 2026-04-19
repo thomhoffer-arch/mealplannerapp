@@ -20,7 +20,8 @@ A collaborative household meal planning PWA built with React, Tailwind CSS, Supa
 - **Adapt recipes with AI** — ask Gemini to substitute ingredients or adjust servings
 - **Weekly planning reminder** — choose a day of the week; the app shows a banner nudging you to plan if you haven't updated your plan in 6+ days
 - **Real-time notification bell** — the header bell icon shows when your partner adds or removes recipes from the plan or stars something; includes unread badge, mark-all-read, and per-item dismiss
-- **Landing page + plan selector** — unauthenticated visitors see a full marketing page (hero, feature grid, how-it-works), then a plan comparison screen (Free vs. Unlimited), before reaching the auth form
+- **Dinner invitations** — host picks a dinner, generates a shareable link with a dish, time, and optional note. If the recipient is a signed-in user who accepts, their own week plan and shopping list drop that night (they're eating elsewhere). Household members see "away" and guest chips on the plan at a glance
+- **Landing page + plan selector** — unauthenticated visitors see a full marketing page (hero, an interactive week sandbox, plan comparison), before reaching the auth form. All visual decisions (palette, radii, typography, glyph style) live in [`DESIGN.md`](./DESIGN.md) as the single source of truth
 - **PWA installable** — works on iOS (Add to Home Screen) and Android/Chrome (native install prompt), no app store needed; install prompt only shows to authenticated users
 
 ---
@@ -85,19 +86,32 @@ React 18 + Tailwind CSS (Vite)
 | `pantry_items` | Ingredients already at home |
 | `plan_templates` | Saved week lineups with a name |
 | `ai_usage` | Shared-key call counter: one row per household per day |
+| `dinner_invitations` | Share-link invitations: token, dish snapshot, date/time, location, host note, guest RSVP status |
 
 ### Migrations
 
-Run these in order against your Supabase project (earlier migrations live in the Supabase dashboard history):
+For a fresh Supabase project, run these in order via **SQL Editor** (one file per tab, paste + Run):
 
 ```
-supabase/migration_add_ai_usage.sql              — ai_usage table + RLS
-supabase/migration_add_user_recipes.sql          — user_recipes table + RLS
-supabase/migration_add_rotation_reminder.sql     — rotation_priority on starred_recipes;
-                                                   reminder_enabled + reminder_day on household_preferences
-supabase/migration_add_puter_token.sql           — puter_token_encrypted + puter_token_hint on
-                                                   household_preferences (optional, for Puter BYOK)
+1.  supabase/schema.sql                             — base tables + RLS helper + core policies
+2.  supabase/migration_add_preferences.sql          — household_preferences table
+3.  supabase/migration_add_gemini_key.sql           — gemini_key_encrypted on household_preferences
+4.  supabase/migration_add_ai_usage.sql             — ai_usage table + RLS
+5.  supabase/migration_add_rating.sql               — rating on cooked_recipes
+6.  supabase/migration_add_starred.sql              — starred_recipes table
+7.  supabase/migration_add_pantry.sql               — pantry_items table
+8.  supabase/migration_add_templates.sql            — plan_templates table
+9.  supabase/migration_add_user_recipes.sql         — user_recipes table + RLS
+10. supabase/migration_add_rotation_reminder.sql    — rotation_priority on starred_recipes;
+                                                      reminder_enabled + reminder_day on household_preferences
+11. supabase/migration_add_survey.sql               — survey response columns
+12. supabase/migration_add_puter_token.sql          — puter_token_encrypted + puter_token_hint on
+                                                      household_preferences (optional, for Puter BYOK)
+13. supabase/migration_add_dinner_invitations.sql   — dinner_invitations table + RLS + realtime publication
+14. supabase/migration_add_rpc_grants.sql           — GRANT EXECUTE on RPC functions for authenticated users
 ```
+
+**Editor gotcha:** Supabase's SQL editor can misparse multiple `$$`-quoted functions pasted in one batch and raise `relation "hid" does not exist`. If that happens, run each `create or replace function` block in its own tab.
 
 ---
 
@@ -112,6 +126,11 @@ supabase/migration_add_puter_token.sql           — puter_token_encrypted + put
 | `ai/suggest-week` | POST | Bearer | Generate a 1–2 week dinner plan via Gemini |
 | `household/save-key` | POST | Bearer | Encrypt and store a personal Gemini API key |
 | `household/save-puter-token` | POST | Bearer | Encrypt and store a personal Puter auth token (pay-as-you-go AI) |
+| `dinner-invitations/create` | POST | Bearer | Host creates an invitation, returns `{ token, shareUrl }` |
+| `dinner-invitations/[token]` | GET | — | Public — fetch sanitised invite details for the RSVP page |
+| `dinner-invitations/[token]` | DELETE | Bearer | Host-only — cancel an invitation |
+| `dinner-invitations/respond` | POST | Bearer | Guest RSVP: `{ token, action: 'accept' \| 'decline' }` |
+| `dinner-invitations/list` | GET | Bearer | Returns `{ sent, received }` for the logged-in household |
 | `cron/scrape` | GET | Cron | Background recipe index refresh (Vercel cron, daily) |
 
 All `Bearer` routes resolve the household via the JWT. AI provider resolution order is: **household Puter token** → **personal Gemini key** → **shared Gemini key**. The 50/day cap applies only to the shared key.
@@ -299,6 +318,8 @@ The app ships with both a **light** and a **dark** theme. The landing / plan sel
 **Typography:**
 - Body: **Outfit** (Google Fonts) — clean sans
 - Display: **Fraunces** (Google Fonts) — warm editorial serif, used for headings (`font-display` class)
+
+For the complete set of visual rules — every colour step's semantic role, the radius scale, shadow tokens, stroke weights, illustration style, dark-mode conventions, allow-listed brand hex codes — see [`DESIGN.md`](./DESIGN.md). That file is the canonical style reference; avoid adding stray hex codes, bracket radii, or shadow sizes outside what it documents.
 
 ---
 
