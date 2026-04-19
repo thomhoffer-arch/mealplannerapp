@@ -71,12 +71,23 @@
 
 body {
   margin: 0;
-  background: var(--body-bg);
-  background-attachment: fixed;
+  background-color: rgb(var(--c-orange-50));
   min-height: 100vh;
   overflow-x: hidden;
   color: rgb(var(--c-orange-900));
   transition: background-color 0.3s ease;
+}
+
+/* Fixed gradient lives on a pseudo-element so it's composited into its own
+   GPU layer. `background-attachment: fixed` on <body> with a radial-gradient
+   was forcing a full-viewport repaint on every scroll frame — this avoids it. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--body-bg);
+  pointer-events: none;
 }
 
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
