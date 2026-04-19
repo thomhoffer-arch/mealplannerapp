@@ -47,10 +47,11 @@ const DAYS = [
   {
     d: 'fri',
     label: 'pizza',
-    dish: 'Friday pizza night',
-    overview: 'Shop-bought base, whatever\u2019s in the fridge, the oven on high.',
+    away: "Vera\u2019s",
+    dish: "Pizza at Vera\u2019s",
+    overview: "Vera invited us over — she\u2019s making, we\u2019re bringing wine.",
     cuisine: 'Italian',
-    time: '30 min',
+    time: '19:30',
   },
   {
     d: 'sat',
@@ -91,7 +92,9 @@ const LIST = [
 
 export default function NotebookWeekScene() {
   const [active, setActive] = useState(null); // { type: 'day', idx } | { type: 'list' } | null
+  // { name: 'you' | 'alex' } — tracked separately so we can show who ticked what.
   const [ticked, setTicked] = useState({});
+  const [toast, setToast] = useState(null);
 
   // Esc closes whichever card is open.
   useEffect(() => {
@@ -101,8 +104,25 @@ export default function NotebookWeekScene() {
     return () => window.removeEventListener('keydown', onKey);
   }, [active]);
 
+  // When the list opens, simulate a flatmate ticking something off after a
+  // beat — the realtime shared-list bit is the headline feature, so the
+  // sandbox should actually show it happening.
+  useEffect(() => {
+    if (active?.type !== 'list') { setToast(null); return; }
+    const tickIt = setTimeout(() => {
+      setTicked((prev) => (prev.pecorino ? prev : { ...prev, pecorino: 'alex' }));
+      setToast({ who: 'Alex', item: 'pecorino' });
+    }, 2200);
+    const clearToast = setTimeout(() => setToast(null), 6500);
+    return () => { clearTimeout(tickIt); clearTimeout(clearToast); };
+  }, [active]);
+
   const activeDay = active?.type === 'day' ? DAYS[active.idx] : null;
-  const toggleTick = (name) => setTicked((t) => ({ ...t, [name]: !t[name] }));
+  const toggleTick = (name) => setTicked((t) => {
+    const next = { ...t };
+    if (next[name]) delete next[name]; else next[name] = 'you';
+    return next;
+  });
 
   return (
     <div className="relative mx-auto max-w-2xl select-none">
@@ -134,8 +154,12 @@ export default function NotebookWeekScene() {
                   aria-label={`${day.d}: ${day.dish}`}
                   className={`w-full aspect-square rounded-[10px] border-[1.5px] flex items-center justify-center px-0.5 text-center font-display text-[10px] sm:text-xs transition ${rotation} ${
                     isActive
-                      ? 'border-orange-500 bg-orange-50 text-orange-900 shadow-warm'
-                      : 'border-orange-300/80 text-orange-800 hover:border-orange-400 hover:bg-orange-50/60'
+                      ? day.away
+                        ? 'border-sage-500 bg-sage-100/70 text-sage-700 shadow-warm'
+                        : 'border-orange-500 bg-orange-50 text-orange-900 shadow-warm'
+                      : day.away
+                        ? 'border-dashed border-sage-400/80 text-sage-700 hover:bg-sage-100/60'
+                        : 'border-orange-300/80 text-orange-800 hover:border-orange-400 hover:bg-orange-50/60'
                   }`}
                 >
                   <span className={day.strike ? 'line-through decoration-[1.5px] text-orange-400' : ''}>{day.label}</span>
@@ -144,6 +168,11 @@ export default function NotebookWeekScene() {
                 {day.swap && (
                   <span className="absolute -bottom-7 -left-1 font-display italic text-orange-500 text-[10px] sm:text-xs whitespace-nowrap pointer-events-none">
                     → {day.swap}
+                  </span>
+                )}
+                {day.away && (
+                  <span className="absolute -bottom-7 -left-2 font-display italic text-sage-600 text-[10px] sm:text-xs whitespace-nowrap pointer-events-none">
+                    @ {day.away}
                   </span>
                 )}
               </div>
@@ -155,19 +184,34 @@ export default function NotebookWeekScene() {
             Appears in the same sheet so the notebook page feels alive,
             not a modal popping on top. */}
         {activeDay && (
-          <div className="mt-10 relative rounded-[16px] border border-orange-200 bg-orange-50/70 px-5 py-4 shadow-warm">
+          <div className={`mt-10 relative rounded-[16px] border px-5 py-4 shadow-warm ${
+            activeDay.away ? 'border-sage-300/70 bg-sage-100/50' : 'border-orange-200 bg-orange-50/70'
+          }`}>
             <button
               type="button"
               onClick={() => setActive(null)}
               aria-label="Close menu"
-              className="absolute top-2 right-3 text-orange-400 hover:text-orange-700 text-lg leading-none"
+              className={`absolute top-2 right-3 text-lg leading-none transition ${
+                activeDay.away ? 'text-sage-500 hover:text-sage-700' : 'text-orange-400 hover:text-orange-700'
+              }`}
             >×</button>
-            <p className="font-display italic text-orange-500 text-xs tracking-wide">{activeDay.d} night</p>
-            <p className="font-display text-xl font-semibold text-orange-900 mt-0.5 leading-tight">{activeDay.dish}</p>
+            <div className="flex items-center gap-2 mb-0.5">
+              <p className={`font-display italic text-xs tracking-wide ${activeDay.away ? 'text-sage-600' : 'text-orange-500'}`}>
+                {activeDay.d} night
+              </p>
+              {activeDay.away && (
+                <span className="text-[10px] font-display italic bg-sage-500 text-white rounded-full px-2 py-0.5 tracking-wide">
+                  eating out
+                </span>
+              )}
+            </div>
+            <p className={`font-display text-xl font-semibold mt-0.5 leading-tight ${activeDay.away ? 'text-sage-800' : 'text-orange-900'}`}>
+              {activeDay.dish}
+            </p>
             <p className="text-sm text-orange-800/85 leading-relaxed mt-2 max-w-md">{activeDay.overview}</p>
-            <div className="mt-3 flex items-center gap-2 text-xs font-display italic text-orange-600">
-              <span>{activeDay.time}</span>
-              <span className="text-orange-300">·</span>
+            <div className={`mt-3 flex items-center gap-2 text-xs font-display italic ${activeDay.away ? 'text-sage-600' : 'text-orange-600'}`}>
+              <span>{activeDay.away ? `${activeDay.time} at ${activeDay.away}` : activeDay.time}</span>
+              <span className={activeDay.away ? 'text-sage-300' : 'text-orange-300'}>·</span>
               <span>{activeDay.cuisine}</span>
             </div>
           </div>
@@ -185,13 +229,21 @@ export default function NotebookWeekScene() {
               <p className="font-display text-lg font-semibold text-orange-900">Shopping list</p>
               <p className="font-display italic text-orange-400 text-xs">tick as you go</p>
             </div>
+
+            {toast && (
+              <div className="absolute -top-3 left-5 right-5 sm:left-auto sm:right-5 sm:max-w-[14rem] bg-sage-500 text-white rounded-full px-3 py-1.5 shadow-warm flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-display italic flex-shrink-0">A</span>
+                <span className="text-xs font-display italic leading-tight">{toast.who} ticked {toast.item} at the shop</span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               {LIST.map(({ aisle, items }) => (
                 <div key={aisle}>
                   <p className="font-display italic text-orange-500 text-xs tracking-wide mb-1.5">{aisle}</p>
                   <ul className="space-y-1">
                     {items.map((name) => {
-                      const on = !!ticked[name];
+                      const by = ticked[name];
+                      const on = !!by;
                       return (
                         <li key={name}>
                           <button
@@ -210,7 +262,10 @@ export default function NotebookWeekScene() {
                                 </svg>
                               )}
                             </span>
-                            <span>{name}</span>
+                            <span className="flex-1">{name}</span>
+                            {by === 'alex' && (
+                              <span className="text-[9px] font-display italic text-sage-600 bg-sage-100 rounded-full px-1.5 py-0.5 tracking-wide">Alex</span>
+                            )}
                           </button>
                         </li>
                       );
