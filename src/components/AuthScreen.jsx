@@ -55,6 +55,68 @@ const CHAPTERS = [
 const PREMIUM_PRICE     = 5.99;
 const PREMIUM_OWN_PRICE = 4.99;
 
+// Static hero-sized preview of the notebook planner. Deliberately not
+// interactive — the real sandbox lives in NotebookWeekScene below. This
+// is a visual above the fold so the hero isn't text-only.
+const HERO_DAYS = [
+  { d: 'mon', label: 'pasta' },
+  { d: 'tue', label: 'curry' },
+  { d: 'wed', label: 'ramen' },
+  { d: 'thu', label: 'salad' },
+  { d: 'fri', label: 'pizza', away: true },
+  { d: 'sat', label: 'roast' },
+  { d: 'sun', label: 'soup' },
+];
+const HERO_SHAPES = [
+  { rotate: '-rotate-[0.8deg]', br: '10px 8px 9px 7px / 8px 10px 7px 9px' },
+  { rotate:  'rotate-[1.2deg]', br:  '8px 10px 7px 9px / 9px 8px 10px 7px' },
+  { rotate: '-rotate-[1.4deg]', br:  '9px 7px 10px 8px / 8px 9px 7px 10px' },
+  { rotate:  'rotate-[0.6deg]', br:  '7px 9px 8px 10px / 10px 7px 9px 8px' },
+  { rotate: '-rotate-[0.4deg]', br:  '9px 8px 10px 7px / 7px 10px 8px 9px' },
+  { rotate:  'rotate-[1deg]',   br:  '8px 10px 7px 9px / 10px 7px 9px 8px' },
+  { rotate: '-rotate-[0.7deg]', br: '10px 7px 9px 8px / 8px 9px 7px 10px' },
+];
+
+function HeroNotebookPreview() {
+  return (
+    <div className="relative rotate-[1.5deg]">
+      <div className="bg-white rounded-[22px] border border-orange-200 shadow-warm-lg p-5 sm:p-6">
+        <div className="flex items-baseline justify-between mb-4">
+          <p className="font-display italic text-orange-500 text-xs tracking-wide">wk of 13 oct</p>
+          <p className="font-display italic text-orange-400 text-[10px]">— for two</p>
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {HERO_DAYS.map((day, i) => {
+            const s = HERO_SHAPES[i];
+            return (
+              <div key={day.d}>
+                <p className="text-orange-400 text-[8px] mb-0.5 tracking-wider font-display italic">{day.d}</p>
+                <div
+                  style={{ borderRadius: s.br }}
+                  className={`aspect-square border-[1.5px] flex items-center justify-center text-center font-display text-[9px] sm:text-[10px] ${s.rotate} ${
+                    day.away
+                      ? 'border-dashed border-sage-400/80 text-sage-700'
+                      : 'border-orange-300/80 text-orange-800'
+                  }`}
+                >
+                  {day.label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-5 flex items-center gap-2">
+          <svg viewBox="0 0 60 12" className="w-14 h-3 text-orange-400" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+            <path d="M3 8 C 16 3, 30 10, 46 5" />
+            <path d="M46 5 L 41 3 M 46 5 L 43 9" />
+          </svg>
+          <span className="font-display italic text-orange-500 text-xs">seven dinners.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Google brand mark rendered inline so we don't need a separate asset.
 function GoogleMark() {
   return (
@@ -164,53 +226,71 @@ export default function AuthScreen() {
         </nav>
 
         {/* Hero */}
-        <section className="max-w-3xl mx-auto px-6 pt-20 sm:pt-28 pb-24">
-          <p className="font-display italic text-orange-500/80 text-sm mb-5 tracking-wide">— for one, two, or a full flat.</p>
-          <h1 className="font-display text-[3.25rem] sm:text-[5.5rem] font-semibold text-orange-900 leading-[0.95] mb-3 tracking-tight">
-            Plan the<br />
-            week.
-            <span className="relative inline-block italic font-normal text-orange-600 ml-3 sm:ml-5">
-              Together.
-              <Scribble className="absolute left-0 -bottom-3 sm:-bottom-4 w-full text-orange-500/70 pointer-events-none" aria-hidden="true" />
-            </span>
-          </h1>
-          <p className="mt-10 sm:mt-12 text-base text-orange-800/85 leading-relaxed max-w-md">
-            Star the recipes you keep coming back to. The week plans itself from there, and so does the shopping list. Anyone else in your household sees every change the moment you make it.
-          </p>
-          <div className="mt-10 sm:mt-12 flex flex-col items-start gap-4">
-            <LayoutGroup>
-              <button
-                type="button"
-                onClick={() => setView('plan')}
-                className="text-left group"
-              >
-                <motion.p
-                  className="flex flex-wrap items-baseline gap-x-2 font-display text-2xl sm:text-3xl font-semibold text-orange-900"
-                  layout
-                  transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+        <section className="max-w-5xl mx-auto px-6 pt-20 sm:pt-28 pb-28 sm:pb-32">
+          <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+            <div className="lg:col-span-7">
+              <p className="font-display italic text-orange-500/80 text-sm mb-5 tracking-wide">— for one, two, or a full flat.</p>
+              <h1 className="font-display text-[3.25rem] sm:text-[5.5rem] font-semibold text-orange-900 leading-[0.95] mb-4 tracking-tight">
+                Plan the<br />
+                week.
+                <span className="relative inline-block italic font-normal text-orange-600 ml-3 sm:ml-5">
+                  Together.
+                  <Scribble className="absolute left-0 -bottom-3 sm:-bottom-4 w-full text-orange-500/70 pointer-events-none" aria-hidden="true" />
+                </span>
+              </h1>
+              <p className="mt-8 sm:mt-10 text-lg text-orange-800/85 leading-relaxed max-w-md">
+                Enough dinners for the week, sorted in the time it takes the kettle to boil.
+              </p>
+              <div className="mt-10 flex flex-col items-start gap-3">
+                <LayoutGroup>
+                  <button
+                    type="button"
+                    onClick={() => setView('plan')}
+                    className="text-left group"
+                  >
+                    <motion.p
+                      className="flex flex-wrap items-baseline gap-x-2 font-display text-2xl sm:text-3xl font-semibold text-orange-900"
+                      layout
+                      transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                    >
+                      <motion.span layout transition={{ type: 'spring', damping: 30, stiffness: 400 }}>Give it a</motion.span>
+                      <TextRotate
+                        texts={['week.', 'try.', 'go.', 'Monday.', 'dinner.']}
+                        mainClassName="text-white px-3 bg-orange-500 overflow-hidden py-0.5 sm:py-1 justify-center rounded-full"
+                        staggerFrom="last"
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '-120%' }}
+                        staggerDuration={0.025}
+                        splitLevelClassName="overflow-hidden pb-0.5"
+                        transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                        rotationInterval={2500}
+                      />
+                      <motion.span
+                        layout
+                        className="text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity translate-x-0 group-hover:translate-x-1 duration-200"
+                      >
+                        →
+                      </motion.span>
+                    </motion.p>
+                  </button>
+                </LayoutGroup>
+                <p className="text-xs text-orange-700/70">Free to use. No card needed.</p>
+                <button
+                  onClick={() => { setMode('login'); setView('auth'); }}
+                  className="mt-2 text-sm text-orange-700 hover:text-orange-900 transition underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
                 >
-                  <motion.span layout transition={{ type: 'spring', damping: 30, stiffness: 400 }}>Give it a</motion.span>
-                  <TextRotate
-                    texts={['week.', 'try.', 'go.', 'Monday.', 'dinner.']}
-                    mainClassName="text-white px-3 bg-orange-500 overflow-hidden py-0.5 sm:py-1 justify-center rounded-full"
-                    staggerFrom="last"
-                    initial={{ y: '100%' }}
-                    animate={{ y: 0 }}
-                    exit={{ y: '-120%' }}
-                    staggerDuration={0.025}
-                    splitLevelClassName="overflow-hidden pb-0.5"
-                    transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-                    rotationInterval={2500}
-                  />
-                </motion.p>
-              </button>
-            </LayoutGroup>
-            <button
-              onClick={() => { setMode('login'); setView('auth'); }}
-              className="text-sm text-orange-700 hover:text-orange-900 transition underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
-            >
-              I already have an account →
-            </button>
+                  I already have an account →
+                </button>
+              </div>
+            </div>
+
+            {/* Notebook preview — a tilted, static peek of the planner.
+                The real interactive version lives below; this is here so the
+                hero has a product visual above the fold. */}
+            <div className="lg:col-span-5 hidden lg:block">
+              <HeroNotebookPreview />
+            </div>
           </div>
         </section>
 
