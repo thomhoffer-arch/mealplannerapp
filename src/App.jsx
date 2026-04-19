@@ -474,7 +474,10 @@ export default function App() {
   const [preferences, setPreferences] = useState({});
 
   // ── Search state
-  const [activeTab, setActiveTab] = useState("search");
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const todayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];
+
+  const [activeTab, setActiveTab] = useState("week");
   const [searchQuery, setSearchQuery] = useState("");
   const [recipes, setRecipes] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -837,7 +840,7 @@ export default function App() {
       // Add directly to meal plan
       await toggleSelectedRecipe(data);
       setImportUrl("");
-      setActiveTab("recipes");
+      setActiveTab("week");
     } catch (err) {
       setImportError(err.message || 'Could not import recipe');
     } finally {
@@ -1137,7 +1140,7 @@ export default function App() {
           starredItems={starredItems}
           household={household}
           onClose={() => setShowStarred(false)}
-          onAddToPlan={(recipe) => { toggleSelectedRecipe(recipe); setShowStarred(false); setActiveTab("recipes"); }}
+          onAddToPlan={(recipe) => { toggleSelectedRecipe(recipe); setShowStarred(false); setActiveTab("week"); }}
           onUnstar={toggleStar}
           onPlanWeek={() => { setShowStarred(false); setShowWeekSuggest(true); }}
         />
@@ -1150,7 +1153,7 @@ export default function App() {
           onClose={() => setShowWeekSuggest(false)}
           onLoadPlan={async (recipes) => {
             for (const recipe of recipes) await toggleSelectedRecipe(recipe);
-            setActiveTab("recipes");
+            setActiveTab("week");
           }}
         />
       )}
@@ -1264,106 +1267,204 @@ export default function App() {
           </div>
         )}
 
-        {/* ── RECIPES TAB ── */}
-        {activeTab === "recipes" && (
+        {/* ── WEEK TAB ── */}
+        {activeTab === "week" && (
           <div>
-            {/* AI week planner button */}
-            <button onClick={() => setShowWeekSuggest(true)}
-              className="w-full mb-4 py-3 bg-orange-500 text-white rounded-full font-semibold text-sm hover:bg-orange-600 transition flex items-center justify-center gap-2 shadow-sm">
-              <Sparkles size={14} />
-              Plan my week with AI
-            </button>
-
-            {/* Templates panel */}
-            <div className="mb-4">
-              <button onClick={() => setShowTemplates((v) => !v)}
-                className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-800 transition">
-                <Calendar size={13} />
-                {showTemplates ? "Hide templates" : "Saved week templates"}
-                {showTemplates ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
-
-              {showTemplates && (
-                <div className="mt-2 bg-white rounded-2xl border border-orange-100 p-4 space-y-3">
-                  {templates.length > 0 && (
-                    <div className="space-y-2">
-                      {templates.map((t) => (
-                        <div key={t.id} className="flex items-center justify-between bg-orange-50 rounded-xl px-3 py-2.5">
-                          <div>
-                            <p className="text-sm font-semibold text-orange-900">{t.name}</p>
-                            <p className="text-xs text-orange-400">{t.recipes.length} recipe{t.recipes.length !== 1 ? "s" : ""}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => loadTemplate(t)}
-                              className="text-xs px-3 py-1.5 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition">
-                              Load
-                            </button>
-                            <button onClick={() => deleteTemplate(t.id)}
-                              className="text-orange-300 hover:text-red-400 transition">
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {selectedRecipeObjects.length > 0 && (
-                    <div className="flex gap-2 pt-1">
-                      <input
-                        type="text"
-                        placeholder={'Name this week (e.g. "Light summer week")'}
-                        value={templateName}
-                        onChange={(e) => setTemplateName(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && saveTemplate()}
-                        className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
-                      />
-                      <button onClick={saveTemplate} disabled={!templateName.trim()}
-                        className="flex-shrink-0 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
-                        Save
-                      </button>
-                    </div>
-                  )}
-                  {templates.length === 0 && selectedRecipeObjects.length === 0 && (
-                    <p className="text-xs text-orange-400">Add recipes to your plan, then save the week as a template to reuse later.</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {selectedRecipeObjects.length > 0 ? (
+            {mealPlanItems.length > 0 ? (
               <>
-                <p className="text-sm text-orange-600 font-medium mb-3">
-                  {selectedRecipeObjects.length} recipe{selectedRecipeObjects.length !== 1 ? "s" : ""} in your meal plan
-                </p>
+                {/* Header row */}
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h2 className="font-display text-xl font-semibold text-orange-900 leading-none">This week</h2>
+                    <p className="text-xs text-orange-400 mt-0.5">{mealPlanItems.length} meal{mealPlanItems.length !== 1 ? 's' : ''} planned</p>
+                  </div>
+                  <button onClick={() => setShowWeekSuggest(true)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition shadow-sm">
+                    <Sparkles size={13} />
+                    Replan
+                  </button>
+                </div>
+
                 <WeeklyNutritionCard recipes={selectedRecipeObjects} />
+
+                {/* Day-by-day calendar */}
                 <div className="space-y-3">
-                  {selectedRecipeObjects.map((recipe) => {
-                    const rid = String(recipe.id);
+                  {DAYS.map((day) => {
+                    const dayItem = mealPlanItems.find((i) => i.recipe_data?._plannedDay === day);
+                    const recipe = dayItem?.recipe_data;
+                    const rid = recipe ? String(recipe.id) : null;
+                    const isToday = todayName === day;
+                    const isCooked = rid ? !!cookedRecipes[rid] : false;
+
                     return (
-                      <SelectedRecipeCard
-                        key={rid}
-                        recipe={recipe}
-                        expanded={!!expandedRecipes[rid]}
-                        onToggleExpand={(id) => setExpandedRecipes((p) => ({ ...p, [id]: !p[id] }))}
-                        onToggleCooked={toggleCookedRecipe}
-                        isCooked={!!cookedRecipes[rid]}
-                        customIngredients={customIngredients}
-                        onAddCustom={addCustomIngredient}
-                        onRemoveCustom={removeCustomIngredient}
-                        onRemove={toggleSelectedRecipe}
-                        newIngredientInput={newIngredientInput}
-                        onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
-                        preferences={preferences}
-                        starredRecipes={starredRecipes}
-                        onAcceptSubstitution={acceptSubstitution}
-                        onGenerateRecipe={generateAndSaveRecipe}
-                        rating={recipeRatings[rid] || null}
-                      />
+                      <div key={day} className={`rounded-2xl border-2 transition-all ${
+                        isCooked ? 'border-green-200 bg-green-50/40' :
+                        recipe ? 'border-orange-100 bg-white' :
+                        'border-dashed border-orange-100 bg-white/50'
+                      }`}>
+                        {/* Compact day header — always visible */}
+                        <div
+                          className="flex items-center gap-3 px-4 py-3.5 cursor-pointer"
+                          onClick={() => recipe && setExpandedRecipes((p) => ({ ...p, [rid]: !p[rid] }))}
+                        >
+                          {/* Day name */}
+                          <div className="w-16 flex-shrink-0">
+                            <p className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-orange-500' : 'text-orange-300'}`}>
+                              {day.slice(0, 3)}
+                            </p>
+                            {isToday && <p className="text-[10px] text-orange-400 font-medium">today</p>}
+                          </div>
+
+                          {recipe ? (
+                            <>
+                              <div className="flex-1 min-w-0">
+                                <p className={`font-semibold text-sm leading-snug ${isCooked ? 'line-through text-orange-300' : 'text-orange-900'}`}>
+                                  {recipe.name}
+                                </p>
+                                <p className="text-xs text-orange-400 mt-0.5">
+                                  {[
+                                    (recipe.prepTime || 0) + (recipe.cookTime || 0) > 0 ? `${(recipe.prepTime||0)+(recipe.cookTime||0)} min` : null,
+                                    recipe.servings ? `${recipe.servings} servings` : null,
+                                    recipe._aiSuggestion && (!recipe.ingredients || !recipe.ingredients.length) ? '· tap to generate' : null,
+                                  ].filter(Boolean).join(' · ')}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                {isCooked && <Check size={14} className="text-green-500" />}
+                                {expandedRecipes[rid]
+                                  ? <ChevronUp size={16} className="text-orange-300" />
+                                  : <ChevronDown size={16} className="text-orange-300" />}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <p className="flex-1 text-sm text-orange-200 italic">Free evening</p>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setActiveTab("search"); }}
+                                className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition"
+                              >
+                                + Add
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Expanded full recipe view */}
+                        {recipe && expandedRecipes[rid] && (
+                          <div className="border-t border-orange-100">
+                            <SelectedRecipeCard
+                              recipe={recipe}
+                              expanded={true}
+                              onToggleExpand={() => {}}
+                              onToggleCooked={toggleCookedRecipe}
+                              isCooked={isCooked}
+                              customIngredients={customIngredients}
+                              onAddCustom={addCustomIngredient}
+                              onRemoveCustom={removeCustomIngredient}
+                              onRemove={toggleSelectedRecipe}
+                              newIngredientInput={newIngredientInput}
+                              onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
+                              preferences={preferences}
+                              starredRecipes={starredRecipes}
+                              onAcceptSubstitution={acceptSubstitution}
+                              onGenerateRecipe={generateAndSaveRecipe}
+                              rating={recipeRatings[rid] || null}
+                              inlineExpanded
+                            />
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
+
+                {/* Unscheduled recipes (added from search without a day) */}
+                {mealPlanItems.filter((i) => !i.recipe_data?._plannedDay).length > 0 && (
+                  <div className="mt-6">
+                    <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-3">Not assigned to a day</p>
+                    <div className="space-y-3">
+                      {mealPlanItems.filter((i) => !i.recipe_data?._plannedDay).map((item) => {
+                        const recipe = item.recipe_data;
+                        const rid = String(recipe.id);
+                        return (
+                          <SelectedRecipeCard
+                            key={rid}
+                            recipe={recipe}
+                            expanded={!!expandedRecipes[rid]}
+                            onToggleExpand={(id) => setExpandedRecipes((p) => ({ ...p, [id]: !p[id] }))}
+                            onToggleCooked={toggleCookedRecipe}
+                            isCooked={!!cookedRecipes[rid]}
+                            customIngredients={customIngredients}
+                            onAddCustom={addCustomIngredient}
+                            onRemoveCustom={removeCustomIngredient}
+                            onRemove={toggleSelectedRecipe}
+                            newIngredientInput={newIngredientInput}
+                            onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
+                            preferences={preferences}
+                            starredRecipes={starredRecipes}
+                            onAcceptSubstitution={acceptSubstitution}
+                            onGenerateRecipe={generateAndSaveRecipe}
+                            rating={recipeRatings[rid] || null}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Saved templates */}
+                <div className="mt-6 mb-2">
+                  <button onClick={() => setShowTemplates((v) => !v)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-orange-400 hover:text-orange-600 transition">
+                    <Calendar size={13} />
+                    {showTemplates ? 'Hide saved weeks' : 'Saved week templates'}
+                    {showTemplates ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
+                  {showTemplates && (
+                    <div className="mt-2 bg-white rounded-2xl border border-orange-100 p-4 space-y-3">
+                      {templates.length > 0 && (
+                        <div className="space-y-2">
+                          {templates.map((t) => (
+                            <div key={t.id} className="flex items-center justify-between bg-orange-50 rounded-xl px-3 py-2.5">
+                              <div>
+                                <p className="text-sm font-semibold text-orange-900">{t.name}</p>
+                                <p className="text-xs text-orange-400">{t.recipes.length} recipe{t.recipes.length !== 1 ? 's' : ''}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => loadTemplate(t)}
+                                  className="text-xs px-3 py-1.5 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition">
+                                  Load
+                                </button>
+                                <button onClick={() => deleteTemplate(t.id)} className="text-orange-300 hover:text-red-400 transition">
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {selectedRecipeObjects.length > 0 && (
+                        <div className="flex gap-2 pt-1">
+                          <input type="text" placeholder="Name this week…"
+                            value={templateName} onChange={(e) => setTemplateName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && saveTemplate()}
+                            className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
+                          />
+                          <button onClick={saveTemplate} disabled={!templateName.trim()}
+                            className="flex-shrink-0 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
+                            Save
+                          </button>
+                        </div>
+                      )}
+                      {templates.length === 0 && selectedRecipeObjects.length === 0 && (
+                        <p className="text-xs text-orange-400">Plan a week first, then save it here to reuse.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
+              /* ── Empty state ── */
               <div className="py-6">
                 <p className="font-display italic text-orange-500/80 text-xs tracking-wide mb-2">— no plan yet</p>
                 <h3 className="font-display text-[2rem] sm:text-4xl font-semibold text-orange-900 leading-[0.95] mb-6 tracking-tight">
@@ -1374,51 +1475,36 @@ export default function App() {
                   </span>{' '}
                   week.
                 </h3>
-
                 <ol className="space-y-6">
                   <li>
-                    <button
-                      onClick={() => setShowWeekSuggest(true)}
-                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition"
-                    >
+                    <button onClick={() => setShowWeekSuggest(true)}
+                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
                       <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">01</span>
                       <span className="pt-1">
                         <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Let AI plan the week</span>
-                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">
-                          Seven dinners picked to your household's taste. Swap anything you don't fancy.
-                        </span>
+                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Seven dinners picked to your household's taste. Swap anything you don't fancy.</span>
                       </span>
                       <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphPot /></span>
                     </button>
                   </li>
-
                   <li>
-                    <button
-                      onClick={() => setActiveTab("search")}
-                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition"
-                    >
+                    <button onClick={() => setActiveTab("search")}
+                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
                       <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">02</span>
                       <span className="pt-1">
-                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Browse and star</span>
-                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">
-                          Search, filter, and star the ones you keep coming back to.
-                        </span>
+                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Search and star</span>
+                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Search recipes and star your favourites for the AI to use.</span>
                       </span>
                       <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphSpyglass /></span>
                     </button>
                   </li>
-
                   <li>
-                    <button
-                      onClick={() => { setActiveTab("search"); setTimeout(() => document.querySelector('input[type=url]')?.focus(), 0); }}
-                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition"
-                    >
+                    <button onClick={() => { setActiveTab("search"); setTimeout(() => document.querySelector('input[type=url]')?.focus(), 0); }}
+                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
                       <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">03</span>
                       <span className="pt-1">
-                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Paste a recipe you love</span>
-                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">
-                          Any URL — we'll pull ingredients and steps straight in.
-                        </span>
+                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Import a recipe you love</span>
+                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Paste any URL — HelloFresh, Marley Spoon, NYT Cooking, anything.</span>
                       </span>
                       <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphLink /></span>
                     </button>
@@ -1565,7 +1651,7 @@ export default function App() {
         <div className="max-w-2xl mx-auto flex items-stretch">
           {[
             { id: "search",   icon: Search,       label: "Search" },
-            { id: "recipes",  icon: Calendar,     label: "Recipes",  badge: selectedIds.size },
+            { id: "week",     icon: Calendar,     label: "Week",     badge: selectedIds.size },
             { id: "shopping", icon: ShoppingCart, label: "Shopping", badge: shoppingList.filter((i) => !i.inPantry).length - checkedCount > 0 ? shoppingList.filter((i) => !i.inPantry).length - checkedCount : null },
             { id: "pantry",   icon: Package,      label: "Pantry",   badge: pantryItems.length || null },
           ].map(({ id, icon: Icon, label, badge }) => (

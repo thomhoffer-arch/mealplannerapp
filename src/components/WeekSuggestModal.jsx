@@ -79,7 +79,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
         const key = `${week.week}-${day.day}`;
         if (selected[key] && day.recipe) {
           const override = servings[key];
-          recipes.push(override ? { ...day.recipe, servings: override } : day.recipe);
+          const base = override ? { ...day.recipe, servings: override } : day.recipe;
+          recipes.push({ ...base, _plannedDay: day.day, _plannedWeek: week.week });
         }
       });
     });
