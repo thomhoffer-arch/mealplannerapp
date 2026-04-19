@@ -20,14 +20,6 @@ import ThemeToggle from "./components/ThemeToggle";
 import { applyTheme } from "./lib/theme";
 import { GlyphPot, GlyphSpyglass, GlyphLink, Scribble } from "./components/glyphs";
 
-// ─── Filter configuration ─────────────────────────────────────────────────────
-const FILTERS = {
-  dietary: ["gluten-free", "vegetarian", "high-protein", "traditional"],
-  time: ["<20min", "20-40min", "40+min"],
-  cuisine: ["light", "dutch"],
-  season: ["spring", "summer", "autumn", "winter"],
-};
-
 const SOURCE_COLORS = {
   HelloFresh:      "bg-green-100 text-green-700",
   "Marley Spoon":  "bg-purple-100 text-purple-700",
@@ -64,41 +56,6 @@ function consolidateIngredients(selectedRecipes, customIngredients) {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function FilterSection({ title, options, selected, onToggle }) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div className="mb-3">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between w-full text-xs font-semibold text-orange-700 uppercase tracking-wide mb-1.5"
-      >
-        <span>{title}</span>
-        {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-      </button>
-      {open && (
-        <div className="flex flex-wrap gap-2">
-          {options.map((opt) => {
-            const active = selected.includes(opt);
-            return (
-              <button
-                key={opt}
-                onClick={() => onToggle(opt)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  active
-                    ? "bg-orange-500 text-white shadow-sm"
-                    : "bg-white text-orange-700 border border-orange-200 hover:border-orange-400"
-                }`}
-              >
-                {opt}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function WeeklyNutritionCard({ recipes }) {
   const totals = recipes.reduce(
     (acc, r) => {
@@ -114,7 +71,7 @@ function WeeklyNutritionCard({ recipes }) {
   const hasData = totals.calories > 0 || totals.protein > 0;
   if (!hasData) return null;
   return (
-    <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
+    <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
       <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">Weekly nutrition total</p>
       <div className="grid grid-cols-4 gap-2">
         {[
@@ -135,7 +92,7 @@ function WeeklyNutritionCard({ recipes }) {
 
 function RecipeCard({ recipe, isSelected, isStarred, onToggleSelect, onToggleStar }) {
   return (
-    <div className={`rounded-xl border-2 p-4 transition-all ${isSelected ? "border-orange-400 bg-orange-50" : "border-orange-100 bg-white"}`}>
+    <div className={`rounded-2xl border-2 p-4 transition-all ${isSelected ? "border-orange-400 bg-orange-50" : "border-orange-100 bg-white"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -215,7 +172,7 @@ function SelectedRecipeCard({
     }
   }
   return (
-    <div className={`rounded-xl border-2 transition-all ${isCooked ? "border-green-300 bg-green-50 opacity-80" : "border-orange-100 bg-white"}`}>
+    <div className={`rounded-2xl border-2 transition-all ${isCooked ? "border-green-300 bg-green-50 opacity-80" : "border-orange-100 bg-white"}`}>
       <div className="p-4">
         <div className="flex items-start gap-3">
           <button
@@ -300,11 +257,11 @@ function SelectedRecipeCard({
                 value={newIngredientInput[rid] || ""}
                 onChange={(e) => onInputChange(rid, e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && onAddCustom(rid)}
-                className="flex-1 border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400"
               />
               <button
                 onClick={() => onAddCustom(rid)}
-                className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition text-sm font-medium"
+                className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition text-sm font-medium"
               >
                 Add
               </button>
@@ -312,11 +269,11 @@ function SelectedRecipeCard({
             {customs.length > 0 && (
               <ul className="mt-2 space-y-1">
                 {customs.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-1.5">
-                    <span className="text-sm text-blue-800">{c.amount ? `${c.amount} ${c.name}` : c.name}</span>
+                  <li key={c.id} className="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2">
+                    <span className="text-sm text-amber-800">{c.amount ? `${c.amount} ${c.name}` : c.name}</span>
                     <button
                       onClick={() => onRemoveCustom(rid, c.id)}
-                      className="text-blue-400 hover:text-red-500 transition ml-2"
+                      className="text-amber-400 hover:text-red-500 transition ml-2"
                     >
                       <X size={14} />
                     </button>
@@ -327,13 +284,13 @@ function SelectedRecipeCard({
           </div>
 
           {/* AI adaptation */}
-          <div className="rounded-xl border border-purple-100 bg-purple-50 p-3">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Adapt for your household</p>
+          <div className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4">
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Adapt for your household</p>
               <button
                 onClick={fetchSuggestions}
                 disabled={aiLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-white rounded-lg text-xs font-medium hover:bg-purple-600 transition disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition disabled:opacity-50"
               >
                 <Sparkles size={12} />
                 {aiLoading ? "Thinking…" : aiResult ? "Refresh" : "Suggest adaptations"}
@@ -345,34 +302,34 @@ function SelectedRecipeCard({
             {aiResult && (
               <div className="space-y-2 mt-1">
                 {aiResult.suitable && !aiResult.substitutions?.length ? (
-                  <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
+                  <p className="text-xs text-orange-700 bg-white rounded-xl px-3 py-2 border border-orange-100">
                     This recipe already fits your household preferences.
-                    {aiResult.tips && <span className="block mt-1 text-green-600">{aiResult.tips}</span>}
+                    {aiResult.tips && <span className="block mt-1 text-orange-500 italic">{aiResult.tips}</span>}
                   </p>
                 ) : (
                   <>
                     {(aiResult.issues || []).length > 0 && (
-                      <div className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 space-y-0.5">
+                      <div className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2 space-y-0.5 border border-amber-100">
                         {aiResult.issues.map((issue, i) => (
                           <p key={i}>⚠ {issue}</p>
                         ))}
                       </div>
                     )}
                     {(aiResult.substitutions || []).map((sub, i) => (
-                      <div key={i} className="bg-white rounded-lg border border-purple-100 px-3 py-2">
-                        <p className="text-xs text-gray-400 line-through">{sub.original}</p>
-                        <p className="text-sm font-medium text-purple-900">{sub.replacement}</p>
-                        <p className="text-xs text-purple-500 mt-0.5">{sub.reason}</p>
+                      <div key={i} className="bg-white rounded-xl border border-orange-100 px-3 py-2.5">
+                        <p className="text-xs text-orange-300 line-through">{sub.original}</p>
+                        <p className="text-sm font-medium text-orange-900">{sub.replacement}</p>
+                        <p className="text-xs text-orange-500 mt-0.5">{sub.reason}</p>
                         <button
                           onClick={() => onAcceptSubstitution(rid, sub)}
-                          className="mt-1.5 text-xs text-purple-600 font-semibold hover:text-purple-800 transition"
+                          className="mt-1.5 text-xs text-orange-600 font-semibold hover:text-orange-800 transition"
                         >
                           + Add as note
                         </button>
                       </div>
                     ))}
                     {aiResult.tips && (
-                      <p className="text-xs text-purple-600 italic px-1">{aiResult.tips}</p>
+                      <p className="text-xs text-orange-500 italic px-1">{aiResult.tips}</p>
                     )}
                   </>
                 )}
@@ -382,7 +339,7 @@ function SelectedRecipeCard({
 
           <button
             onClick={() => onRemove(recipe)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-red-200 text-red-500 hover:bg-red-50 transition text-sm font-medium"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-red-200 text-red-500 hover:bg-red-50 transition text-sm font-medium"
           >
             <Trash2 size={15} />
             Remove from meal plan
@@ -418,7 +375,6 @@ export default function App() {
   // ── Search state
   const [activeTab, setActiveTab] = useState("search");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilters, setSelectedFilters] = useState({ dietary: [], time: [], cuisine: [], season: [] });
   const [recipes, setRecipes] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchTimer = useRef(null);
@@ -779,16 +735,11 @@ export default function App() {
     }
   }
 
-  const fetchRecipes = useCallback(async (query, filters) => {
-    const hasFilters = Object.values(filters).some((f) => f.length > 0);
-    if (!query.trim() && !hasFilters) { setRecipes([]); return; }
-
+  const fetchRecipes = useCallback(async (query) => {
+    if (!query.trim()) { setRecipes([]); return; }
     setSearchLoading(true);
     try {
       const params = new URLSearchParams({ q: query });
-      if (filters.dietary.length) params.set("dietary", filters.dietary.join(","));
-      if (filters.time.length)    params.set("time", filters.time[0]);
-      if (filters.cuisine.length) params.set("cuisine", filters.cuisine.join(","));
       const res = await fetch(`/api/recipes/search?${params}`);
       if (!res.ok) throw new Error("Search failed");
       setRecipes(await res.json());
@@ -801,9 +752,9 @@ export default function App() {
 
   useEffect(() => {
     clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => fetchRecipes(searchQuery, selectedFilters), 400);
+    searchTimer.current = setTimeout(() => fetchRecipes(searchQuery), 400);
     return () => clearTimeout(searchTimer.current);
-  }, [searchQuery, selectedFilters, fetchRecipes]);
+  }, [searchQuery, fetchRecipes]);
 
   // ── Meal plan handlers ────────────────────────────────────────────────────
   async function toggleSelectedRecipe(recipe) {
@@ -869,14 +820,6 @@ export default function App() {
     await supabase.from("shopping_checks").delete().eq("household_id", household.id);
   }
 
-  // ── Filter toggle ─────────────────────────────────────────────────────────
-  function toggleFilter(category, value) {
-    setSelectedFilters((prev) => {
-      const cur = prev[category];
-      return { ...prev, [category]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
-    });
-  }
-
   // ── Invite link ───────────────────────────────────────────────────────────
   const inviteUrl = household
     ? `${window.location.origin}?invite=${household.invite_token}`
@@ -897,13 +840,12 @@ export default function App() {
   const shoppingList = consolidateIngredients(selectedRecipeObjects, customIngredients)
     .map((item) => ({ ...item, inPantry: pantryNames.has(item.name.toLowerCase().trim()) }));
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
-  const totalFiltersActive = Object.values(selectedFilters).reduce((s, f) => s + f.length, 0);
 
   // ── Loading / auth gate ───────────────────────────────────────────────────
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-amber-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-orange-300 border-t-orange-500 rounded-full animate-spin" />
+      <div className="min-h-screen bg-paper flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -934,8 +876,10 @@ export default function App() {
       <header className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-3.5">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="font-display text-xl font-semibold text-orange-900 leading-none tracking-tight">Meal Planner</h1>
-            <p className="text-xs text-orange-500 mt-1">{household.name}</p>
+            <h1 className="font-display text-xl font-semibold text-orange-900 leading-none tracking-tight">
+              {memberProfile?.display_name ? `${memberProfile.display_name}'s kitchen` : 'Meal Planner'}
+            </h1>
+            <p className="text-xs text-orange-500 mt-0.5">{household.name}</p>
           </div>
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
@@ -953,18 +897,18 @@ export default function App() {
                 <Users size={18} />
               </button>
               {showInvite && (
-                <div className="absolute right-0 top-11 bg-white rounded-xl shadow-lg border border-orange-100 p-4 w-72 z-40">
+                <div className="absolute right-0 top-11 bg-white rounded-2xl shadow-lg border border-orange-100 p-4 w-72 z-40">
                   <p className="text-sm font-semibold text-orange-900 mb-1">Invite your partner</p>
                   <p className="text-xs text-orange-500 mb-3">Share this link — they'll join your kitchen automatically.</p>
                   <div className="flex gap-2">
                     <input
                       readOnly
                       value={inviteUrl}
-                      className="flex-1 text-xs border border-orange-200 rounded-lg px-2 py-2 bg-orange-50 text-orange-700 truncate"
+                      className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-700 truncate"
                     />
                     <button
                       onClick={copyInviteLink}
-                      className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-lg text-xs font-medium hover:bg-orange-600 transition flex items-center gap-1"
+                      className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center gap-1"
                     >
                       {inviteCopied ? <Check size={12} /> : <Link2 size={12} />}
                       {inviteCopied ? "Copied" : "Copy"}
@@ -975,6 +919,7 @@ export default function App() {
             </div>
             {/* Notifications */}
             <NotificationBell household={household} />
+            <ThemeToggle />
 
             {/* Preferences */}
             <button
@@ -1011,21 +956,21 @@ export default function App() {
 
       {/* Reminder banner */}
       {showReminderBanner && (
-        <div className="bg-purple-50 border-b border-purple-100 px-4 py-3">
+        <div className="bg-orange-50 border-b border-orange-100 px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-            <p className="text-sm text-purple-800">
-              🗓️ <span className="font-semibold">Time to plan your week!</span> You haven't planned in a while.
+            <p className="text-sm text-orange-800">
+              <span className="font-semibold">Time to plan your week!</span> You haven't updated the plan in a while.
             </p>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button onClick={() => { setShowWeekSuggest(true); setShowReminderBanner(false); }}
-                className="text-xs px-3 py-1.5 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition">
+                className="text-xs px-4 py-1.5 bg-orange-500 text-white rounded-full font-semibold hover:bg-orange-600 transition">
                 Plan now
               </button>
               <button onClick={() => {
                   localStorage.setItem(`reminder_dismissed_${new Date().toISOString().slice(0, 10)}`, '1');
                   setShowReminderBanner(false);
                 }}
-                className="text-purple-400 hover:text-purple-600 transition">
+                className="text-orange-400 hover:text-orange-600 transition">
                 <X size={16} />
               </button>
             </div>
@@ -1130,19 +1075,19 @@ export default function App() {
         {activeTab === "search" && (
           <div>
             <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-300" size={18} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-300" size={18} />
               <input
                 type="search"
-                placeholder="Search recipes…"
+                placeholder="Search recipes — try "quick pasta" or "vegetarian under 30 min"…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300 text-base"
+                className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 text-sm"
               />
             </div>
 
             {/* URL import + manual create */}
-            <div className="bg-white rounded-xl border border-orange-100 p-3 mb-4">
-              <div className="flex items-center justify-between mb-2">
+            <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
+              <div className="flex items-center justify-between mb-2.5">
                 <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Import from any website</p>
                 <button onClick={() => setShowCreateRecipe(true)}
                   className="flex items-center gap-1 text-xs font-semibold text-orange-500 hover:text-orange-700 transition">
@@ -1156,33 +1101,15 @@ export default function App() {
                   value={importUrl}
                   onChange={(e) => { setImportUrl(e.target.value); setImportError(""); }}
                   onKeyDown={(e) => e.key === "Enter" && importFromUrl()}
-                  className="flex-1 border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                  className="flex-1 border border-orange-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
                 />
                 <button onClick={importFromUrl} disabled={importLoading || !importUrl.trim()}
-                  className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
+                  className="flex-shrink-0 px-4 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
                   <Link2 size={14} />
                   {importLoading ? "Importing…" : "Import"}
                 </button>
               </div>
-              {importError && <p className="text-xs text-red-500 mt-1.5">{importError}</p>}
-            </div>
-
-            <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-orange-800">Filters</p>
-                {totalFiltersActive > 0 && (
-                  <button
-                    onClick={() => setSelectedFilters({ dietary: [], time: [], cuisine: [], season: [] })}
-                    className="text-xs text-orange-400 hover:text-orange-600 transition"
-                  >
-                    Clear all ({totalFiltersActive})
-                  </button>
-                )}
-              </div>
-              {Object.entries(FILTERS).map(([cat, opts]) => (
-                <FilterSection key={cat} title={cat} options={opts}
-                  selected={selectedFilters[cat]} onToggle={(v) => toggleFilter(cat, v)} />
-              ))}
+              {importError && <p className="text-xs text-red-500 mt-2">{importError}</p>}
             </div>
 
             {/* User-created recipes */}
@@ -1232,7 +1159,7 @@ export default function App() {
           <div>
             {/* AI week planner button */}
             <button onClick={() => setShowWeekSuggest(true)}
-              className="w-full mb-3 py-2.5 bg-purple-500 text-white rounded-xl font-semibold text-sm hover:bg-purple-600 transition flex items-center justify-center gap-2">
+              className="w-full mb-4 py-3 bg-orange-500 text-white rounded-full font-semibold text-sm hover:bg-orange-600 transition flex items-center justify-center gap-2 shadow-sm">
               <Sparkles size={14} />
               Plan my week with AI
             </button>
@@ -1247,18 +1174,18 @@ export default function App() {
               </button>
 
               {showTemplates && (
-                <div className="mt-2 bg-white rounded-xl border border-orange-100 p-4 space-y-3">
+                <div className="mt-2 bg-white rounded-2xl border border-orange-100 p-4 space-y-3">
                   {templates.length > 0 && (
                     <div className="space-y-2">
                       {templates.map((t) => (
-                        <div key={t.id} className="flex items-center justify-between bg-orange-50 rounded-lg px-3 py-2">
+                        <div key={t.id} className="flex items-center justify-between bg-orange-50 rounded-xl px-3 py-2.5">
                           <div>
                             <p className="text-sm font-semibold text-orange-900">{t.name}</p>
                             <p className="text-xs text-orange-400">{t.recipes.length} recipe{t.recipes.length !== 1 ? "s" : ""}</p>
                           </div>
                           <div className="flex items-center gap-2">
                             <button onClick={() => loadTemplate(t)}
-                              className="text-xs px-2.5 py-1 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition">
+                              className="text-xs px-3 py-1.5 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition">
                               Load
                             </button>
                             <button onClick={() => deleteTemplate(t.id)}
@@ -1278,10 +1205,10 @@ export default function App() {
                         value={templateName}
                         onChange={(e) => setTemplateName(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && saveTemplate()}
-                        className="flex-1 border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                        className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
                       />
                       <button onClick={saveTemplate} disabled={!templateName.trim()}
-                        className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
+                        className="flex-shrink-0 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
                         Save
                       </button>
                     </div>
@@ -1396,7 +1323,7 @@ export default function App() {
           <div>
             {shoppingList.length > 0 ? (
               <>
-                <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
+                <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <ShoppingCart size={16} className="text-orange-500" />
@@ -1419,7 +1346,7 @@ export default function App() {
                   {shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length > 0 && (
                     <button
                       onClick={() => setShowGrocerHandoff(true)}
-                      className="w-full mt-3 py-2.5 bg-orange-900 text-white rounded-xl font-semibold text-sm hover:bg-orange-800 transition flex items-center justify-center gap-2"
+                      className="w-full mt-3 py-2.5 bg-orange-900 text-white rounded-full font-semibold text-sm hover:bg-orange-800 transition flex items-center justify-center gap-2"
                     >
                       <ShoppingBag size={14} />
                       Send to AH, Jumbo or Picnic
@@ -1427,7 +1354,7 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="bg-white rounded-xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+                <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
                   {[...shoppingList]
                     .sort((a, b) => {
                       const ac = checkedItems[a.name] ? 1 : 0;
@@ -1464,7 +1391,7 @@ export default function App() {
                 <p className="font-medium text-orange-400">Your shopping list is empty</p>
                 <p className="text-sm mt-1">Select recipes to build your list</p>
                 <button onClick={() => setActiveTab("search")}
-                  className="mt-4 px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition">
+                  className="mt-4 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition">
                   Find Recipes
                 </button>
               </div>
@@ -1474,7 +1401,7 @@ export default function App() {
         {/* ── PANTRY TAB ── */}
         {activeTab === "pantry" && (
           <div>
-            <div className="bg-white rounded-xl border border-orange-100 p-4 mb-4">
+            <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
               <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">What's already at home</p>
               <div className="flex gap-2">
                 <input
@@ -1483,10 +1410,10 @@ export default function App() {
                   value={pantryInput}
                   onChange={(e) => setPantryInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addPantryItem()}
-                  className="flex-1 border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                  className="flex-1 border border-orange-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
                 />
                 <button onClick={addPantryItem} disabled={!pantryInput.trim()}
-                  className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
+                  className="flex-shrink-0 px-4 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
                   Add
                 </button>
               </div>
@@ -1494,7 +1421,7 @@ export default function App() {
             </div>
 
             {pantryItems.length > 0 ? (
-              <div className="bg-white rounded-xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+              <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
                 {pantryItems.map((item) => (
                   <div key={item.id} className="flex items-center justify-between px-4 py-3">
                     <div>
