@@ -212,8 +212,9 @@ export default function AuthScreen() {
                 so it reads as a margin note. Breaks the rhythm on purpose.
                 No scribble here; the hero already has the one per screen. */}
             <p className="mt-16 sm:mt-20 ml-auto max-w-md text-right font-display italic text-orange-700/80 text-base leading-relaxed">
-              — cooking for one, for two, or a full flat? It scales. Share the
-              kitchen with whoever you want — a partner, a flatmate, your mum.
+              — a kitchen's better with company. Invite a partner, a flatmate,
+              your mum — the plan stays in sync, so nobody's texting "did we
+              already have pasta this week?"
             </p>
           </div>
         </section>
