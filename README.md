@@ -95,6 +95,8 @@ supabase/migration_add_ai_usage.sql              — ai_usage table + RLS
 supabase/migration_add_user_recipes.sql          — user_recipes table + RLS
 supabase/migration_add_rotation_reminder.sql     — rotation_priority on starred_recipes;
                                                    reminder_enabled + reminder_day on household_preferences
+supabase/migration_add_puter_token.sql           — puter_token_encrypted + puter_token_hint on
+                                                   household_preferences (optional, for Puter BYOK)
 ```
 
 ---
@@ -109,9 +111,10 @@ supabase/migration_add_rotation_reminder.sql     — rotation_priority on starre
 | `ai/suggest` | POST | Bearer | Adapt a recipe (substitutions, scaling) via Gemini |
 | `ai/suggest-week` | POST | Bearer | Generate a 1–2 week dinner plan via Gemini |
 | `household/save-key` | POST | Bearer | Encrypt and store a personal Gemini API key |
+| `household/save-puter-token` | POST | Bearer | Encrypt and store a personal Puter auth token (pay-as-you-go AI) |
 | `cron/scrape` | GET | Cron | Background recipe index refresh (Vercel cron, daily) |
 
-All `Bearer` routes resolve the household via the JWT, then check for a personal API key before falling back to the shared server key. The 50/day cap applies only to the shared key.
+All `Bearer` routes resolve the household via the JWT. AI provider resolution order is: **household Puter token** → **personal Gemini key** → **shared Gemini key**. The 50/day cap applies only to the shared key.
 
 ---
 
@@ -137,6 +140,7 @@ You need accounts on these services before the app works. Free tiers are suffici
 | **Vercel** | yes | Hosting, serverless functions, cron | Hobby plan is free | [vercel.com/signup](https://vercel.com/signup) |
 | **Supabase** | yes | Postgres DB, auth, realtime, storage | 2 projects, 500 MB DB | [supabase.com](https://supabase.com) |
 | **Google AI Studio (Gemini)** | yes | Recipe import, recipe adaptation, week planning | 1,500 free requests/day on Gemini Flash | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) |
+| **Puter** | optional | Per-household pay-as-you-go AI (Claude, GPT, Gemini, etc.) — overrides Gemini when set | Free signup, top up to use AI | [puter.com](https://puter.com) |
 | **Spoonacular** | recommended | External recipe search | 150 requests/day | [spoonacular.com/food-api](https://spoonacular.com/food-api) |
 | **GitHub** | yes | Source hosting (Vercel deploys from it) | Free for private repos | [github.com](https://github.com) |
 | **Domain registrar** | optional | Custom domain (e.g. `meals.thomhoffer.nl`) | N/A — you already own `thomhoffer.nl` | — |
@@ -166,7 +170,9 @@ The app uses two groups of env vars: **client-side** (exposed to the browser bun
 | `HELLOFRESH_CLIENT_ID` | server | HelloFresh scraper auth | `.env.local.example` has community defaults |
 | `HELLOFRESH_CLIENT_SECRET` | server | HelloFresh scraper auth | `.env.local.example` has community defaults |
 | `GEMINI_API_KEY` | server | Shared AI key (free tier) | aistudio.google.com/app/apikey |
-| `ENCRYPTION_KEY` | server | AES-256-GCM key for user-provided Gemini keys | `openssl rand -hex 32` |
+| `GEMINI_MODEL` | server | Optional override for the Gemini model (default `gemini-2.5-flash`) | — |
+| `PUTER_MODEL` | server | Optional override for the Puter model (default `claude-sonnet-4-5`). Set this if the default doesn't match Puter's current catalogue. | Puter docs |
+| `ENCRYPTION_KEY` | server | AES-256-GCM key for stored Gemini keys and Puter tokens | `openssl rand -hex 32` |
 | `CRON_SECRET` | server | Auth for the weekly scrape cron | **Auto-set by Vercel** — don't add manually |
 
 ### Google sign-in (OAuth)
@@ -188,6 +194,21 @@ Users can sign up / log in with Google as an alternative to email + password. To
 3. **(Optional) Vercel** — if you use a custom domain, make sure it's in **Supabase → Authentication → URL Configuration → Site URL** so the redirect works correctly.
 
 That's it. The "Continue with Google" button in `AuthScreen.jsx` calls `supabase.auth.signInWithOAuth({ provider: 'google' })` and the rest is handled by Supabase. No extra env vars needed in the app.
+
+---
+
+### Puter (pay-as-you-go AI — optional)
+
+A household can opt into Puter's user-pays model so AI calls are billed to their own Puter account instead of your shared Gemini quota. One person per household does this setup and the whole household benefits.
+
+1. **Sign up** at [puter.com](https://puter.com) and top up the account (Puter bills per AI call).
+2. **Grab the auth token.** After signing in at puter.com, open the browser devtools console and run `puter.authToken` — copy the string.
+3. **Paste it into Settings** in the meal planner (Settings → Personal Puter token → Save). The token is validated against Puter's API, then encrypted with `ENCRYPTION_KEY` and stored at the household level.
+4. Once saved, **AI provider order becomes**: Puter token → Gemini BYOK → shared Gemini. Remove the token to fall back.
+
+Model: defaults to `claude-sonnet-4-5` on Puter's OpenAI-compatible endpoint. Override via the `PUTER_MODEL` env var if Puter's catalogue differs.
+
+Caveat worth flagging to users: Puter auth tokens may be session-scoped and expire occasionally. If AI calls start failing with a 401, the user re-pastes a fresh token. If this becomes a regular issue, we'd need to switch to an in-browser Puter.js flow instead of a pasted server-side token.
 
 ---
 
