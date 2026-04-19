@@ -99,9 +99,7 @@ as $$
 declare
   hid uuid;
 begin
-  select id into hid
-  from public.households
-  where invite_token = p_token;
+  hid := (select id from public.households where invite_token = p_token);
 
   if hid is null then
     raise exception 'Invalid invite token';
