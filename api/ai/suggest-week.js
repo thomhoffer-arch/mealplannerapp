@@ -4,8 +4,8 @@ const { createClient } = require('@supabase/supabase-js');
 const { getUserAndHousehold } = require('../_lib/auth');
 const { VOICE_GUIDE } = require('../_lib/voice');
 const { resolveAiProvider, callAi } = require('../_lib/ai-call');
+const { checkAndIncrementUsage, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
 
-const DAILY_FREE_LIMIT = 50;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const PRIORITY_LABELS = { 1: 'HIGH — include every week', 2: 'MEDIUM — include every 2 weeks', 3: 'OCCASIONAL — include if it fits' };
 
@@ -30,7 +30,7 @@ module.exports = async function handler(req, res) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({
-        error: `Daily limit of 50 AI calls reached. Add your own Gemini key or Puter token in Settings for unlimited use.`,
+        error: `Weekly limit of ${WEEKLY_FREE_LIMIT} AI calls reached. Connect Puter or add your own Gemini key in Settings for unlimited use.`,
       });
     }
   }
@@ -163,14 +163,3 @@ Return ONLY a JSON object, no markdown:
 Each week must have exactly 7 days: Monday through Sunday.${numWeeks === 2 ? ' Return exactly 2 week objects.' : ' Return exactly 1 week object.'}`;
 }
 
-async function checkAndIncrementUsage(supabase, householdId) {
-  const today = new Date().toISOString().slice(0, 10);
-  const { data } = await supabase.from('ai_usage').select('call_count')
-    .eq('household_id', householdId).eq('usage_date', today).single();
-  if (data && data.call_count >= DAILY_FREE_LIMIT) return true;
-  await supabase.from('ai_usage').upsert(
-    { household_id: householdId, usage_date: today, call_count: (data?.call_count || 0) + 1 },
-    { onConflict: 'household_id,usage_date' }
-  );
-  return false;
-}

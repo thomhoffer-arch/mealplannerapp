@@ -1258,14 +1258,50 @@ export default function App() {
                 </div>
               </>
             ) : (
-              <div className="text-center py-16 text-orange-300">
-                <Calendar size={48} className="mx-auto mb-3 opacity-50" />
-                <p className="font-medium text-orange-400">No recipes in your plan yet</p>
-                <p className="text-sm mt-1">Search for recipes and add them</p>
-                <button onClick={() => setActiveTab("search")}
-                  className="mt-4 px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition">
-                  Browse Recipes
-                </button>
+              <div className="py-8">
+                <p className="font-display italic text-orange-500/80 text-xs tracking-wide text-center mb-2">Your week is empty</p>
+                <h3 className="font-display text-2xl font-semibold text-orange-900 leading-tight text-center mb-2">Start your first week.</h3>
+                <p className="text-sm text-orange-700/80 leading-relaxed text-center max-w-sm mx-auto mb-6">
+                  Three ways in. None of them take longer than a minute.
+                </p>
+                <div className="space-y-2 max-w-md mx-auto">
+                  <button
+                    onClick={() => setShowWeekSuggest(true)}
+                    className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-purple-100 bg-white hover:border-purple-300 px-4 py-4 transition"
+                  >
+                    <span className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
+                      <Sparkles size={18} />
+                    </span>
+                    <span className="flex-1">
+                      <span className="block font-display text-base font-semibold text-orange-900 mb-0.5">Let AI plan the week</span>
+                      <span className="block text-xs text-orange-800/75 leading-snug">Seven dinners, picked to your household's taste. Swap anything you don't fancy.</span>
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("search")}
+                    className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-orange-100 bg-white hover:border-orange-300 px-4 py-4 transition"
+                  >
+                    <span className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
+                      <Search size={18} />
+                    </span>
+                    <span className="flex-1">
+                      <span className="block font-display text-base font-semibold text-orange-900 mb-0.5">Browse recipes</span>
+                      <span className="block text-xs text-orange-800/75 leading-snug">Search, filter, and star the ones you keep coming back to.</span>
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab("search"); setTimeout(() => document.querySelector('input[type=url]')?.focus(), 0); }}
+                    className="w-full flex items-center gap-3 text-left rounded-2xl border-2 border-orange-100 bg-white hover:border-orange-300 px-4 py-4 transition"
+                  >
+                    <span className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
+                      <Link2 size={18} />
+                    </span>
+                    <span className="flex-1">
+                      <span className="block font-display text-base font-semibold text-orange-900 mb-0.5">Paste a recipe you love</span>
+                      <span className="block text-xs text-orange-800/75 leading-snug">Any URL — we'll pull ingredients and steps straight in.</span>
+                    </span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
