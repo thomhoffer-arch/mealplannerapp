@@ -32,39 +32,46 @@ export function GlyphSprig({ className = 'w-7 h-7' }) {
   );
 }
 
+// Notebook page — slightly warped rectangle, wavy header rule, binder
+// rings sketched with a little arc so they don't feel ruler-perfect.
 export function GlyphCalendar({ className = 'w-7 h-7' }) {
   return (
     <svg {...GLYPH_PROPS} className={className}>
-      <rect x="5" y="7" width="22" height="21" rx="2" />
-      <path d="M5 13 H27" />
-      <path d="M10 4 V10" />
-      <path d="M22 4 V10" />
-      <circle cx="11" cy="18" r="0.9" fill="currentColor" />
-      <circle cx="16" cy="18" r="0.9" fill="currentColor" />
-      <circle cx="21" cy="18" r="0.9" fill="currentColor" />
-      <circle cx="11" cy="23" r="0.9" fill="currentColor" />
-      <circle cx="16" cy="23" r="0.9" fill="currentColor" />
+      <path d="M5.5 8 Q 16 6.8 26.8 7.6 Q 27.4 17 26.6 27.2 Q 16 28.2 5.2 27.4 Q 4.7 17 5.5 8 Z" />
+      <path d="M5.5 13.2 Q 16 12.4 26.8 13" />
+      <path d="M10 4 Q 9.6 7 10.2 9.8" />
+      <path d="M22 4 Q 22.4 7 21.8 9.8" />
+      <path d="M10.2 17.6 Q 11.2 17.2 12 17.8" />
+      <path d="M15.4 17.6 Q 16.4 17.2 17.2 17.8" />
+      <path d="M20.6 17.6 Q 21.6 17.2 22.4 17.8" />
+      <path d="M10.2 22.4 Q 11.2 22 12 22.6" />
+      <path d="M15.4 22.4 Q 16.4 22 17.2 22.6" />
     </svg>
   );
 }
 
+// Wicker basket — curved belly, a handle that arcs overhead, three weave
+// lines that bow with the shape. Drawn like someone sketching a picnic.
 export function GlyphBasket({ className = 'w-7 h-7' }) {
   return (
     <svg {...GLYPH_PROPS} className={className}>
-      <path d="M4 12 H28 L25 26 H7 Z" />
-      <path d="M10 12 L14 5" />
-      <path d="M22 12 L18 5" />
-      <path d="M12 17 V22" />
-      <path d="M16 17 V22" />
-      <path d="M20 17 V22" />
+      <path d="M4.2 12.4 Q 16 11.2 27.8 12.4 Q 26.8 19.2 24.4 26 Q 16 27 7.6 26 Q 5.2 19.2 4.2 12.4 Z" />
+      <path d="M9.4 12.4 Q 11.5 5.6 16 5.2 Q 20.5 5.6 22.6 12.4" />
+      <path d="M11 16 Q 11.6 19.6 12.4 23" />
+      <path d="M16 16 Q 16 19.6 16 23.2" />
+      <path d="M21 16 Q 20.4 19.6 19.6 23" />
     </svg>
   );
 }
 
+// Five-point star, but drawn with quadratic curves between the points so
+// the edges bulge slightly — a pencil star, not a geometric one. Inside
+// trace loops back for that one-stroke doodle feel.
 export function GlyphStar({ className = 'w-7 h-7' }) {
   return (
     <svg {...GLYPH_PROPS} className={className}>
-      <path d="M16 5 L19.4 12 L27 13 L21.5 18.3 L23 26 L16 22.5 L9 26 L10.5 18.3 L5 13 L12.6 12 Z" />
+      <path d="M16 4.6 Q 17.4 8.4 18.6 11.6 Q 22.6 12 26.6 12.8 Q 23.4 15.6 20.8 18.2 Q 21.6 22 22.8 26 Q 19.2 23.8 16 22.2 Q 12.8 23.8 9.2 26 Q 10.4 22 11.2 18.2 Q 8.6 15.6 5.4 12.8 Q 9.4 12 13.4 11.6 Q 14.6 8.4 16 4.6 Z" />
+      <path d="M16 4.6 Q 15.6 5 15.4 5.6" />
     </svg>
   );
 }
