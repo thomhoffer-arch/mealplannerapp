@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GlyphSprig, GlyphBasket } from './glyphs';
+import { GlyphBasket } from './glyphs';
 
 // An interactive notebook-page preview of the week. Click a day to open
 // that night's menu card; click the basket to peek at the shopping list
@@ -126,11 +126,6 @@ export default function NotebookWeekScene() {
 
   return (
     <div className="relative mx-auto max-w-2xl select-none">
-      {/* Sprig peeking in from the top-left, rotated like a pressed leaf */}
-      <div className="absolute -top-4 -left-2 sm:-left-6 text-orange-300/70 -rotate-[18deg] pointer-events-none" aria-hidden="true">
-        <GlyphSprig className="w-10 h-10" />
-      </div>
-
       {/* The notebook sheet */}
       <div className="relative bg-white/80 backdrop-blur-sm rounded-[22px] border border-orange-100 pt-7 pb-10 px-5 sm:px-9 shadow-warm">
         {/* Page header */}
