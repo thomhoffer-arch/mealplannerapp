@@ -7,6 +7,12 @@ export default function PreferencesModal({ household, onClose }) {
   const [text, setText] = useState('');
   const [keyInput, setKeyInput] = useState('');
   const [keyHint, setKeyHint] = useState(null);
+  const [puterInput, setPuterInput] = useState('');
+  const [puterHint, setPuterHint] = useState(null);
+  const [puterError, setPuterError] = useState('');
+  const [savingPuter, setSavingPuter] = useState(false);
+  const [savedPuter, setSavedPuter] = useState(false);
+  const [showPuter, setShowPuter] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderDay, setReminderDay] = useState('sunday');
   const [savingReminder, setSavingReminder] = useState(false);
@@ -20,13 +26,14 @@ export default function PreferencesModal({ household, onClose }) {
   useEffect(() => {
     supabase
       .from('household_preferences')
-      .select('preferences_text, gemini_api_key_hint, reminder_enabled, reminder_day')
+      .select('preferences_text, gemini_api_key_hint, puter_token_hint, reminder_enabled, reminder_day')
       .eq('household_id', household.id)
       .single()
       .then(({ data }) => {
         if (data) {
           setText(data.preferences_text || '');
           setKeyHint(data.gemini_api_key_hint || null);
+          setPuterHint(data.puter_token_hint || null);
           setReminderEnabled(data.reminder_enabled || false);
           setReminderDay(data.reminder_day || 'sunday');
         }
@@ -88,6 +95,43 @@ export default function PreferencesModal({ household, onClose }) {
     setSavingKey(false);
     setKeyHint(null);
     setKeyInput('');
+  }
+
+  async function handleSavePuter() {
+    setPuterError('');
+    setSavingPuter(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch('/api/household/save-puter-token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ token: puterInput }),
+    });
+    const data = await res.json();
+    setSavingPuter(false);
+    if (!res.ok) { setPuterError(data.error || 'Could not save token'); return; }
+    setPuterHint(data.hint || null);
+    setPuterInput('');
+    setSavedPuter(true);
+    setTimeout(() => setSavedPuter(false), 2000);
+  }
+
+  async function handleRemovePuter() {
+    setSavingPuter(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    await fetch('/api/household/save-puter-token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ token: '' }),
+    });
+    setSavingPuter(false);
+    setPuterHint(null);
+    setPuterInput('');
   }
 
   return (
@@ -202,6 +246,54 @@ export default function PreferencesModal({ household, onClose }) {
                 <button onClick={handleSaveKey} disabled={savingKey || !keyInput.trim()}
                   className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
                   {savedKey ? <><Check size={14} /> Key saved</> : savingKey ? 'Validating…' : 'Save key'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Puter token (pay-as-you-go) ── */}
+          <div className="space-y-2 border-t border-orange-100 pt-4">
+            <div>
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Personal Puter token</p>
+              <p className="text-xs text-orange-400 mt-0.5">
+                Pay-as-you-go AI via your own Puter account — Claude, GPT, Gemini and more. Overrides the Gemini key above when set.{' '}
+                <a href="https://puter.com/" target="_blank" rel="noopener noreferrer"
+                  className="underline hover:text-orange-600">Sign up for Puter →</a>
+              </p>
+              <p className="text-xs text-orange-400/80 mt-1 italic">
+                After signing in at puter.com, open the browser console and run <span className="font-mono">puter.authToken</span> to copy your token. Tokens may need to be refreshed occasionally.
+              </p>
+            </div>
+
+            {puterHint ? (
+              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
+                <span className="text-sm text-green-800">
+                  Active token ending in <span className="font-mono font-semibold">···{puterHint}</span>
+                </span>
+                <button onClick={handleRemovePuter} disabled={savingPuter}
+                  className="text-red-400 hover:text-red-600 transition ml-3" title="Remove token">
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="relative">
+                  <input
+                    type={showPuter ? 'text' : 'password'}
+                    placeholder="Puter auth token"
+                    value={puterInput}
+                    onChange={(e) => { setPuterInput(e.target.value); setPuterError(''); }}
+                    className="w-full border border-orange-200 rounded-xl px-3 py-2.5 pr-10 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                  />
+                  <button onClick={() => setShowPuter((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-300 hover:text-orange-500 transition">
+                    {showPuter ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+                {puterError && <p className="text-xs text-red-500">{puterError}</p>}
+                <button onClick={handleSavePuter} disabled={savingPuter || !puterInput.trim()}
+                  className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+                  {savedPuter ? <><Check size={14} /> Token saved</> : savingPuter ? 'Validating…' : 'Save token'}
                 </button>
               </div>
             )}
