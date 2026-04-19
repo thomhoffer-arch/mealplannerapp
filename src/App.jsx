@@ -606,7 +606,7 @@ export default function App() {
 
   async function loadPreferences() {
     const { data } = await supabase
-      .from("household_preferences").select("*").eq("household_id", household.id).single();
+      .from("household_preferences").select("*").eq("household_id", household.id).maybeSingle();
     setPreferences(data || {});
   }
 

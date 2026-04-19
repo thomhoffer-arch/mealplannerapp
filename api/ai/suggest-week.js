@@ -37,7 +37,7 @@ module.exports = async function handler(req, res) {
 
   // Load all data in parallel
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }] = await Promise.all([
-    supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).single(),
+    supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
