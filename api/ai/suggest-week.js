@@ -2,8 +2,8 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { getUserAndHousehold } = require('../_lib/auth');
-const { decrypt } = require('../_lib/crypto');
 const { VOICE_GUIDE } = require('../_lib/voice');
+const { resolveAiProvider, callAi } = require('../_lib/ai-call');
 
 const DAILY_FREE_LIMIT = 50;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -23,14 +23,14 @@ module.exports = async function handler(req, res) {
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  const { apiKey, usingSharedKey } = await resolveApiKey(ctx, supabase);
-  if (!apiKey) return res.status(503).json({ error: 'No Gemini API key configured' });
+  const { provider, token, usingSharedKey } = await resolveAiProvider(supabase, ctx.householdId);
+  if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
   if (usingSharedKey) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({
-        error: `Daily limit of 50 AI calls reached. Add your own Gemini API key in Settings for unlimited use.`,
+        error: `Daily limit of 50 AI calls reached. Add your own Gemini key or Puter token in Settings for unlimited use.`,
       });
     }
   }
@@ -61,22 +61,12 @@ module.exports = async function handler(req, res) {
 
   const prompt = buildPrompt(preferences, byPriority, recentNames, numWeeks);
 
-  const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    }
-  );
-
-  if (!geminiRes.ok) return res.status(502).json({ error: 'AI service error' });
-
-  const geminiData = await geminiRes.json();
-  const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+  let rawText;
+  try {
+    rawText = await callAi(provider, token, prompt);
+  } catch (err) {
+    return res.status(502).json({ error: err.message || 'AI service error' });
+  }
   if (!rawText) return res.status(502).json({ error: 'Empty AI response' });
 
   let plan;
@@ -171,20 +161,6 @@ Return ONLY a JSON object, no markdown:
 }
 
 Each week must have exactly 7 days: Monday through Sunday.${numWeeks === 2 ? ' Return exactly 2 week objects.' : ' Return exactly 1 week object.'}`;
-}
-
-async function resolveApiKey(ctx, supabase) {
-  try {
-    const { data } = await supabase
-      .from('household_preferences')
-      .select('gemini_api_key_encrypted')
-      .eq('household_id', ctx.householdId)
-      .single();
-    if (data?.gemini_api_key_encrypted) {
-      return { apiKey: decrypt(data.gemini_api_key_encrypted), usingSharedKey: false };
-    }
-  } catch { /* fall through */ }
-  return { apiKey: process.env.GEMINI_API_KEY || null, usingSharedKey: true };
 }
 
 async function checkAndIncrementUsage(supabase, householdId) {

@@ -2,8 +2,8 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { getUserAndHousehold } = require('../_lib/auth');
-const { decrypt } = require('../_lib/crypto');
 const { VOICE_GUIDE } = require('../_lib/voice');
+const { resolveAiProvider, callAi } = require('../_lib/ai-call');
 
 const DAILY_FREE_LIMIT = 50;
 
@@ -19,41 +19,31 @@ module.exports = async function handler(req, res) {
   const ctx = await getUserAndHousehold(req).catch(() => null);
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  // Resolve which API key to use: household key → server default
-  const { apiKey, usingSharedKey } = await resolveApiKey(ctx, supabase);
-  if (!apiKey) return res.status(503).json({ error: 'No Gemini API key configured' });
+  // Resolve provider: Puter token → Gemini BYOK → shared Gemini
+  const { provider, token, usingSharedKey } = ctx
+    ? await resolveAiProvider(supabase, ctx.householdId)
+    : { provider: 'gemini', token: process.env.GEMINI_API_KEY || null, usingSharedKey: true };
+  if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
-  // Enforce daily cap when using the shared server key
+  // Enforce daily cap only when using the shared server key
   if (usingSharedKey && ctx) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({
-        error: `Daily limit of ${DAILY_FREE_LIMIT} AI suggestions reached. Add your own Gemini API key in Settings for unlimited use.`,
+        error: `Daily limit of ${DAILY_FREE_LIMIT} AI suggestions reached. Add your own Gemini key or Puter token in Settings for unlimited use.`,
       });
     }
   }
 
   const prompt = buildPrompt(recipe, preferences || {}, starredRecipes || []);
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    console.error('Gemini error:', await response.text());
-    return res.status(502).json({ error: 'AI service error' });
+  let text;
+  try {
+    text = await callAi(provider, token, prompt);
+  } catch (err) {
+    console.error('AI error:', err.message);
+    return res.status(502).json({ error: err.message || 'AI service error' });
   }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) return res.status(502).json({ error: 'Empty AI response' });
 
   try {
@@ -62,25 +52,6 @@ module.exports = async function handler(req, res) {
     res.status(502).json({ error: 'Could not parse AI response' });
   }
 };
-
-async function resolveApiKey(ctx, supabase) {
-  if (ctx) {
-    try {
-      const { data } = await supabase
-        .from('household_preferences')
-        .select('gemini_api_key_encrypted')
-        .eq('household_id', ctx.householdId)
-        .single();
-
-      if (data?.gemini_api_key_encrypted) {
-        return { apiKey: decrypt(data.gemini_api_key_encrypted), usingSharedKey: false };
-      }
-    } catch {
-      // fall through
-    }
-  }
-  return { apiKey: process.env.GEMINI_API_KEY || null, usingSharedKey: true };
-}
 
 async function checkAndIncrementUsage(supabase, householdId) {
   const today = new Date().toISOString().slice(0, 10);
