@@ -138,7 +138,17 @@ export default function NotebookWeekScene() {
         <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
           {DAYS.map((day, i) => {
             const isActive = active?.type === 'day' && active.idx === i;
-            const rotation = i === 0 ? '-rotate-[1deg]' : i === 2 ? 'rotate-[1.5deg]' : i === 4 ? '-rotate-[0.5deg]' : i === 6 ? 'rotate-[0.5deg]' : '';
+            // Each card gets a unique rotation + per-corner border-radius so they
+            // feel hand-drawn rather than CSS-perfect.
+            const shapes = [
+              { rotate: '-rotate-[0.8deg]', br: '12px 9px 11px 8px / 10px 12px 9px 11px' },
+              { rotate:  'rotate-[1.2deg]', br:  '9px 12px 8px 11px / 11px 8px 12px 9px' },
+              { rotate: '-rotate-[1.5deg]', br: '11px 8px 12px 9px / 9px 11px 8px 12px' },
+              { rotate:  'rotate-[0.6deg]', br:  '8px 11px 9px 12px / 12px 9px 11px 8px' },
+              { rotate: '-rotate-[0.4deg]', br: '10px 9px 11px 8px /  8px 11px 9px 10px' },
+              { rotate:  'rotate-[1deg]',   br:  '9px 11px 8px 10px / 11px 8px 10px 9px' },
+              { rotate: '-rotate-[0.7deg]', br: '11px 8px 10px 9px /  9px 10px 8px 11px' },
+            ][i];
             return (
               <div key={day.d} className="relative">
                 <p className="text-orange-400 text-[9px] sm:text-[10px] mb-1 tracking-wider font-display italic">{day.d}</p>
@@ -147,7 +157,8 @@ export default function NotebookWeekScene() {
                   onClick={() => setActive(isActive ? null : { type: 'day', idx: i })}
                   aria-expanded={isActive}
                   aria-label={`${day.d}: ${day.dish}`}
-                  className={`w-full aspect-square rounded-[10px] border-[1.5px] flex items-center justify-center px-0.5 text-center font-display text-[10px] sm:text-xs transition ${rotation} ${
+                  style={{ borderRadius: shapes.br }}
+                  className={`w-full aspect-square border-[1.5px] flex items-center justify-center px-0.5 text-center font-display text-[10px] sm:text-xs transition ${shapes.rotate} ${
                     isActive
                       ? day.away
                         ? 'border-sage-500 bg-sage-100/70 text-sage-700 shadow-warm'

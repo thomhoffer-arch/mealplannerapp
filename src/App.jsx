@@ -467,22 +467,34 @@ export default function App() {
   }, []);
 
   // ── Load household when user is ready ────────────────────────────────────
+  const loadingForUser = React.useRef(null);
   useEffect(() => {
     if (!user) return;
+    if (loadingForUser.current === user.id) return; // guard against duplicate onAuthStateChange fires
+    loadingForUser.current = user.id;
     loadHousehold();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadHousehold() {
+    setAuthLoading(true);
     const { data: member } = await supabase
       .from("household_members")
       .select("household_id, households(*)")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (member?.households) {
       setHousehold(member.households);
     } else {
-      const { data: hid } = await supabase.rpc("create_household_for_user", { uid: user.id });
+      const { data: hid, error: rpcError } = await supabase.rpc("create_household_for_user", { uid: user.id });
+      if (rpcError || !hid) {
+        console.error("create_household_for_user failed:", rpcError);
+        // Session is valid but DB setup may be incomplete — sign out so the
+        // user gets a clean retry rather than being silently stuck.
+        await supabase.auth.signOut();
+        setAuthLoading(false);
+        return;
+      }
       const { data: h } = await supabase.from("households").select("*").eq("id", hid).single();
       setHousehold(h);
     }
