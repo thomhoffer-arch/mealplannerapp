@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
+import OnboardingScreen from "./components/OnboardingScreen";
 import PreferencesModal from "./components/PreferencesModal";
 import WillingnessModal from "./components/WillingnessModal";
 import InstallBanner from "./components/InstallBanner";
@@ -397,6 +398,10 @@ export default function App() {
   // ── Auth / household state
   const [user, setUser] = useState(null);
   const [household, setHousehold] = useState(null);
+  // The current user's row in household_members, with display_name / prefs /
+  // onboarded_at. When onboarded_at is null we render OnboardingScreen
+  // instead of the main app.
+  const [memberProfile, setMemberProfile] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -457,6 +462,7 @@ export default function App() {
         document.documentElement.classList.remove('dark');
         setAuthLoading(false);
         setHousehold(null);
+        setMemberProfile(null);
         setMealPlanItems([]);
         setCustomIngredients({});
         setCookedRecipes({});
@@ -489,7 +495,7 @@ export default function App() {
     // crash the query with PGRST116 — we just take the first one.
     const { data: member, error: memberErr } = await supabase
       .from("household_members")
-      .select("household_id, households(*)")
+      .select("household_id, display_name, personal_prefs, onboarded_at, households(*)")
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle();
@@ -503,6 +509,11 @@ export default function App() {
 
     if (member?.households) {
       setHousehold(member.households);
+      setMemberProfile({
+        display_name:   member.display_name,
+        personal_prefs: member.personal_prefs,
+        onboarded_at:   member.onboarded_at,
+      });
       setAuthLoading(false);
       return;
     }
@@ -523,6 +534,8 @@ export default function App() {
       return;
     }
     setHousehold(h);
+    // Brand-new membership — onboarded_at is null so the onboarding screen shows.
+    setMemberProfile({ display_name: null, personal_prefs: null, onboarded_at: null });
     setAuthLoading(false);
   }
 
@@ -593,7 +606,7 @@ export default function App() {
 
   async function loadPreferences() {
     const { data } = await supabase
-      .from("household_preferences").select("*").eq("household_id", household.id).single();
+      .from("household_preferences").select("*").eq("household_id", household.id).maybeSingle();
     setPreferences(data || {});
   }
 
@@ -896,6 +909,23 @@ export default function App() {
   }
 
   if (!user || !household) return <AuthScreen />;
+
+  // First-run gate: name + preferences. The member row exists (auth finished),
+  // they just haven't filled in their profile yet.
+  if (memberProfile && !memberProfile.onboarded_at) {
+    return (
+      <OnboardingScreen
+        user={user}
+        household={household}
+        onDone={() => {
+          setMemberProfile((m) => ({ ...m, onboarded_at: new Date().toISOString() }));
+          // Land them straight in the suggest-week modal so "see some
+          // suggestions" actually delivers suggestions.
+          setShowWeekSuggest(true);
+        }}
+      />
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   return (

@@ -36,16 +36,18 @@ module.exports = async function handler(req, res) {
   }
 
   // Load all data in parallel
-  const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }] = await Promise.all([
-    supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).single(),
+  const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }] = await Promise.all([
+    supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
       .order('added_at', { ascending: false }).limit(21),
+    supabase.from('household_members').select('display_name, personal_prefs').eq('household_id', ctx.householdId),
   ]);
 
   const preferences = prefData?.preferences_text || '';
   const starred = starredData || [];
+  const members = membersData || [];
 
   // Build a map for quick lookup and group by priority
   const starredMap = {};
@@ -59,7 +61,7 @@ module.exports = async function handler(req, res) {
   // Recently planned (last 3 weeks worth) for variety context
   const recentNames = (recentPlanData || []).map((i) => i.recipe_data?.name).filter(Boolean);
 
-  const prompt = buildPrompt(preferences, byPriority, recentNames, numWeeks);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks);
 
   let rawText;
   try {
@@ -104,7 +106,7 @@ module.exports = async function handler(req, res) {
   res.json({ weeks: enrichedWeeks, notes: plan.notes || '' });
 };
 
-function buildPrompt(preferences, byPriority, recentNames, numWeeks) {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks) {
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -117,14 +119,25 @@ function buildPrompt(preferences, byPriority, recentNames, numWeeks) {
   const weeksText = numWeeks === 2 ? 'two separate weeks (week 1 and week 2)' : 'one week';
   const avoidList = recentNames.length ? recentNames.slice(0, 10).join(', ') : 'none';
 
+  const membersSection = (members || [])
+    .map((m) => {
+      const who = (m.display_name || '').trim() || 'someone';
+      const prefs = (m.personal_prefs || '').trim();
+      return prefs ? `  - ${who}: ${prefs}` : `  - ${who}: (no personal preferences listed)`;
+    })
+    .join('\n');
+
   return `${VOICE_GUIDE}
 
 ---
 
 You plan weeknight dinners for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinner meals for this household.
 
-HOUSEHOLD DIETARY PREFERENCES:
+HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}
+
+WHO'S EATING (individual preferences — the plan must work for everyone at the table; where people differ, suggest simple adaptations like "olives on the side", "bake the chicken on a separate tray", "swap tofu for prawns for [name]"):
+${membersSection || '  - (no individual preferences on file)'}
 
 STARRED RECIPES (this household's favourites — use them in the plan):
 ${starredSection || 'None starred yet — suggest freely based on preferences.'}
@@ -137,7 +150,7 @@ STRICT RULES:
 2. Vary cuisine type every day (no Italian two consecutive days, etc.).
 3. Mix weekday-friendly quick meals (Mon–Thu) with more elaborate weekend meals (Fri–Sun).
 4. Prioritise starred HIGH recipes — they should appear in week 1 if possible.
-5. Respect all dietary preferences strictly.
+5. Respect dietary preferences strictly. If members conflict (one vegetarian, one meat-eater), pick recipes that split gracefully and put the adaptation in the overview.
 6. If no starred recipes exist, invent appropriate recipes based on preferences.
 
 Return ONLY a JSON object, no markdown:
