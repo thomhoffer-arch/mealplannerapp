@@ -138,13 +138,69 @@ function SelectedRecipeCard({
   recipe, expanded, onToggleExpand, onToggleCooked, isCooked,
   customIngredients, onAddCustom, onRemoveCustom, onRemove,
   newIngredientInput, onInputChange, preferences, starredRecipes, onAcceptSubstitution,
-  rating,
+  rating, onGenerateRecipe,
 }) {
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
   const [aiError, setAiError] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState(null);
+  const [adjustInput, setAdjustInput] = useState('');
+  const [adjusting, setAdjusting] = useState(false);
+  const [adjustError, setAdjustError] = useState(null);
+
+  async function adjustRecipe() {
+    const request = adjustInput.trim();
+    if (!request) return;
+    setAdjusting(true);
+    setAdjustError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/ai/adjust-recipe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ recipe, request }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not adjust recipe');
+      onGenerateRecipe(rid, data);
+      setAdjustInput('');
+    } catch (err) {
+      setAdjustError(err.message || 'Something went wrong. Try again.');
+    } finally {
+      setAdjusting(false);
+    }
+  }
+
+  const isStub = recipe._aiSuggestion && (!recipe.ingredients || recipe.ingredients.length === 0);
+
+  async function generateFullRecipe() {
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/ai/generate-recipe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ recipe }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not generate recipe');
+      onGenerateRecipe(rid, data);
+    } catch (err) {
+      setGenerateError(err.message || 'Something went wrong. Try again.');
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   async function fetchSuggestions() {
     setAiLoading(true);
@@ -214,6 +270,24 @@ function SelectedRecipeCard({
 
       {expanded && (
         <div className="border-t border-orange-100 p-4 space-y-4">
+
+          {/* AI stub — offer to generate full recipe */}
+          {isStub ? (
+            <div className="text-center py-4">
+              <p className="text-sm text-orange-700 mb-1 font-display italic">Full recipe not written yet.</p>
+              <p className="text-xs text-orange-500 mb-4">The AI will write ingredients and steps now — takes about 10 seconds.</p>
+              {generateError && <p className="text-xs text-red-500 mb-3">{generateError}</p>}
+              <button
+                onClick={generateFullRecipe}
+                disabled={generating}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50"
+              >
+                <Sparkles size={14} />
+                {generating ? 'Writing recipe…' : 'Generate full recipe'}
+              </button>
+            </div>
+          ) : (
+            <>
           {/* Macros */}
           <div>
             <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Nutrition (per serving)</p>
@@ -336,6 +410,33 @@ function SelectedRecipeCard({
               </div>
             )}
           </div>
+
+          {/* Tweak the recipe */}
+          <div>
+            <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Tweak this recipe</p>
+            <p className="text-xs text-orange-500 mb-2">Ask for a small change — the rest of the recipe stays as-is.</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="e.g. use chicken breast, make it spicier, leave out the nuts…"
+                value={adjustInput}
+                onChange={(e) => setAdjustInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && adjustRecipe()}
+                className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
+              />
+              <button
+                onClick={adjustRecipe}
+                disabled={adjusting || !adjustInput.trim()}
+                className="flex-shrink-0 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <PenLine size={13} />
+                {adjusting ? 'Tweaking…' : 'Apply'}
+              </button>
+            </div>
+            {adjustError && <p className="text-xs text-red-500 mt-2">{adjustError}</p>}
+          </div>
+          </>
+          )}
 
           <button
             onClick={() => onRemove(recipe)}
@@ -707,6 +808,15 @@ export default function App() {
       name: sub.replacement,
       amount: `replaces: ${sub.original}`,
     });
+  }
+
+  async function generateAndSaveRecipe(rid, fullData) {
+    const item = mealPlanItems.find((i) => i.recipe_id === rid);
+    if (!item) return;
+    const updatedRecipe = { ...item.recipe_data, ...fullData };
+    await supabase.from("meal_plan_items")
+      .update({ recipe_data: updatedRecipe })
+      .eq("id", item.id);
   }
 
   // ── Recipe search ─────────────────────────────────────────────────────────
@@ -1246,6 +1356,7 @@ export default function App() {
                         preferences={preferences}
                         starredRecipes={starredRecipes}
                         onAcceptSubstitution={acceptSubstitution}
+                        onGenerateRecipe={generateAndSaveRecipe}
                         rating={recipeRatings[rid] || null}
                       />
                     );
