@@ -160,7 +160,7 @@ export default function PreferencesModal({ household, onClose, inline = false })
             <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Dietary &amp; taste preferences</p>
             <textarea
               rows={4}
-              placeholder="e.g. We're gluten intolerant and Tom doesn't eat pork. Anna uses oat milk instead of regular milk. We prefer mostly plant-based meals during the week but enjoy chicken or fish on weekends. We love spicy food and prefer lighter meals — nothing too heavy or creamy."
+              placeholder="e.g. We're gluten intolerant and Thom doesn't eat pork. Evelina uses oat milk instead of regular milk. We prefer mostly plant-based meals during the week but enjoy chicken or fish on weekends. We love spicy food and prefer lighter meals — nothing too heavy or creamy."
               value={text}
               onChange={(e) => setText(e.target.value)}
               className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
