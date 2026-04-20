@@ -1,4 +1,5 @@
 import { requireAuth } from './_lib/auth.js';
+import { applyCors } from './_lib/cors.js';
 
 // Account endpoint.
 //   GET    → full data export as JSON (download)
@@ -6,6 +7,7 @@ import { requireAuth } from './_lib/auth.js';
 //            the grace period, log in deleted_accounts. A future cron
 //            can hard-purge rows whose purge_at has passed.
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
   if (req.method === 'GET')    return exportData(req, res);
   if (req.method === 'DELETE') return softDelete(req, res);
   return res.status(405).end();

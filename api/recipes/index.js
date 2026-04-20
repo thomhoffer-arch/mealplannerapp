@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import handleSearch from '../_lib/recipes-handlers/search.js';
 import handleImport from '../_lib/recipes-handlers/import.js';
 import { requireAuth } from '../_lib/auth.js';
+import { applyCors } from '../_lib/cors.js';
 
 // Consolidated recipes endpoint. Routed by method + query/body shape:
 //   GET  /api/recipes?share=TOKEN         → view a public recipe share
@@ -12,6 +13,7 @@ import { requireAuth } from '../_lib/auth.js';
 // Keeps us under the Hobby 12-function cap. GET /api/recipes/:id lives in
 // [id].js because it needs the path param.
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
   try {
     if (req.method === 'GET') {
       if (req.query.share) return await viewShare(req, res);

@@ -4,6 +4,7 @@ import handleSuggestSide from '../_lib/ai-handlers/suggest-side.js';
 import handleGenerateRecipe from '../_lib/ai-handlers/generate-recipe.js';
 import handleShoppingInsights from '../_lib/ai-handlers/shopping-insights.js';
 import handleModerate from '../_lib/ai-handlers/moderate.js';
+import { applyCors } from '../_lib/cors.js';
 
 // Single entry point for all AI operations.
 //
@@ -21,6 +22,7 @@ const HANDLERS = {
 };
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
   const { action } = req.query;
   // One-line log per request so Vercel function logs reveal the exact
   // method + action received. Helps diagnose 405s that shouldn't happen.

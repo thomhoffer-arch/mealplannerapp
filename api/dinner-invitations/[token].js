@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '../_lib/auth.js';
+import { applyCors } from '../_lib/cors.js';
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
   const token = (req.query?.token || '').trim();
   if (!token) return res.status(400).json({ error: 'Missing token' });
 
