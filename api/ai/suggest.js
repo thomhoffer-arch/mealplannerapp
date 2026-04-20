@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { getUserAndHousehold } = require('../_lib/auth');
 const { VOICE_GUIDE } = require('../_lib/voice');
 const { resolveAiProvider, callAi } = require('../_lib/ai-call');
-const { checkAndIncrementUsage, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
+const { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
 
 // POST /api/ai/suggest
 // Body: { recipe, preferences, starredRecipes }
@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
   // Enforce weekly cap only when using the shared server key
-  if (usingSharedKey && ctx) {
+  if (usingSharedKey && ctx && !(await isGiftedHousehold(supabase, ctx.householdId))) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({

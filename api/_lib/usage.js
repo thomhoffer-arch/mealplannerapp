@@ -34,4 +34,14 @@ async function checkAndIncrementUsage(supabase, householdId, limit = WEEKLY_FREE
   return false;
 }
 
-module.exports = { checkAndIncrementUsage, WEEKLY_FREE_LIMIT };
+// Returns true if the household has is_gifted = true (bypass usage cap).
+async function isGiftedHousehold(supabase, householdId) {
+  const { data } = await supabase
+    .from('household_preferences')
+    .select('is_gifted')
+    .eq('household_id', householdId)
+    .maybeSingle();
+  return !!(data?.is_gifted);
+}
+
+module.exports = { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT };
