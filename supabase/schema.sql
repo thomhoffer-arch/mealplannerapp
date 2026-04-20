@@ -72,6 +72,9 @@ $$;
 
 -- ─── Create household + add creator as member (atomic) ───────────────────────
 
+-- Idempotent: if the user already belongs to a household, that one is
+-- returned and no new household is created. Used both by the client signup
+-- flow and by the server-side auth self-heal in api/_lib/auth.js.
 create or replace function public.create_household_for_user(uid uuid)
 returns uuid
 language plpgsql security definer
@@ -79,6 +82,15 @@ as $$
 declare
   hid uuid;
 begin
+  select household_id into hid
+  from public.household_members
+  where user_id = uid
+  limit 1;
+
+  if hid is not null then
+    return hid;
+  end if;
+
   insert into public.households (created_by)
   values (uid)
   returning id into hid;

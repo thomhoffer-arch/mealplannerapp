@@ -10,7 +10,10 @@ export default async function handler(req, res) {
   const { recipe, preferences, starredRecipes } = req.body || {};
   if (!recipe) return res.status(400).json({ error: 'recipe is required' });
 
-  const ctx = await getUserAndHousehold(req).catch(() => null);
+  // Optional auth: if the user isn't signed in we still serve the suggestion
+  // using the shared Gemini key, just without household-scoped usage tracking.
+  const authResult = await getUserAndHousehold(req).catch(() => ({ error: { status: 401 } }));
+  const ctx = authResult.ctx || null;
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const { provider, token, usingSharedKey } = ctx

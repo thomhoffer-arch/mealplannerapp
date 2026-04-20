@@ -89,7 +89,7 @@ If the page does not contain a recipe, return: { "error": "No recipe found on th
 
 async function resolveApiKey(req) {
   try {
-    const ctx = await getUserAndHousehold(req);
+    const { ctx } = await getUserAndHousehold(req);
     if (ctx) {
       const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
       const { data } = await supabase

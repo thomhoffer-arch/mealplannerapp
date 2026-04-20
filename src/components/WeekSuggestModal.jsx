@@ -43,8 +43,14 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
+          ...(household?.id ? { 'X-Household-Id': household.id } : {}),
         },
-        body: JSON.stringify({ weeks: numWeeks, plan_extras_text: planExtrasText || '', day_notes: dayNotes }),
+        body: JSON.stringify({
+          weeks: numWeeks,
+          plan_extras_text: planExtrasText || '',
+          day_notes: dayNotes,
+          household_id: household?.id,
+        }),
       });
       const raw = await res.text();
       let data;

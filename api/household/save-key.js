@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
-import { getUserAndHousehold } from '../_lib/auth.js';
+import { requireAuth } from '../_lib/auth.js';
 import { encrypt } from '../_lib/crypto.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const ctx = await getUserAndHousehold(req);
-  if (!ctx) return res.status(401).json({ error: 'Unauthorized' });
+  const ctx = await requireAuth(req, res);
+  if (!ctx) return;
 
   const supabase = createClient(
     process.env.SUPABASE_URL,
