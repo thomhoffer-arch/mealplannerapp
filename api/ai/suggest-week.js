@@ -13,6 +13,15 @@ const PRIORITY_LABELS = { 1: 'HIGH — include every week', 2: 'MEDIUM — inclu
 // Body: { weeks: 1 | 2 }
 // Returns: { weeks: [{ week, days: [{ day, recipe }] }], notes }
 module.exports = async function handler(req, res) {
+  try {
+    return await _handler(req, res);
+  } catch (err) {
+    console.error('[suggest-week] unhandled error:', err);
+    return res.status(500).json({ error: `Internal error: ${err.message}` });
+  }
+};
+
+async function _handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { weeks = 1, plan_extras_text = '', day_notes = {} } = req.body || {};
@@ -72,8 +81,14 @@ module.exports = async function handler(req, res) {
   if (!rawText) return res.status(502).json({ error: 'Empty AI response' });
 
   let plan;
-  try { plan = JSON.parse(rawText); } catch {
-    return res.status(502).json({ error: 'Could not parse AI response' });
+  try {
+    plan = JSON.parse(rawText);
+  } catch (err) {
+    console.error('[suggest-week] JSON parse failed:', err.message, '| raw:', rawText.slice(0, 500));
+    return res.status(502).json({
+      error: `Could not parse AI response: ${err.message}`,
+      raw_preview: rawText.slice(0, 200),
+    });
   }
 
   // Enrich: swap starred_id references with full recipe objects

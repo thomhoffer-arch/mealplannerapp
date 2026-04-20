@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabase';
 import ThemeToggle from './ThemeToggle';
 import PuterConnect from './PuterConnect';
 
-export default function PreferencesModal({ household, onClose, inline = false }) {
+// section: 'dietary' | 'settings' | undefined (all)
+export default function PreferencesModal({ household, onClose, inline = false, section }) {
   const [text, setText] = useState('');
   const [keyInput, setKeyInput] = useState('');
   const [keyHint, setKeyHint] = useState(null);
@@ -144,9 +145,13 @@ export default function PreferencesModal({ household, onClose, inline = false })
     setPuterInput('');
   }
 
+  const showSettings = !section || section === 'settings';
+  const showDietary  = !section || section === 'dietary';
+
   const inner = (
     <div className={inline ? "space-y-5" : "px-5 pb-5 space-y-5"}>
           {/* ── Appearance ── */}
+          {showSettings && (
           <div className="space-y-2">
             <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Appearance</p>
             <div className="flex items-center justify-between">
@@ -154,9 +159,11 @@ export default function PreferencesModal({ household, onClose, inline = false })
               <ThemeToggle />
             </div>
           </div>
+          )}
 
           {/* ── Dietary & taste preferences ── */}
-          <div className="space-y-2 border-t border-orange-100 pt-4">
+          {showDietary && (
+          <div className={`space-y-2 ${showSettings ? 'border-t border-orange-100 pt-4' : ''}`}>
             <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Dietary &amp; taste preferences</p>
             <textarea
               rows={4}
@@ -184,8 +191,10 @@ export default function PreferencesModal({ household, onClose, inline = false })
               className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
             />
           </div>
+          )}
 
           {/* ── Planning reminder ── */}
+          {showSettings && (
           <div className="space-y-2 border-t border-orange-100 pt-4">
             <div className="flex items-center gap-2">
               <Bell size={14} className="text-orange-600" />
@@ -319,6 +328,7 @@ export default function PreferencesModal({ household, onClose, inline = false })
               </div>
             )}
           </div>
+          )}
         </div>
   );
 

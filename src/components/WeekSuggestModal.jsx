@@ -42,8 +42,14 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
         },
         body: JSON.stringify({ weeks: numWeeks, plan_extras_text: planExtrasText || '', day_notes: dayNotes }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not generate plan');
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        throw new Error(`Server error ${res.status}: ${raw.slice(0, 300) || '(empty response)'}`);
+      }
+      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
       setPlan(data.weeks);
       setNotes(data.notes || '');
       const sel = {};
