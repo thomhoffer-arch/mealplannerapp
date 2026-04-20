@@ -1073,10 +1073,10 @@ export default function App() {
     if (!query.trim()) { setRecipes([]); return; }
     setSearchLoading(true);
     try {
-      const params = new URLSearchParams({ q: query });
-      const res = await fetch(`/api/recipes?${params}`);
-      if (!res.ok) throw new Error("Search failed");
-      setRecipes(await res.json());
+      // apiFetch attaches bearer + X-Household-Id so the search endpoint can
+      // resolve the household's AI provider for the LLM-suggestion fallback.
+      const data = await apiFetch(`/api/recipes?${new URLSearchParams({ q: query })}`);
+      setRecipes(data);
     } catch {
       setRecipes([]);
     } finally {

@@ -1,22 +1,40 @@
+import { requireAuth } from '../auth.js';
+import { resolveAiProvider, callAi } from '../ai-call.js';
 import { normalizeSpoonacular, normalizeHelloFresh } from '../normalize.js';
 
+// Federated recipe search across three sources, each independently toggled
+// by its own env var / auth state:
+//
+//   - Spoonacular  — active when SPOONACULAR_API_KEY is set. Rich,
+//                     structured recipes with nutrition info.
+//   - HelloFresh   — active when HELLOFRESH_CLIENT_SECRET is set.
+//   - LLM          — active when the caller is signed in. Returns 8 recipe
+//                     stubs that can be fleshed out later via generate-recipe.
+//                     Catches the "no external keys configured" case so the
+//                     search UI always has something to show.
+//
+// To disable a source, just leave its env var unset — the code stays in
+// place for when you add the key back.
 export default async function handleSearch(req, res) {
-
   const { q = '', dietary = '', time = '', cuisine = '', source = 'all' } = req.query;
 
   const hasQuery = q.trim().length > 0;
   const hasFilters = dietary || time || cuisine;
   if (!hasQuery && !hasFilters) return res.json([]);
 
-  const results = await Promise.allSettled([
-    source !== 'hellofresh' ? searchSpoonacular(q, dietary, time, cuisine) : Promise.resolve([]),
-    source !== 'spoonacular' ? searchHelloFresh(q, dietary, time, cuisine) : Promise.resolve([]),
+  const ctx = await requireAuth(req, res);
+  if (!ctx) return;
+
+  const [spoonResults, hfResults, aiResults] = await Promise.all([
+    source !== 'hellofresh' && source !== 'ai' ? searchSpoonacular(q, dietary, time, cuisine) : Promise.resolve([]),
+    source !== 'spoonacular' && source !== 'ai' ? searchHelloFresh(q, dietary, time, cuisine) : Promise.resolve([]),
+    source !== 'spoonacular' && source !== 'hellofresh' ? searchAi(q, dietary, time, cuisine, ctx) : Promise.resolve([]),
   ]);
 
-  const spoonacularResults = results[0].status === 'fulfilled' ? results[0].value : [];
-  const hellofreshResults = results[1].status === 'fulfilled' ? results[1].value : [];
-
-  res.json([...hellofreshResults, ...spoonacularResults]);
+  // External sources first, then AI stubs — so when Spoonacular is active,
+  // its richer entries lead. Pure-AI mode (no external keys set) still
+  // shows a full page of results.
+  return res.json([...hfResults, ...spoonResults, ...aiResults]);
 }
 
 async function searchSpoonacular(q, dietary, time, cuisine) {
@@ -44,6 +62,72 @@ async function searchSpoonacular(q, dietary, time, cuisine) {
   if (!response.ok) return [];
   const data = await response.json();
   return (data.results || []).map(normalizeSpoonacular);
+}
+
+async function searchAi(q, dietary, time, cuisine, ctx) {
+  const { provider, token } = await resolveAiProvider(ctx.supabase, ctx.householdId);
+  if (!token) return [];
+
+  const constraints = [
+    time === '<20min' && 'under 20 minutes total',
+    time === '20-40min' && '20-40 minutes total',
+    time === '40+min' && 'at least 40 minutes',
+    cuisine && cuisine !== 'light' && cuisine !== 'dutch' && `${cuisine} cuisine`,
+    cuisine === 'light' && 'light and healthy',
+    cuisine === 'dutch' && 'Dutch / Benelux style',
+    (dietary || '').split(',').includes('vegetarian') && 'vegetarian',
+    (dietary || '').split(',').includes('gluten-free') && 'gluten-free',
+    (dietary || '').split(',').includes('high-protein') && 'high-protein (30g+ per serving)',
+  ].filter(Boolean).join(', ');
+
+  const prompt = `You are a dinner-search assistant. Suggest 8 real, well-known dishes matching this query: "${q || '(no query, use constraints below)'}".${constraints ? ` Must be: ${constraints}.` : ''}
+
+Favour variety — mix cuisines and techniques instead of returning eight near-duplicates. Ground every dish in a recipe a home cook actually makes.
+
+Return ONLY JSON, no markdown:
+{
+  "recipes": [
+    {
+      "id": "<lowercase-kebab-case-slug-from-name>",
+      "name": "<recipe name>",
+      "overview": "<one short sentence>",
+      "cuisine": "<Italian | Asian | Mexican | …>",
+      "keywords": ["<tag1>", "<tag2>"],
+      "prepTime": <minutes or null>,
+      "cookTime": <minutes or null>,
+      "servings": 2,
+      "dietary": ["<e.g. vegetarian, gluten-free, high-protein>"]
+    }
+  ]
+}`;
+
+  let rawText;
+  try {
+    rawText = await callAi(provider, token, prompt);
+  } catch (err) {
+    console.warn('[recipes/search] AI search failed:', err.message);
+    return [];
+  }
+
+  let parsed;
+  try { parsed = JSON.parse(rawText); } catch { return []; }
+
+  return (parsed.recipes || []).map((r, i) => ({
+    id: r.id || `ai-search-${Date.now()}-${i}`,
+    name: r.name || 'Suggested recipe',
+    source: 'AI Suggestion',
+    overview: r.overview || '',
+    cuisine: r.cuisine || null,
+    keywords: Array.isArray(r.keywords) ? r.keywords : [],
+    prepTime: r.prepTime || null,
+    cookTime: r.cookTime || null,
+    servings: r.servings || 2,
+    ingredients: [],
+    steps: [],
+    macros: {},
+    dietary: Array.isArray(r.dietary) ? r.dietary : [],
+    _aiSuggestion: true,
+  }));
 }
 
 async function searchHelloFresh(q, dietary, time, cuisine) {
