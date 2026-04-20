@@ -1375,16 +1375,58 @@ export default function App() {
                 <div className="w-7 h-7 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
               </div>
             ) : recipes.length > 0 ? (
-              <div className="space-y-3">
-                <p className="text-sm text-orange-600 font-medium">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} found</p>
-                {recipes.map((recipe) => (
-                  <RecipeCard key={recipe.id} recipe={recipe}
-                    isSelected={selectedIds.has(String(recipe.id))}
-                    isStarred={starredIds.has(String(recipe.id))}
-                    onToggleSelect={toggleSelectedRecipe}
-                    onToggleStar={toggleStar} />
-                ))}
-              </div>
+              (() => {
+                const isPaid  = !!(preferences?.puter_token_hint);
+                const isBYOK  = !isPaid && !!(preferences?.gemini_api_key_hint);
+                const limit   = isPaid ? Infinity : isBYOK ? 8 : 4;
+                const visible = recipes.slice(0, limit);
+                const lockedCount = Math.max(0, recipes.length - limit);
+                const lockMsg = isBYOK
+                  ? `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — connect Puter to see the full library.`
+                  : `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — add your Gemini key for more, or connect Puter for the full library.`;
+                const lockLabel = isBYOK ? 'Connect Puter' : 'Add a key to unlock';
+                return (
+                  <div className="space-y-3">
+                    <p className="text-sm text-orange-600 font-medium">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} found</p>
+                    {visible.map((recipe) => (
+                      <RecipeCard key={recipe.id} recipe={recipe}
+                        isSelected={selectedIds.has(String(recipe.id))}
+                        isStarred={starredIds.has(String(recipe.id))}
+                        onToggleSelect={toggleSelectedRecipe}
+                        onToggleStar={toggleStar} />
+                    ))}
+                    {lockedCount > 0 && (
+                      <>
+                        {[0, 1].map((i) => (
+                          <div key={i} className="relative rounded-2xl border border-orange-100 bg-white overflow-hidden">
+                            <div className="px-4 py-4 space-y-2.5 pointer-events-none select-none" style={{ filter: 'blur(4px)' }}>
+                              <div className="flex items-center gap-3">
+                                <div className="w-5 h-5 rounded-full bg-orange-100 flex-shrink-0" />
+                                <div className="h-3.5 bg-orange-100 rounded-full" style={{ width: `${55 + i * 15}%` }} />
+                              </div>
+                              <div className="h-3 bg-orange-50 rounded-full w-2/3" />
+                              <div className="h-3 bg-orange-50 rounded-full w-1/2" />
+                            </div>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/75">
+                              <svg className="w-4 h-4 text-orange-400 mb-1.5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7a4.5 4.5 0 00-9 0v3.5M5 10.5h14a1 1 0 011 1V20a1 1 0 01-1 1H5a1 1 0 01-1-1v-8.5a1 1 0 011-1z" /></svg>
+                              <p className="text-xs font-medium text-orange-700">{lockLabel}</p>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="text-center py-3">
+                          <p className="text-xs text-orange-500 mb-2">{lockMsg}</p>
+                          <button
+                            onClick={() => setShowPreferences(true)}
+                            className="text-xs px-4 py-1.5 bg-orange-500 text-white rounded-full font-semibold hover:bg-orange-600 transition"
+                          >
+                            Open Settings
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()
             ) : (
               <div className="text-center py-12 text-orange-300">
                 <Search size={48} className="mx-auto mb-3 opacity-50" />
