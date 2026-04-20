@@ -3,6 +3,7 @@ import handleSuggest from '../_lib/ai-handlers/suggest.js';
 import handleSuggestSide from '../_lib/ai-handlers/suggest-side.js';
 import handleGenerateRecipe from '../_lib/ai-handlers/generate-recipe.js';
 import handleShoppingInsights from '../_lib/ai-handlers/shopping-insights.js';
+import handleModerate from '../_lib/ai-handlers/moderate.js';
 
 // Single entry point for all AI operations.
 //
@@ -16,6 +17,7 @@ const HANDLERS = {
   'suggest-side':      handleSuggestSide,
   'generate-recipe':   handleGenerateRecipe,
   'shopping-insights': handleShoppingInsights,
+  'moderate':          handleModerate,
 };
 
 export default async function handler(req, res) {

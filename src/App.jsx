@@ -1019,6 +1019,24 @@ export default function App() {
         method: 'POST',
         body: { url },
       });
+
+      // Safety pass — classify content before saving. 'block' refuses,
+      // 'warn' asks the user, 'ok' proceeds silently. Failures here
+      // shouldn't block the happy path, so swallow any moderation error.
+      let mod;
+      try {
+        mod = await apiFetch('/api/ai/moderate', { method: 'POST', body: { recipe: data } });
+      } catch { /* moderation is best-effort */ }
+
+      if (mod?.severity === 'block') {
+        setImportError(`Blocked: ${mod.summary || 'content failed safety review'}`);
+        return;
+      }
+      if (mod?.severity === 'warn') {
+        const msg = `Heads up: ${mod.summary || 'this recipe has some flags'}\n\n${(mod.issues || []).map((i) => `• ${i}`).join('\n')}\n\nAdd it anyway?`;
+        if (!window.confirm(msg)) return;
+      }
+
       await toggleSelectedRecipe(data);
       setImportUrl("");
       setActiveTab("week");
