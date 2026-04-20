@@ -158,7 +158,7 @@ function SelectedRecipeCard({
     setAdjustError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/ai/adjust-recipe', {
+      const res = await fetch('/api/ai/generate-recipe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

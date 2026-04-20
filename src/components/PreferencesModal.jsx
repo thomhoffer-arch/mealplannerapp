@@ -102,7 +102,7 @@ export default function PreferencesModal({ household, onClose }) {
     setPuterError('');
     setSavingPuter(true);
     const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch('/api/household/save-puter-token', {
+    const res = await fetch('/api/household/save-key', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -122,7 +122,7 @@ export default function PreferencesModal({ household, onClose }) {
   async function handleRemovePuter() {
     setSavingPuter(true);
     const { data: { session } } = await supabase.auth.getSession();
-    await fetch('/api/household/save-puter-token', {
+    await fetch('/api/household/save-key', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

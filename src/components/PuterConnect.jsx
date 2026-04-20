@@ -29,7 +29,7 @@ export default function PuterConnect({ onConnected, label = 'Connect with Puter'
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error('You need to be signed in to this app first.');
 
-      const res = await fetch('/api/household/save-puter-token', {
+      const res = await fetch('/api/household/save-key', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

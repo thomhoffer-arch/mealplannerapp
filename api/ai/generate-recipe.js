@@ -7,13 +7,18 @@ const { resolveAiProvider, callAi } = require('../_lib/ai-call');
 const { checkAndIncrementUsage, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
 
 // POST /api/ai/generate-recipe
-// Body: { recipe: { name, overview, cuisineType, prepTime, cookTime } }
-// Returns: { ingredients, steps, servings, prepTime, cookTime, macros }
+// Body: { recipe: { name, ... } }              → generate full recipe from stub
+// Body: { recipe: { name, ... }, request: "" } → adjust existing recipe per request
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { recipe } = req.body || {};
+  const { recipe, request } = req.body || {};
   if (!recipe?.name) return res.status(400).json({ error: 'recipe.name is required' });
+
+  const isAdjust = typeof request === 'string' && request.trim().length > 0;
+  if (isAdjust === false && request !== undefined && request !== null) {
+    return res.status(400).json({ error: 'request must be a non-empty string when provided' });
+  }
 
   const ctx = await getUserAndHousehold(req).catch(() => null);
   if (!ctx) return res.status(401).json({ error: 'Unauthorized' });
@@ -32,7 +37,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  const prompt = buildPrompt(recipe);
+  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim()) : buildGeneratePrompt(recipe);
 
   let rawText;
   try {
@@ -50,7 +55,7 @@ module.exports = async function handler(req, res) {
   res.json(result);
 };
 
-function buildPrompt(recipe) {
+function buildGeneratePrompt(recipe) {
   const { name, overview, cuisineType, prepTime, cookTime } = recipe;
   const totalTime = (prepTime || 0) + (cookTime || 0);
   const timeHint = totalTime > 0 ? ` Total time around ${totalTime} minutes.` : '';
@@ -90,5 +95,56 @@ Return ONLY a JSON object, no markdown:
   "prepTime": <minutes as integer>,
   "cookTime": <minutes as integer>,
   "macros": { "calories": 520, "protein": 38, "carbs": 22, "fat": 28 }
+}`;
+}
+
+function buildAdjustPrompt(recipe, request) {
+  const ingredientsList = (recipe.ingredients || [])
+    .map((i) => `  - ${i.amount ? `${i.amount} ` : ''}${i.name}`)
+    .join('\n');
+
+  const stepsList = (recipe.steps || [])
+    .map((s, i) => `  ${i + 1}. ${s}`)
+    .join('\n');
+
+  return `${VOICE_GUIDE}
+
+---
+
+You are adjusting an existing recipe based on a specific user request. Change only what the request asks for. Keep everything else exactly as-is — same structure, same portions, same style.
+
+RECIPE: ${recipe.name}
+Servings: ${recipe.servings || 2}
+Prep: ${recipe.prepTime || '?'} min | Cook: ${recipe.cookTime || '?'} min
+
+CURRENT INGREDIENTS:
+${ingredientsList || '  (none listed)'}
+
+CURRENT STEPS:
+${stepsList || '  (none listed)'}
+
+USER REQUEST: "${request}"
+
+RULES:
+1. Only change what the request asks for. If they say "use chicken breast instead of thighs", swap the ingredient and update the relevant step — nothing else.
+2. Keep the same number of steps where possible. Only add or remove a step if the change genuinely requires it.
+3. If the request is about quantity or spice level, adjust just the ingredient amount and mention it in the relevant step.
+4. Keep the voice: specific, direct, no marketing adjectives.
+5. Return the complete updated recipe (all ingredients and all steps), not just the changed parts.
+
+Return ONLY a JSON object, no markdown:
+{
+  "ingredients": [
+    { "name": "chicken breast, skinless", "amount": "2" },
+    { "name": "cherry tomatoes", "amount": "200g" }
+  ],
+  "steps": [
+    "Pat the chicken dry...",
+    "..."
+  ],
+  "servings": ${recipe.servings || 2},
+  "prepTime": <minutes as integer>,
+  "cookTime": <minutes as integer>,
+  "macros": { "calories": 0, "protein": 0, "carbs": 0, "fat": 0 }
 }`;
 }
