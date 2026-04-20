@@ -15,7 +15,7 @@ const { decrypt } = require('./crypto');
 
 const PUTER_ENDPOINT = 'https://api.puter.com/puterai/openai/v1/chat/completions';
 const PUTER_MODEL = process.env.PUTER_MODEL || 'claude-sonnet-4-5';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 async function resolveAiProvider(supabase, householdId) {
   try {
@@ -74,9 +74,14 @@ async function callAi(provider, token, prompt) {
       }),
     }
   );
-  if (!res.ok) throw new Error(`Gemini AI error (${res.status})`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error?.message || `Gemini AI error (${res.status})`);
+  }
   const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  // Use the last part — thinking-enabled models prepend a thought part before the response
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  return parts[parts.length - 1]?.text || '';
 }
 
 module.exports = { resolveAiProvider, callAi };

@@ -31,7 +31,7 @@ export default function StarredPanel({ starredItems, household, onClose, onAddTo
               <Star size={16} className="text-amber-400 fill-amber-400" />
               Starred recipes
             </h2>
-            <p className="text-xs text-orange-400 mt-0.5">Set rotation priority — used by AI week planner</p>
+            <p className="text-xs text-orange-400 mt-0.5">Set rotation priority — used by the week planner</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
             <X size={16} />
