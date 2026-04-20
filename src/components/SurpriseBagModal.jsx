@@ -55,13 +55,13 @@ export default function SurpriseBagModal({ household, dietaryPrefs, onAddRecipes
             <h2 className="font-display text-base font-bold text-orange-900">Cook from what you've got</h2>
             <p className="text-xs text-orange-400">Too Good To Go bag, fridge clean-out, market find</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-400 hover:bg-orange-50 transition">
             <X size={16} />
           </button>
         </div>
 
         <div className="px-5 py-4 overflow-y-auto flex-1">
-          <p className="text-xs text-orange-500 mb-3">Write down what you've got — we'll find something worth cooking with it.</p>
+          <p className="text-xs text-orange-600 mb-3">Write down what you've got — we'll find something worth cooking with it.</p>
           <textarea
             rows={3}
             placeholder="e.g. 2 chicken thighs, half a butternut squash, some wilting spinach, Greek yogurt, a lemon…"
@@ -91,7 +91,7 @@ export default function SurpriseBagModal({ household, dietaryPrefs, onAddRecipes
 
           {suggestions.length > 0 && (
             <div className="mt-4 space-y-2">
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Slot into this week</p>
+              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Slot into this week</p>
               {suggestions.map((s) => (
                 <button
                   key={s.name}
@@ -99,7 +99,7 @@ export default function SurpriseBagModal({ household, dietaryPrefs, onAddRecipes
                   className="w-full text-left bg-orange-50 hover:bg-orange-100 rounded-xl px-3 py-3 transition border border-orange-100"
                 >
                   <p className="text-sm font-semibold text-orange-900">{s.name}</p>
-                  <p className="text-xs text-orange-500 mt-0.5 leading-relaxed">{s.description}</p>
+                  <p className="text-xs text-orange-600 mt-0.5 leading-relaxed">{s.description}</p>
                 </button>
               ))}
             </div>

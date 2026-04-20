@@ -17,24 +17,24 @@ export default function PuterWelcomeModal({ onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-3xl shadow-warm-lg border border-orange-100 w-full max-w-md p-7 relative">
-        <button onClick={dismiss} className="absolute top-4 right-4 text-orange-300 hover:text-orange-600 transition">
+        <button onClick={dismiss} className="absolute top-4 right-4 text-orange-400 hover:text-orange-600 transition">
           <X size={18} />
         </button>
 
         {!connected ? (
           <>
-            <p className="font-display italic text-orange-500/80 text-xs tracking-wide mb-2">One last step</p>
+            <p className="font-display italic text-orange-600/80 text-xs tracking-wide mb-2">One last step</p>
             <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight mb-2">
               Connect Puter to unlock the AI.
             </h2>
-            <p className="text-sm text-orange-800/80 leading-relaxed mb-5">
+            <p className="text-sm text-orange-900/80 leading-relaxed mb-5">
               Puter runs the AI for your household and bills you directly. A popup will open — sign in or create a Puter account, then come back here. You can top up a few euros and it'll cover weeks of planning.
             </p>
             <PuterConnect
               label="Open Puter and connect"
               onConnected={(h) => { setHint(h || ''); setConnected(true); }}
             />
-            <button onClick={dismiss} className="w-full text-center text-xs text-orange-500 hover:text-orange-700 mt-4 transition">
+            <button onClick={dismiss} className="w-full text-center text-xs text-orange-600 hover:text-orange-900 mt-4 transition">
               Skip for now — I'll do this in Settings
             </button>
           </>
@@ -44,7 +44,7 @@ export default function PuterWelcomeModal({ onClose }) {
               <Check className="w-6 h-6 text-sage-600" />
             </div>
             <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight mb-2">You're in.</h2>
-            <p className="text-sm text-orange-800/80 leading-relaxed mb-5">
+            <p className="text-sm text-orange-900/80 leading-relaxed mb-5">
               Puter is connected{hint && <> (ending <code className="text-xs bg-orange-50 px-1.5 py-0.5 rounded">…{hint}</code>)</>}. Your household can now use unlimited AI — pick a recipe and hit <em>Suggest adaptations</em> to try it.
             </p>
             <button

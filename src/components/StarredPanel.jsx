@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase';
 
 const PRIORITY_CONFIG = [
   { value: 1, label: 'Every week',   emoji: '🔥', color: 'bg-red-100 text-red-700 border-red-200' },
-  { value: 2, label: 'Biweekly',     emoji: '🔄', color: 'bg-orange-100 text-orange-700 border-orange-200' },
-  { value: 3, label: 'Occasional',   emoji: '💫', color: 'bg-gray-100 text-gray-600 border-gray-200' },
+  { value: 2, label: 'Biweekly',     emoji: '🔄', color: 'bg-orange-100 text-orange-900 border-orange-200' },
+  { value: 3, label: 'Occasional',   emoji: '💫', color: 'bg-gray-100 text-orange-400 border-gray-200' },
 ];
 
 export default function StarredPanel({ starredItems, household, onClose, onAddToPlan, onUnstar, onPlanWeek }) {
@@ -28,12 +28,12 @@ export default function StarredPanel({ starredItems, household, onClose, onAddTo
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-orange-50">
           <div>
             <h2 className="text-base font-bold text-orange-900 flex items-center gap-2">
-              <Star size={16} className="text-amber-400 fill-amber-400" />
+              <Star size={16} className="text-orange-600 fill-amber-400" />
               Starred recipes
             </h2>
             <p className="text-xs text-orange-400 mt-0.5">Set rotation priority — used by the week planner</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-400 hover:bg-orange-50 transition">
             <X size={16} />
           </button>
         </div>
@@ -41,9 +41,9 @@ export default function StarredPanel({ starredItems, household, onClose, onAddTo
         <div className="overflow-y-auto flex-1 px-5 py-3 space-y-2">
           {starredItems.length === 0 ? (
             <div className="text-center py-10">
-              <Star size={36} className="mx-auto mb-3 text-orange-200" />
+              <Star size={36} className="mx-auto mb-3 text-orange-400" />
               <p className="text-sm text-orange-400 font-medium">No starred recipes yet</p>
-              <p className="text-xs text-orange-300 mt-1">Tap ☆ on any recipe to save it here</p>
+              <p className="text-xs text-orange-400 mt-1">Tap ☆ on any recipe to save it here</p>
             </div>
           ) : (
             starredItems.map((item) => {
@@ -72,7 +72,7 @@ export default function StarredPanel({ starredItems, household, onClose, onAddTo
                     </button>
                     <button
                       onClick={() => onUnstar(item.recipe_data)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-orange-300 hover:text-red-400 hover:bg-red-50 transition"
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:text-red-400 hover:bg-red-50 transition"
                       title="Remove from starred"
                     >
                       <Trash2 size={14} />

@@ -61,25 +61,25 @@ export default function InstallBanner() {
       <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-xl border border-orange-100 p-4 pointer-events-auto animate-slide-up">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
-            {showIosHint ? <Share size={18} className="text-orange-500" /> : <Download size={18} className="text-orange-500" />}
+            {showIosHint ? <Share size={18} className="text-orange-600" /> : <Download size={18} className="text-orange-600" />}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-orange-900">Add to Home Screen</p>
             {showIosHint ? (
-              <p className="text-xs text-orange-500 mt-0.5 leading-relaxed">
+              <p className="text-xs text-orange-600 mt-0.5 leading-relaxed">
                 Tap <span className="inline-flex items-center gap-0.5 font-semibold">
                   <Share size={11} className="inline" /> Share
                 </span> at the bottom of Safari, then{' '}
                 <span className="font-semibold">Add to Home Screen</span>.
               </p>
             ) : (
-              <p className="text-xs text-orange-500 mt-0.5">
+              <p className="text-xs text-orange-600 mt-0.5">
                 Install the app for the best experience — works offline too.
               </p>
             )}
           </div>
           <button onClick={dismiss}
-            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
+            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-orange-400 hover:bg-orange-50 transition">
             <X size={14} />
           </button>
         </div>
@@ -87,7 +87,7 @@ export default function InstallBanner() {
         {!showIosHint && (
           <div className="flex gap-2 mt-3">
             <button onClick={dismiss}
-              className="flex-1 py-2 rounded-xl border border-orange-200 text-sm text-orange-500 font-medium hover:bg-orange-50 transition">
+              className="flex-1 py-2 rounded-xl border border-orange-200 text-sm text-orange-600 font-medium hover:bg-orange-50 transition">
               Not now
             </button>
             <button onClick={install}

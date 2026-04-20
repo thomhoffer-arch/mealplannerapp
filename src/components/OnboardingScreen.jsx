@@ -45,15 +45,15 @@ export default function OnboardingScreen({ user, household, onDone }) {
   return (
     <div className="min-h-screen bg-paper flex items-center justify-center p-4 py-10">
       <div className="w-full max-w-xl">
-        <p className="font-display italic text-orange-500/80 text-sm mb-3 tracking-wide text-center">— welcome to the kitchen.</p>
+        <p className="font-display italic text-orange-600/80 text-sm mb-3 tracking-wide text-center">— welcome to the kitchen.</p>
         <h1 className="font-display text-4xl sm:text-5xl font-semibold text-orange-900 leading-[1] mb-2 text-center tracking-tight">
           Two quick{' '}
           <span className="relative inline-block italic font-normal text-orange-600">
             things.
-            <Scribble className="absolute left-0 -bottom-2 w-full text-orange-500/70 pointer-events-none" aria-hidden="true" />
+            <Scribble className="absolute left-0 -bottom-2 w-full text-orange-600/70 pointer-events-none" aria-hidden="true" />
           </span>
         </h1>
-        <p className="text-center text-orange-700/80 mt-4 mb-8 text-sm">
+        <p className="text-center text-orange-900/80 mt-4 mb-8 text-sm">
           Then we'll suggest a few dinners you might like.
         </p>
 
@@ -75,7 +75,7 @@ export default function OnboardingScreen({ user, household, onDone }) {
             <label className="font-display text-sm font-semibold text-orange-900 block mb-1.5">
               How do you eat, usually?
             </label>
-            <p className="text-xs text-orange-700/75 mb-2 leading-relaxed">
+            <p className="text-xs text-orange-900/75 mb-2 leading-relaxed">
               A sentence or two is plenty. Dietary stuff, things you hate, how much time you usually have — the planner will keep it in mind.
             </p>
             <textarea

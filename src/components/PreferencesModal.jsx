@@ -148,16 +148,16 @@ export default function PreferencesModal({ household, onClose, inline = false })
     <div className={inline ? "space-y-5" : "px-5 pb-5 space-y-5"}>
           {/* ── Appearance ── */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Appearance</p>
+            <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Appearance</p>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-orange-800 font-medium">Theme</span>
+              <span className="text-sm text-orange-900 font-medium">Theme</span>
               <ThemeToggle />
             </div>
           </div>
 
           {/* ── Dietary & taste preferences ── */}
           <div className="space-y-2 border-t border-orange-100 pt-4">
-            <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Dietary &amp; taste preferences</p>
+            <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Dietary &amp; taste preferences</p>
             <textarea
               rows={4}
               placeholder="e.g. We're gluten intolerant and Tom doesn't eat pork. Anna uses oat milk instead of regular milk. We prefer mostly plant-based meals during the week but enjoy chicken or fish on weekends. We love spicy food and prefer lighter meals — nothing too heavy or creamy."
@@ -173,7 +173,7 @@ export default function PreferencesModal({ household, onClose, inline = false })
 
           {/* ── What else to plan ── */}
           <div className="space-y-2 border-t border-orange-100 pt-4">
-            <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Also plan</p>
+            <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Also plan</p>
             <p className="text-xs text-orange-400">Dinner's always in. Describe anything else you'd like planned — the rest is up to you.</p>
             <textarea
               rows={3}
@@ -189,11 +189,11 @@ export default function PreferencesModal({ household, onClose, inline = false })
           <div className="space-y-2 border-t border-orange-100 pt-4">
             <div className="flex items-center gap-2">
               <Bell size={14} className="text-orange-600" />
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Weekly planning reminder</p>
+              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Weekly planning reminder</p>
             </div>
             <p className="text-xs text-orange-400">Get an in-app nudge on your chosen day when you haven't planned yet.</p>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-orange-800 font-medium">Enable reminder</span>
+              <span className="text-sm text-orange-900 font-medium">Enable reminder</span>
               <button
                 onClick={() => setReminderEnabled((v) => !v)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${reminderEnabled ? 'bg-orange-500' : 'bg-orange-200'}`}
@@ -221,7 +221,7 @@ export default function PreferencesModal({ household, onClose, inline = false })
           {/* ── Gemini API key ── */}
           <div className="space-y-2 border-t border-orange-100 pt-4">
             <div>
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Personal Gemini API key</p>
+              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Personal Gemini API key</p>
               <p className="text-xs text-orange-400 mt-0.5">
                 Optional — the app has a built-in key. Add your own for unlimited use.{' '}
                 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
@@ -250,7 +250,7 @@ export default function PreferencesModal({ household, onClose, inline = false })
                     className="w-full border border-orange-200 rounded-xl px-3 py-2.5 pr-10 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
                   />
                   <button onClick={() => setShowKey((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-300 hover:text-orange-500 transition">
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 hover:text-orange-600 transition">
                     {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
@@ -266,7 +266,7 @@ export default function PreferencesModal({ household, onClose, inline = false })
           {/* ── Puter token (pay-as-you-go) ── */}
           <div className="space-y-2 border-t border-orange-100 pt-4">
             <div>
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Pay-as-you-go via Puter</p>
+              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Pay-as-you-go via Puter</p>
               <p className="text-xs text-orange-400 mt-0.5">
                 Connect a Puter account for unlimited AI — Claude, GPT, Gemini and more. Puter bills you directly for what you use. Overrides the Gemini key above when set.
               </p>
@@ -305,7 +305,7 @@ export default function PreferencesModal({ household, onClose, inline = false })
                         className="w-full border border-orange-200 rounded-xl px-3 py-2.5 pr-10 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
                       />
                       <button onClick={() => setShowPuter((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-300 hover:text-orange-500 transition">
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 hover:text-orange-600 transition">
                         {showPuter ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
                     </div>
@@ -330,9 +330,9 @@ export default function PreferencesModal({ household, onClose, inline = false })
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
           <div>
             <h2 className="text-base font-bold text-orange-900">Household preferences</h2>
-            <p className="text-xs text-orange-500 mt-0.5">Shared with your household</p>
+            <p className="text-xs text-orange-600 mt-0.5">Shared with your household</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-400 hover:bg-orange-50 transition">
             <X size={16} />
           </button>
         </div>

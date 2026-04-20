@@ -22,9 +22,9 @@ import { applyTheme } from "./lib/theme";
 import { GlyphPot, GlyphSpyglass, GlyphLink, GlyphBasket, Scribble } from "./components/glyphs";
 
 const SOURCE_COLORS = {
-  "My Recipes":    "bg-amber-100 text-amber-700",
+  "My Recipes":    "bg-orange-100 text-orange-600",
   "AI Suggestion": "bg-orange-100 text-orange-600",
-  "Web import":    "bg-orange-50 text-orange-500",
+  "Web import":    "bg-orange-50 text-orange-600",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ function WeeklyNutritionCard({ recipes }) {
   if (!hasData) return null;
   return (
     <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
-      <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">Weekly nutrition total</p>
+      <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Weekly nutrition total</p>
       <div className="grid grid-cols-4 gap-2">
         {[
           { label: "Calories", value: Math.round(totals.calories), unit: "" },
@@ -79,7 +79,7 @@ function WeeklyNutritionCard({ recipes }) {
         ].map(({ label, value, unit }) => (
           <div key={label} className="bg-orange-50 rounded-lg p-2 text-center">
             <p className="text-sm font-bold text-orange-900">{value}{unit}</p>
-            <p className="text-xs text-orange-500">{label}</p>
+            <p className="text-xs text-orange-600">{label}</p>
           </div>
         ))}
       </div>
@@ -93,13 +93,13 @@ function RecipeCard({ recipe, isSelected, isStarred, onToggleSelect, onToggleSta
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-orange-50 text-orange-500"}`}>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-orange-50 text-orange-600"}`}>
               {recipe.source}
             </span>
-            <span className="text-xs text-orange-500">{totalTime(recipe)} min · {recipe.servings} servings</span>
+            <span className="text-xs text-orange-600">{totalTime(recipe)} min · {recipe.servings} servings</span>
           </div>
           <h3 className="font-semibold text-orange-900 text-base leading-snug">{recipe.name}</h3>
-          <p className="text-sm text-orange-700 italic mt-0.5 leading-snug line-clamp-2">{recipe.overview}</p>
+          <p className="text-sm text-orange-900 italic mt-0.5 leading-snug line-clamp-2">{recipe.overview}</p>
           <div className="flex flex-wrap gap-1 mt-2">
             {(recipe.keywords || []).slice(0, 5).map((kw) => (
               <span key={kw} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{kw}</span>
@@ -110,7 +110,7 @@ function RecipeCard({ recipe, isSelected, isStarred, onToggleSelect, onToggleSta
           <button
             onClick={() => onToggleStar(recipe)}
             className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-              isStarred ? "text-amber-400 bg-amber-50" : "text-orange-200 hover:text-amber-400"
+              isStarred ? "text-orange-600 bg-amber-50" : "text-orange-400 hover:text-orange-600"
             }`}
             aria-label={isStarred ? "Unstar recipe" : "Star recipe"}
           >
@@ -119,7 +119,7 @@ function RecipeCard({ recipe, isSelected, isStarred, onToggleSelect, onToggleSta
           <button
             onClick={() => onToggleSelect(recipe)}
             className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
-              isSelected ? "bg-orange-500 border-orange-500 text-white" : "border-orange-300 text-orange-300 hover:border-orange-500"
+              isSelected ? "bg-orange-500 border-orange-500 text-white" : "border-orange-300 text-orange-400 hover:border-orange-500"
             }`}
             aria-label={isSelected ? "Remove from meal plan" : "Add to meal plan"}
           >
@@ -236,12 +236,12 @@ function SelectedRecipeCard({
           </button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-orange-50 text-orange-500"}`}>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-orange-50 text-orange-600"}`}>
                 {recipe.source}
               </span>
-              <span className="text-xs text-orange-500">{totalTime(recipe)} min · {recipe.servings} servings</span>
+              <span className="text-xs text-orange-600">{totalTime(recipe)} min · {recipe.servings} servings</span>
             </div>
-            <h3 className={`font-semibold text-base leading-snug ${isCooked ? "line-through text-gray-500" : "text-orange-900"}`}>
+            <h3 className={`font-semibold text-base leading-snug ${isCooked ? "line-through text-orange-400" : "text-orange-900"}`}>
               {recipe.name}
             </h3>
             {rating && (
@@ -257,10 +257,10 @@ function SelectedRecipeCard({
         </div>
         <div className="flex flex-wrap gap-1 mt-3">
           {(recipe.ingredients || []).map((ing) => (
-            <span key={ing.name} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{ing.name}</span>
+            <span key={ing.name} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{ing.name}</span>
           ))}
           {customs.map((c) => (
-            <span key={c.id} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{c.name}</span>
+            <span key={c.id} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{c.name}</span>
           ))}
         </div>
       </div>
@@ -271,8 +271,8 @@ function SelectedRecipeCard({
           {/* AI stub — offer to generate full recipe */}
           {isStub ? (
             <div className="text-center py-4">
-              <p className="text-sm text-orange-700 mb-1 font-display italic">Full recipe not written yet.</p>
-              <p className="text-xs text-orange-500 mb-4">The AI will write ingredients and steps now — takes about 10 seconds.</p>
+              <p className="text-sm text-orange-900 mb-1 font-display italic">Full recipe not written yet.</p>
+              <p className="text-xs text-orange-600 mb-4">The AI will write ingredients and steps now — takes about 10 seconds.</p>
               {generateError && <p className="text-xs text-red-500 mb-3">{generateError}</p>}
               <button
                 onClick={generateFullRecipe}
@@ -287,7 +287,7 @@ function SelectedRecipeCard({
             <>
           {/* Macros */}
           <div>
-            <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Nutrition (per serving)</p>
+            <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Nutrition (per serving)</p>
             <div className="grid grid-cols-4 gap-2">
               {[
                 { label: "Protein",   value: recipe.macros?.protein,   unit: "g" },
@@ -306,11 +306,11 @@ function SelectedRecipeCard({
           {/* Steps */}
           {(recipe.steps || []).length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Instructions</p>
+              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Instructions</p>
               <ol className="space-y-2">
                 {recipe.steps.map((step, i) => (
                   <li key={i} className="flex gap-2 text-sm text-orange-900">
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-200 text-orange-700 text-xs flex items-center justify-center font-semibold">{i + 1}</span>
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-200 text-orange-900 text-xs flex items-center justify-center font-semibold">{i + 1}</span>
                     <span className="leading-snug">{step}</span>
                   </li>
                 ))}
@@ -320,7 +320,7 @@ function SelectedRecipeCard({
 
           {/* Custom ingredients */}
           <div>
-            <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Add Extra Ingredients</p>
+            <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Add Extra Ingredients</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -341,10 +341,10 @@ function SelectedRecipeCard({
               <ul className="mt-2 space-y-1">
                 {customs.map((c) => (
                   <li key={c.id} className="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2">
-                    <span className="text-sm text-amber-800">{c.amount ? `${c.amount} ${c.name}` : c.name}</span>
+                    <span className="text-sm text-orange-600">{c.amount ? `${c.amount} ${c.name}` : c.name}</span>
                     <button
                       onClick={() => onRemoveCustom(rid, c.id)}
-                      className="text-amber-400 hover:text-red-500 transition ml-2"
+                      className="text-orange-600 hover:text-red-500 transition ml-2"
                     >
                       <X size={14} />
                     </button>
@@ -357,7 +357,7 @@ function SelectedRecipeCard({
           {/* AI adaptation */}
           <div className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4">
             <div className="flex items-center justify-between mb-2.5">
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Adapt for your household</p>
+              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Adapt for your household</p>
               <button
                 onClick={fetchSuggestions}
                 disabled={aiLoading}
@@ -373,14 +373,14 @@ function SelectedRecipeCard({
             {aiResult && (
               <div className="space-y-2 mt-1">
                 {aiResult.suitable && !aiResult.substitutions?.length ? (
-                  <p className="text-xs text-orange-700 bg-white rounded-xl px-3 py-2 border border-orange-100">
+                  <p className="text-xs text-orange-900 bg-white rounded-xl px-3 py-2 border border-orange-100">
                     This recipe already fits your household preferences.
-                    {aiResult.tips && <span className="block mt-1 text-orange-500 italic">{aiResult.tips}</span>}
+                    {aiResult.tips && <span className="block mt-1 text-orange-600 italic">{aiResult.tips}</span>}
                   </p>
                 ) : (
                   <>
                     {(aiResult.issues || []).length > 0 && (
-                      <div className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2 space-y-0.5 border border-amber-100">
+                      <div className="text-xs text-orange-600 bg-orange-50 rounded-xl px-3 py-2 space-y-0.5 border border-orange-100">
                         {aiResult.issues.map((issue, i) => (
                           <p key={i}>⚠ {issue}</p>
                         ))}
@@ -388,19 +388,19 @@ function SelectedRecipeCard({
                     )}
                     {(aiResult.substitutions || []).map((sub, i) => (
                       <div key={i} className="bg-white rounded-xl border border-orange-100 px-3 py-2.5">
-                        <p className="text-xs text-orange-300 line-through">{sub.original}</p>
+                        <p className="text-xs text-orange-400 line-through">{sub.original}</p>
                         <p className="text-sm font-medium text-orange-900">{sub.replacement}</p>
-                        <p className="text-xs text-orange-500 mt-0.5">{sub.reason}</p>
+                        <p className="text-xs text-orange-600 mt-0.5">{sub.reason}</p>
                         <button
                           onClick={() => onAcceptSubstitution(rid, sub)}
-                          className="mt-1.5 text-xs text-orange-600 font-semibold hover:text-orange-800 transition"
+                          className="mt-1.5 text-xs text-orange-600 font-semibold hover:text-orange-900 transition"
                         >
                           + Add as note
                         </button>
                       </div>
                     ))}
                     {aiResult.tips && (
-                      <p className="text-xs text-orange-500 italic px-1">{aiResult.tips}</p>
+                      <p className="text-xs text-orange-600 italic px-1">{aiResult.tips}</p>
                     )}
                   </>
                 )}
@@ -410,8 +410,8 @@ function SelectedRecipeCard({
 
           {/* Tweak the recipe */}
           <div>
-            <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Tweak this recipe</p>
-            <p className="text-xs text-orange-500 mb-2">Ask for a small change — the rest of the recipe stays as-is.</p>
+            <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Tweak this recipe</p>
+            <p className="text-xs text-orange-600 mb-2">Ask for a small change — the rest of the recipe stays as-is.</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -1054,7 +1054,7 @@ export default function App() {
             <h1 className="font-display text-xl font-semibold text-orange-900 leading-none tracking-tight">
               {memberProfile?.display_name ? `${memberProfile.display_name}'s kitchen` : 'Meal Planner'}
             </h1>
-            <p className="text-xs text-orange-500 mt-0.5">{household.name}</p>
+            <p className="text-xs text-orange-600 mt-0.5">{household.name}</p>
           </div>
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
@@ -1074,12 +1074,12 @@ export default function App() {
               {showInvite && (
                 <div className="absolute right-0 top-11 bg-white rounded-2xl shadow-lg border border-orange-100 p-4 w-72 z-40">
                   <p className="text-sm font-semibold text-orange-900 mb-1">Invite your partner</p>
-                  <p className="text-xs text-orange-500 mb-3">Share this link — they'll join your kitchen automatically.</p>
+                  <p className="text-xs text-orange-600 mb-3">Share this link — they'll join your kitchen automatically.</p>
                   <div className="flex gap-2">
                     <input
                       readOnly
                       value={inviteUrl}
-                      className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-700 truncate"
+                      className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-900 truncate"
                     />
                     <button
                       onClick={copyInviteLink}
@@ -1125,7 +1125,7 @@ export default function App() {
       {showReminderBanner && (
         <div className="bg-orange-50 border-b border-orange-100 px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-            <p className="text-sm text-orange-800">
+            <p className="text-sm text-orange-900">
               <span className="font-semibold">Time to plan your week!</span> You haven't updated the plan in a while.
             </p>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -1231,7 +1231,7 @@ export default function App() {
                 <p className="font-semibold text-orange-900 text-sm">Side for {sideDishPanel.mainRecipe?.name}</p>
                 <p className="text-xs text-orange-400">Not right? Try different below.</p>
               </div>
-              <button onClick={() => setSideDishPanel(null)} className="text-orange-300 hover:text-orange-500 transition"><X size={16} /></button>
+              <button onClick={() => setSideDishPanel(null)} className="text-orange-400 hover:text-orange-600 transition"><X size={16} /></button>
             </div>
 
             {/* Suggestions shown first */}
@@ -1250,7 +1250,7 @@ export default function App() {
                     className="w-full text-left bg-orange-50 hover:bg-orange-100 rounded-xl px-3 py-2.5 transition border border-orange-100"
                   >
                     <p className="text-sm font-semibold text-orange-900">{s.name}</p>
-                    <p className="text-xs text-orange-500 mt-0.5">{s.description}</p>
+                    <p className="text-xs text-orange-600 mt-0.5">{s.description}</p>
                   </button>
                 ))}
               </div>
@@ -1314,7 +1314,7 @@ export default function App() {
           <div>
             {/* Search bar — always visible at top of week tab */}
             <div className="relative mb-4">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-300" size={18} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400" size={18} />
               <input
                 ref={searchInputRef}
                 type="search"
@@ -1324,7 +1324,7 @@ export default function App() {
                 className="w-full pl-11 pr-10 py-3 rounded-2xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 text-sm"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-300 hover:text-orange-500 transition">
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 hover:text-orange-600 transition">
                   <X size={16} />
                 </button>
               )}
@@ -1335,9 +1335,9 @@ export default function App() {
                 {/* URL import + manual create */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
                   <div className="flex items-center justify-between mb-2.5">
-                    <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Import from any website</p>
+                    <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Import from any website</p>
                     <button onClick={() => setShowCreateRecipe(true)}
-                      className="flex items-center gap-1 text-xs font-semibold text-orange-500 hover:text-orange-700 transition">
+                      className="flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-900 transition">
                       <PenLine size={12} /> Create your own
                     </button>
                   </div>
@@ -1414,12 +1414,12 @@ export default function App() {
                                 </div>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/75">
                                   <svg className="w-4 h-4 text-orange-400 mb-1.5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7a4.5 4.5 0 00-9 0v3.5M5 10.5h14a1 1 0 011 1V20a1 1 0 01-1 1H5a1 1 0 01-1-1v-8.5a1 1 0 011-1z" /></svg>
-                                  <p className="text-xs font-medium text-orange-700">{lockLabel}</p>
+                                  <p className="text-xs font-medium text-orange-900">{lockLabel}</p>
                                 </div>
                               </div>
                             ))}
                             <div className="text-center py-3">
-                              <p className="text-xs text-orange-500 mb-2">{lockMsg}</p>
+                              <p className="text-xs text-orange-600 mb-2">{lockMsg}</p>
                               <button
                                 onClick={() => { setSearchQuery(''); setActiveTab("profile"); }}
                                 className="text-xs px-4 py-1.5 bg-orange-500 text-white rounded-full font-semibold hover:bg-orange-600 transition"
@@ -1433,7 +1433,7 @@ export default function App() {
                     );
                   })()
                 ) : (
-                  <div className="text-center py-12 text-orange-300">
+                  <div className="text-center py-12 text-orange-400">
                     <Search size={48} className="mx-auto mb-3 opacity-50" />
                     <p className="font-medium text-orange-400">Search or apply filters to discover recipes</p>
                     <p className="text-sm mt-1">quality recipes, adjusted to you</p>
@@ -1485,7 +1485,7 @@ export default function App() {
                         >
                           {/* Day name */}
                           <div className="w-16 flex-shrink-0">
-                            <p className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-orange-500' : 'text-orange-300'}`}>
+                            <p className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-orange-600' : 'text-orange-400'}`}>
                               {day.slice(0, 3)}
                             </p>
                             {isToday && <p className="text-[10px] text-orange-400 font-medium">today</p>}
@@ -1494,7 +1494,7 @@ export default function App() {
                           {recipe ? (
                             <>
                               <div className="flex-1 min-w-0">
-                                <p className={`font-semibold text-sm leading-snug ${isCooked ? 'line-through text-orange-300' : 'text-orange-900'}`}>
+                                <p className={`font-semibold text-sm leading-snug ${isCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>
                                   {recipe.name}
                                 </p>
                                 <p className="text-xs text-orange-400 mt-0.5">
@@ -1508,17 +1508,17 @@ export default function App() {
                               <div className="flex items-center gap-1.5 flex-shrink-0">
                                 {isCooked && <Check size={14} className="text-green-500" />}
                                 {expandedRecipes[rid]
-                                  ? <ChevronUp size={16} className="text-orange-300" />
-                                  : <ChevronDown size={16} className="text-orange-300" />}
+                                  ? <ChevronUp size={16} className="text-orange-400" />
+                                  : <ChevronDown size={16} className="text-orange-400" />}
                               </div>
                             </>
                           ) : (
                             <>
-                              <p className="flex-1 text-sm text-orange-200 italic">Free evening</p>
+                              <p className="flex-1 text-sm text-orange-400 italic">Free evening</p>
                               <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
-                                  className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-300 rounded-full hover:border-orange-400 hover:text-orange-500 transition"
+                                  className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition"
                                   title="Mark as leftover day"
                                 >
                                   Leftovers
@@ -1539,12 +1539,12 @@ export default function App() {
                           <div className="px-4 pb-3 -mt-1">
                             {recipe._sideDish ? (
                               <div className="flex items-center gap-2">
-                                <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2.5 py-1 font-medium">
+                                <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">
                                   + {recipe._sideDish.name}
                                 </span>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); saveSideDish(rid, null); }}
-                                  className="text-orange-300 hover:text-orange-500 transition text-xs"
+                                  className="text-orange-400 hover:text-orange-600 transition text-xs"
                                   title="Remove side dish"
                                 >×</button>
                               </div>
@@ -1645,7 +1645,7 @@ export default function App() {
                                   className="text-xs px-3 py-1.5 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition">
                                   Load
                                 </button>
-                                <button onClick={() => deleteTemplate(t.id)} className="text-orange-300 hover:text-red-400 transition">
+                                <button onClick={() => deleteTemplate(t.id)} className="text-orange-400 hover:text-red-400 transition">
                                   <Trash2 size={14} />
                                 </button>
                               </div>
@@ -1676,12 +1676,12 @@ export default function App() {
             ) : (
               /* ── Empty state ── */
               <div className="py-6">
-                <p className="font-display italic text-orange-500/80 text-xs tracking-wide mb-2">— no plan yet</p>
+                <p className="font-display italic text-orange-600/80 text-xs tracking-wide mb-2">— no plan yet</p>
                 <h3 className="font-display text-[2rem] sm:text-4xl font-semibold text-orange-900 leading-[0.95] mb-6 tracking-tight">
                   Start your{' '}
                   <span className="relative inline-block italic font-normal text-orange-600">
                     first
-                    <Scribble className="absolute left-0 -bottom-2 w-full text-orange-500/70 pointer-events-none" aria-hidden="true" />
+                    <Scribble className="absolute left-0 -bottom-2 w-full text-orange-600/70 pointer-events-none" aria-hidden="true" />
                   </span>{' '}
                   week.
                 </h3>
@@ -1689,11 +1689,11 @@ export default function App() {
                   <li>
                     <button onClick={() => setShowWeekSuggest(true)}
                       className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
-                      <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">01</span>
+                      <span className="font-display italic text-4xl sm:text-5xl text-orange-400 group-hover:text-orange-600 leading-none pt-1 select-none transition-colors">01</span>
                       <span className="pt-1">
                         {/* TODO: replace "Let AI plan the week" with app-name-driven copy */}
                         <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Let AI plan the week</span>
-                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Seven dinners picked to your household's taste. Swap anything you don't fancy.</span>
+                        <span className="block text-sm text-orange-900/80 leading-relaxed max-w-md">Seven dinners picked to your household's taste. Swap anything you don't fancy.</span>
                       </span>
                       <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphPot /></span>
                     </button>
@@ -1701,10 +1701,10 @@ export default function App() {
                   <li>
                     <button onClick={() => setTimeout(() => searchInputRef.current?.focus(), 0)}
                       className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
-                      <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">02</span>
+                      <span className="font-display italic text-4xl sm:text-5xl text-orange-400 group-hover:text-orange-600 leading-none pt-1 select-none transition-colors">02</span>
                       <span className="pt-1">
                         <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Search and star</span>
-                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Search recipes and star your favourites for the planner to use.</span>
+                        <span className="block text-sm text-orange-900/80 leading-relaxed max-w-md">Search recipes and star your favourites for the planner to use.</span>
                       </span>
                       <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphSpyglass /></span>
                     </button>
@@ -1712,10 +1712,10 @@ export default function App() {
                   <li>
                     <button onClick={() => { setTimeout(() => document.querySelector('input[type=url]')?.focus(), 0); }}
                       className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
-                      <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">03</span>
+                      <span className="font-display italic text-4xl sm:text-5xl text-orange-400 group-hover:text-orange-600 leading-none pt-1 select-none transition-colors">03</span>
                       <span className="pt-1">
                         <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Import a recipe you love</span>
-                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Paste any recipe URL and we'll pull the ingredients automatically.</span>
+                        <span className="block text-sm text-orange-900/80 leading-relaxed max-w-md">Paste any recipe URL and we'll pull the ingredients automatically.</span>
                       </span>
                       <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphLink /></span>
                     </button>
@@ -1723,10 +1723,10 @@ export default function App() {
                   <li>
                     <button onClick={() => setShowBagModal(true)}
                       className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
-                      <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">04</span>
+                      <span className="font-display italic text-4xl sm:text-5xl text-orange-400 group-hover:text-orange-600 leading-none pt-1 select-none transition-colors">04</span>
                       <span className="pt-1">
                         <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Cook from what you've got</span>
-                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Too Good To Go bag, fridge bits, market find — describe what you've got and we'll find something to cook.</span>
+                        <span className="block text-sm text-orange-900/80 leading-relaxed max-w-md">Too Good To Go bag, fridge bits, market find — describe what you've got and we'll find something to cook.</span>
                       </span>
                       <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphBasket /></span>
                     </button>
@@ -1757,11 +1757,11 @@ export default function App() {
                 <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <ShoppingCart size={16} className="text-orange-500" />
-                      <span className="text-sm font-semibold text-orange-800">{shoppingList.length} items</span>
+                      <ShoppingCart size={16} className="text-orange-600" />
+                      <span className="text-sm font-semibold text-orange-900">{shoppingList.length} items</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm text-orange-500">{checkedCount}/{shoppingList.length} checked</span>
+                      <span className="text-sm text-orange-600">{checkedCount}/{shoppingList.length} checked</span>
                       {checkedCount > 0 && (
                         <button onClick={clearCheckedItems} className="text-xs text-orange-400 hover:text-orange-600 transition">Clear</button>
                       )}
@@ -1839,17 +1839,17 @@ export default function App() {
                           className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
                           <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
                             item.inPantry ? "bg-gray-100 border-gray-200" : checked ? "bg-green-500 border-green-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
-                            {(checked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-gray-400" : ""} />}
+                            {(checked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-orange-400" : ""} />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span className={`text-sm font-medium transition-all ${checked || item.inPantry ? "line-through text-gray-400" : "text-orange-900"}`}>
+                            <span className={`text-sm font-medium transition-all ${checked || item.inPantry ? "line-through text-orange-400" : "text-orange-900"}`}>
                               {item.name}
-                              {item.isCustom && <span className="ml-1.5 text-xs text-amber-600 font-normal">custom</span>}
-                              {item.inPantry && <span className="ml-1.5 text-xs text-gray-400 font-normal">in pantry</span>}
+                              {item.isCustom && <span className="ml-1.5 text-xs text-orange-600 font-normal">custom</span>}
+                              {item.inPantry && <span className="ml-1.5 text-xs text-orange-400 font-normal">in pantry</span>}
                             </span>
                           </div>
                           {item.amount && (
-                            <span className={`text-xs flex-shrink-0 ${checked ? "text-gray-300" : "text-orange-500"}`}>{item.amount}</span>
+                            <span className={`text-xs flex-shrink-0 ${checked ? "text-orange-400" : "text-orange-600"}`}>{item.amount}</span>
                           )}
                         </button>
                       );
@@ -1857,7 +1857,7 @@ export default function App() {
                 </div>
               </>
             ) : (
-              <div className="text-center py-16 text-orange-300">
+              <div className="text-center py-16 text-orange-400">
                 <ShoppingCart size={48} className="mx-auto mb-3 opacity-50" />
                 <p className="font-medium text-orange-400">Your shopping list is empty</p>
                 <p className="text-sm mt-1">Select recipes to build your list</p>
@@ -1873,7 +1873,7 @@ export default function App() {
             {basketSection === "pantry" && (
               <div>
                 <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
-                  <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">What's already at home</p>
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">What's already at home</p>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -1899,14 +1899,14 @@ export default function App() {
                           {item.amount && <span className="text-xs text-orange-400 ml-2">{item.amount}</span>}
                         </div>
                         <button onClick={() => removePantryItem(item.id)}
-                          className="text-orange-300 hover:text-red-400 transition ml-3">
+                          className="text-orange-400 hover:text-red-400 transition ml-3">
                           <Trash2 size={15} />
                         </button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-16 text-orange-300">
+                  <div className="text-center py-16 text-orange-400">
                     <Package size={48} className="mx-auto mb-3 opacity-50" />
                     <p className="font-medium text-orange-400">Your pantry is empty</p>
                     <p className="text-sm mt-1">Add ingredients you already have at home</p>
@@ -1924,7 +1924,7 @@ export default function App() {
             <div className="bg-white rounded-2xl border border-orange-100 p-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                  <span className="font-display text-xl font-bold text-orange-500">
+                  <span className="font-display text-xl font-bold text-orange-600">
                     {(memberProfile?.display_name || user?.email || '?')[0].toUpperCase()}
                   </span>
                 </div>
@@ -1933,7 +1933,7 @@ export default function App() {
                   <p className="text-xs text-orange-400 truncate">{user?.email}</p>
                 </div>
                 <button onClick={() => supabase.auth.signOut()}
-                  className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-300 hover:bg-orange-50 hover:text-orange-500 transition"
+                  className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 hover:text-orange-600 transition"
                   title="Sign out">
                   <LogOut size={15} />
                 </button>
@@ -1942,23 +1942,23 @@ export default function App() {
 
             {/* Household card */}
             <div className="bg-white rounded-2xl border border-orange-100 p-4">
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">Household</p>
+              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Household</p>
               <p className="text-sm font-semibold text-orange-900 mb-3">{household.name}</p>
               {householdMembers.length > 0 && (
                 <div className="space-y-2 mb-4">
                   {householdMembers.map((m, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-bold text-orange-500">{(m.display_name || '?')[0].toUpperCase()}</span>
+                        <span className="text-xs font-bold text-orange-600">{(m.display_name || '?')[0].toUpperCase()}</span>
                       </div>
-                      <span className="text-sm text-orange-800">{m.display_name || 'Member'}</span>
+                      <span className="text-sm text-orange-900">{m.display_name || 'Member'}</span>
                     </div>
                   ))}
                 </div>
               )}
               <div className="flex gap-2 border-t border-orange-50 pt-3">
                 <input readOnly value={inviteUrl}
-                  className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-700 truncate" />
+                  className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-900 truncate" />
                 <button onClick={copyInviteLink}
                   className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center gap-1">
                   {inviteCopied ? <Check size={12} /> : <Link2 size={12} />}
@@ -1986,7 +1986,7 @@ export default function App() {
           ].map(({ id, icon: Icon, label, badge }) => (
             <button key={id} onClick={() => setActiveTab(id)}
               className={`flex-1 flex flex-col items-center justify-center py-3 gap-0.5 transition-all relative ${
-                activeTab === id ? "text-orange-600" : "text-gray-400 hover:text-orange-400"}`}>
+                activeTab === id ? "text-orange-600" : "text-orange-400 hover:text-orange-400"}`}>
               {activeTab === id && (
                 <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-orange-500 rounded-full" />
               )}
@@ -2002,7 +2002,7 @@ export default function App() {
             </button>
           ))}
         </div>
-        <p className="text-[10px] text-orange-300/70 text-center pb-0.5 select-none">
+        <p className="text-[10px] text-orange-400/70 text-center pb-0.5 select-none">
           v{import.meta.env.VITE_APP_VERSION || "dev"}
         </p>
       </nav>

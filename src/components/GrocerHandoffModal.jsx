@@ -64,7 +64,7 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-3xl shadow-warm-lg border border-orange-100 w-full max-w-md relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-orange-300 hover:text-orange-600 transition z-10">
+        <button onClick={onClose} className="absolute top-4 right-4 text-orange-400 hover:text-orange-600 transition z-10">
           <X size={18} />
         </button>
 
@@ -73,12 +73,12 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
           <div className="p-7">
             <div className="flex items-center gap-2 mb-1">
               <ShoppingBag size={16} className="text-orange-600" />
-              <p className="font-display italic text-orange-500/80 text-xs tracking-wide">Send to grocer</p>
+              <p className="font-display italic text-orange-600/80 text-xs tracking-wide">Send to grocer</p>
             </div>
             <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight mb-2">
               Where are you shopping?
             </h2>
-            <p className="text-sm text-orange-800/80 leading-relaxed mb-5">
+            <p className="text-sm text-orange-900/80 leading-relaxed mb-5">
               We'll open each item pre-filled in their search. You still tap <em>add</em>, but the list ticks itself off as you go.
             </p>
             <div className="space-y-2">
@@ -90,7 +90,7 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
                 >
                   <span className={`${g.color} w-2 h-8 rounded-full`} />
                   <span className="text-sm font-semibold text-orange-900 flex-1">{g.name}</span>
-                  <ExternalLink size={14} className="text-orange-300" />
+                  <ExternalLink size={14} className="text-orange-400" />
                 </button>
               ))}
             </div>
@@ -112,12 +112,12 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
         {/* ── Step 2: pick mode (after grocer) ── */}
         {grocer && mode === null && (
           <div className="p-7">
-            <button onClick={() => setGrocer(null)} className="text-xs text-orange-500 hover:text-orange-700 mb-5 transition">← Change grocer</button>
+            <button onClick={() => setGrocer(null)} className="text-xs text-orange-600 hover:text-orange-900 mb-5 transition">← Change grocer</button>
             <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight mb-2">
               {grocer.name} — how?
             </h2>
             {grocer.note && (
-              <p className="text-xs text-orange-500 italic mb-4 leading-relaxed">{grocer.note}</p>
+              <p className="text-xs text-orange-600 italic mb-4 leading-relaxed">{grocer.note}</p>
             )}
             <div className="space-y-2 mt-3">
               <button
@@ -125,14 +125,14 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
                 className="w-full text-left rounded-2xl border-2 border-orange-100 hover:border-orange-300 bg-white p-4 transition"
               >
                 <p className="font-display text-base font-semibold text-orange-900 mb-0.5">Guided, item by item</p>
-                <p className="text-xs text-orange-800/75 leading-snug">Tap once per item. We tick the list as you add to the basket. {items.length} items.</p>
+                <p className="text-xs text-orange-900/75 leading-snug">Tap once per item. We tick the list as you add to the basket. {items.length} items.</p>
               </button>
               <button
                 onClick={() => setMode('copy')}
                 className="w-full text-left rounded-2xl border-2 border-orange-100 hover:border-orange-300 bg-white p-4 transition"
               >
                 <p className="font-display text-base font-semibold text-orange-900 mb-0.5">Copy the list</p>
-                <p className="text-xs text-orange-800/75 leading-snug">Paste it straight into {grocer.name}'s own list feature.</p>
+                <p className="text-xs text-orange-900/75 leading-snug">Paste it straight into {grocer.name}'s own list feature.</p>
               </button>
             </div>
           </div>
@@ -141,12 +141,12 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
         {/* ── Guided mode ── */}
         {grocer && mode === 'guided' && !done && current && (
           <div className="p-7">
-            <button onClick={() => setMode(null)} className="text-xs text-orange-500 hover:text-orange-700 mb-4 transition">← Back</button>
+            <button onClick={() => setMode(null)} className="text-xs text-orange-600 hover:text-orange-900 mb-4 transition">← Back</button>
             <div className="flex items-center justify-between mb-1">
               <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full text-white ${grocer.color}`}>
                 {grocer.name}
               </span>
-              <span className="text-xs text-orange-500 font-medium">{step + 1} of {items.length}</span>
+              <span className="text-xs text-orange-600 font-medium">{step + 1} of {items.length}</span>
             </div>
             <p className="font-display text-2xl font-semibold text-orange-900 leading-tight mt-3 mb-1">
               {current.name}
@@ -171,7 +171,7 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
             >
               Added — next
             </button>
-            <button onClick={skip} className="w-full text-xs text-orange-500 hover:text-orange-700 mt-3 transition">
+            <button onClick={skip} className="w-full text-xs text-orange-600 hover:text-orange-900 mt-3 transition">
               Skip this one
             </button>
           </div>
@@ -184,7 +184,7 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
               <Check className="w-6 h-6 text-sage-600" />
             </div>
             <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight mb-2">That's the list.</h2>
-            <p className="text-sm text-orange-800/80 leading-relaxed mb-5">
+            <p className="text-sm text-orange-900/80 leading-relaxed mb-5">
               Finish your basket in {grocer.name} and check out whenever you're ready.
             </p>
             <button
@@ -199,9 +199,9 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
         {/* ── Copy mode ── */}
         {grocer && mode === 'copy' && (
           <div className="p-7">
-            <button onClick={() => setMode(null)} className="text-xs text-orange-500 hover:text-orange-700 mb-4 transition">← Back</button>
+            <button onClick={() => setMode(null)} className="text-xs text-orange-600 hover:text-orange-900 mb-4 transition">← Back</button>
             <h2 className="font-display text-xl font-semibold text-orange-900 leading-tight mb-1">Copy &amp; paste</h2>
-            <p className="text-sm text-orange-800/80 leading-relaxed mb-4">
+            <p className="text-sm text-orange-900/80 leading-relaxed mb-4">
               Copy this, then open {grocer.name} and paste it into their list.
             </p>
             <textarea
