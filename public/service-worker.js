@@ -6,8 +6,12 @@ const CACHE = `meal-planner-${BUILD_ID}`;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.add('/')));
-  // Do NOT call skipWaiting() here — the new worker stays in "waiting" until
-  // the app sends a SKIP_WAITING message (triggered by the update toast).
+  // Auto-activate on install. Combined with clients.claim() in activate and
+  // the controllerchange → location.reload() handler in serviceWorker.js,
+  // this means a new deploy is picked up on the next page load and the app
+  // reloads into the new version within a second — no "update available"
+  // toast required, no stale JS stranding users on old code paths.
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {

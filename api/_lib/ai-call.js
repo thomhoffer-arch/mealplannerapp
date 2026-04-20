@@ -55,18 +55,25 @@ export async function callGemini(apiKey, body) {
     );
     if (res.ok) return { data: await res.json(), model };
 
-    // Fall back only on transient / quota issues. Permanent client errors
-    // (400 bad request, 401 bad key, 403 forbidden) are not the next
-    // model's job to fix, so bubble them immediately.
-    if (res.status === 429 || res.status === 503) {
-      const errBody = await res.json().catch(() => ({}));
-      console.warn(`[gemini] ${model} → ${res.status}, falling back:`, errBody?.error?.message || '(no detail)');
-      lastError = new Error(errBody?.error?.message || `Gemini ${res.status}`);
+    const errBody = await res.json().catch(() => ({}));
+    const errMsg = errBody?.error?.message || '';
+
+    // Fall back on:
+    //   - 429 (rate / quota)
+    //   - 503 (upstream unavailable)
+    //   - any status with a message indicating the specific model isn't
+    //     available to this project (denied access, not enabled, not found,
+    //     not supported). These are model-scoped errors that the next
+    //     model in the chain can sometimes satisfy.
+    const modelScopedDenial = /denied access|not authorized|not enabled|is not supported|is not found|permission.*model/i.test(errMsg);
+    if (res.status === 429 || res.status === 503 || modelScopedDenial) {
+      console.warn(`[gemini] ${model} → ${res.status}, falling back:`, errMsg || '(no detail)');
+      lastError = new Error(errMsg || `Gemini ${res.status}`);
       continue;
     }
 
-    const errBody = await res.json().catch(() => ({}));
-    throw new Error(errBody?.error?.message || `Gemini AI error (${res.status})`);
+    // Permanent / config error (bad key, malformed request) — bubble.
+    throw new Error(errMsg || `Gemini AI error (${res.status})`);
   }
   throw lastError || new Error('All Gemini models exhausted');
 }
