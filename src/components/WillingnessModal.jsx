@@ -94,7 +94,7 @@ export default function WillingnessModal({ household, onClose }) {
               </p>
               <ul className="text-sm text-orange-700 space-y-1 mb-4 ml-1">
                 <li>✦ Unlimited AI recipe suggestions</li>
-                <li>✦ More recipe sources (NYT, Marley Spoon…)</li>
+                <li>✦ Expanded recipe library</li>
                 <li>✦ A more powerful AI model</li>
               </ul>
               <p className="text-sm font-semibold text-orange-900 mb-3">Would you pay for this?</p>

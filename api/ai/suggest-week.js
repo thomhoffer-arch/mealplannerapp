@@ -15,7 +15,7 @@ const PRIORITY_LABELS = { 1: 'HIGH — include every week', 2: 'MEDIUM — inclu
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { weeks = 1 } = req.body || {};
+  const { weeks = 1, plan_extras_text = '', day_notes = {} } = req.body || {};
   const numWeeks = Math.min(Math.max(Number(weeks) || 1, 1), 2);
 
   const ctx = await getUserAndHousehold(req).catch(() => null);
@@ -61,7 +61,7 @@ module.exports = async function handler(req, res) {
   // Recently planned (last 3 weeks worth) for variety context
   const recentNames = (recentPlanData || []).map((i) => i.recipe_data?.name).filter(Boolean);
 
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes);
 
   let rawText;
   try {
@@ -106,7 +106,7 @@ module.exports = async function handler(req, res) {
   res.json({ weeks: enrichedWeeks, notes: plan.notes || '' });
 };
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks) {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}) {
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -118,6 +118,11 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks) {
 
   const weeksText = numWeeks === 2 ? 'two separate weeks (week 1 and week 2)' : 'one week';
   const avoidList = recentNames.length ? recentNames.slice(0, 10).join(', ') : 'none';
+
+  const dayNotesSection = Object.entries(dayNotes || {})
+    .filter(([, v]) => v && v.trim())
+    .map(([k, v]) => `  - ${k}: ${v}`)
+    .join('\n');
 
   const membersSection = (members || [])
     .map((m) => {
@@ -133,6 +138,8 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks) {
 
 You plan weeknight dinners for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinner meals for this household.
 
+RECIPE QUALITY — draw exclusively from well-tested home-cooking repertoire. These should be real, reliable dishes with proper technique — not vague combinations or random internet recipes. You know thousands of quality recipes from your training data. Suggest dishes you are confident about; adapt seasoning, protein swaps, or technique to match the household preferences below.
+
 HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}
 
@@ -144,14 +151,17 @@ ${starredSection || 'None starred yet — suggest freely based on preferences.'}
 
 RECENTLY EATEN (avoid repeating for 2 weeks):
 ${avoidList}
-
+${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED:\n${planExtrasText}\nAdd the requested extras as additional fields on the relevant day objects (e.g. "breakfast", "lunch", "baking"). Keep extras distinct across the week — no repeated lunches or side dishes.` : ''}
+${dayNotesSection ? `\nPER-DAY NOTES (override defaults for specific days):\n${dayNotesSection}` : ''}
 STRICT RULES:
 1. Never plan the same main ingredient (e.g. pasta, chicken, salmon) two days in a row.
 2. Vary cuisine type every day (no Italian two consecutive days, etc.).
-3. Mix weekday-friendly quick meals (Mon–Thu) with more elaborate weekend meals (Fri–Sun).
+3. Mix weekday-friendly quick meals (Mon–Thu, under 40 min) with more elaborate weekend meals (Fri–Sun).
 4. Prioritise starred HIGH recipes — they should appear in week 1 if possible.
 5. Respect dietary preferences strictly. If members conflict (one vegetarian, one meat-eater), pick recipes that split gracefully and put the adaptation in the overview.
-6. If no starred recipes exist, invent appropriate recipes based on preferences.
+6. Every recipe must be a real, well-known dish you are confident about — not a vague or invented combination.
+7. Never repeat the same lunch or side dish across the week — keep all extras varied just like dinners.
+8. Optimise for ingredient reuse: if a recipe uses part of a perishable pack (fresh herbs, leafy greens, coconut milk, cream, canned beans, etc.), deliberately plan another meal that week which uses the remainder. Mention this in the notes field.
 
 Return ONLY a JSON object, no markdown:
 {

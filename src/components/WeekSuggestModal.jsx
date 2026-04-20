@@ -3,10 +3,6 @@ import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle } from '
 import { supabase } from '../lib/supabase';
 
 const SOURCE_COLORS = {
-  HelloFresh:       'bg-green-100 text-green-700',
-  'Marley Spoon':   'bg-amber-100 text-amber-700',
-  'NYT Cooking':    'bg-red-100 text-red-700',
-  Spoonacular:      'bg-orange-100 text-orange-700',
   'My Recipes':     'bg-amber-100 text-amber-700',
   'AI Suggestion':  'bg-orange-100 text-orange-600',
   'Web import':     'bg-orange-50 text-orange-500',
@@ -14,7 +10,7 @@ const SOURCE_COLORS = {
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
+export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText }) {
   const [numWeeks, setNumWeeks] = useState(1);
   const [loading, setLoading]   = useState(false);
   const [plan, setPlan]         = useState(null);
@@ -22,6 +18,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
   const [error, setError]       = useState('');
   const [selected, setSelected] = useState({});   // { "1-Monday": true }
   const [servings, setServings] = useState({});   // { "1-Monday": 4 }  overrides per day
+  const [dayNotes, setDayNotes] = useState({});   // { "1-Monday": "skip lunch" }
   const [showNotes, setShowNotes] = useState(false);
   const [expandedDay, setExpandedDay] = useState(null); // key of day with controls open
 
@@ -31,16 +28,19 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
     setPlan(null);
     setSelected({});
     setServings({});
+    setDayNotes({});
     setExpandedDay(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const sessionResult = await supabase.auth.getSession();
+      const token = sessionResult?.data?.session?.access_token;
+      if (!token) throw new Error('Not signed in — please refresh and try again.');
       const res = await fetch('/api/ai/suggest-week', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
+          'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ weeks: numWeeks }),
+        body: JSON.stringify({ weeks: numWeeks, plan_extras_text: planExtrasText || '', day_notes: dayNotes }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not generate plan');
@@ -209,30 +209,41 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan }) {
 
                       {/* Expanded day options */}
                       {isSelected && isExpanded && (
-                        <div className="border-t border-orange-100 px-3 py-2.5 flex items-center gap-3 bg-white rounded-b-2xl">
-                          <div className="flex items-center gap-2 flex-1">
-                            <Users size={13} className="text-orange-400 flex-shrink-0" />
-                            <span className="text-xs text-orange-700">Portions</span>
-                            <div className="flex items-center gap-1.5 ml-auto">
-                              <button
-                                onClick={() => setDayServings(key, dayServings - 1)}
-                                className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-500 hover:bg-orange-50 transition text-sm font-bold"
-                              >−</button>
-                              <span className="text-sm font-semibold text-orange-900 w-4 text-center">{dayServings}</span>
-                              <button
-                                onClick={() => setDayServings(key, dayServings + 1)}
-                                className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-500 hover:bg-orange-50 transition text-sm font-bold"
-                              >+</button>
+                        <div className="border-t border-orange-100 px-3 py-2.5 space-y-2 bg-white rounded-b-2xl">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 flex-1">
+                              <Users size={13} className="text-orange-400 flex-shrink-0" />
+                              <span className="text-xs text-orange-700">Portions</span>
+                              <div className="flex items-center gap-1.5 ml-auto">
+                                <button
+                                  onClick={() => setDayServings(key, dayServings - 1)}
+                                  className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-500 hover:bg-orange-50 transition text-sm font-bold"
+                                >−</button>
+                                <span className="text-sm font-semibold text-orange-900 w-4 text-center">{dayServings}</span>
+                                <button
+                                  onClick={() => setDayServings(key, dayServings + 1)}
+                                  className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-500 hover:bg-orange-50 transition text-sm font-bold"
+                                >+</button>
+                              </div>
                             </div>
+                            <div className="w-px h-4 bg-orange-100" />
+                            <button
+                              onClick={() => { toggleDay(key); setExpandedDay(null); }}
+                              className="flex items-center gap-1 text-xs text-orange-400 hover:text-red-500 transition"
+                            >
+                              <MinusCircle size={13} />
+                              Skip day
+                            </button>
                           </div>
-                          <div className="w-px h-4 bg-orange-100" />
-                          <button
-                            onClick={() => { toggleDay(key); setExpandedDay(null); }}
-                            className="flex items-center gap-1 text-xs text-orange-400 hover:text-red-500 transition"
-                          >
-                            <MinusCircle size={13} />
-                            Skip day
-                          </button>
+                          <div className="pt-1 border-t border-orange-50">
+                            <input
+                              type="text"
+                              placeholder="Any notes for this day? (e.g. include lunch, skip breakfast, leftovers ok)"
+                              value={dayNotes[key] || ''}
+                              onChange={(e) => setDayNotes((p) => ({ ...p, [key]: e.target.value }))}
+                              className="w-full text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300"
+                            />
+                          </div>
                         </div>
                       )}
                     </div>

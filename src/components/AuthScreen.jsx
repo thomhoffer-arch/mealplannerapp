@@ -38,7 +38,7 @@ const CHAPTERS = [
   {
     glyph: GlyphStar,
     title: 'Star the ones you love',
-    desc: "Search HelloFresh, Marley Spoon, Spoonacular and a few more. Paste any URL and we'll pull the ingredients. Or type one yourself — notes in the margins and all. Tell us how often you want each one back: weekly, biweekly, or just when the mood strikes.",
+    desc: "Search our recipe library, paste any URL and we'll pull the ingredients, or type one yourself — notes in the margins and all. Tell us how often you want each one back: weekly, biweekly, or just when the mood strikes.",
   },
   {
     glyph: GlyphCalendar,
@@ -428,7 +428,7 @@ export default function AuthScreen() {
                 {[
                   { ok: true,  text: '15 AI suggestions per week' },
                   { ok: true,  text: 'Bring your own Gemini key — unlimited AI' },
-                  { ok: true,  text: 'HelloFresh & Spoonacular recipes' },
+                  { ok: true,  text: 'Verified quality recipes' },
                   { ok: true,  text: 'Shared plan, list & pantry' },
                   { ok: false, text: 'Extended recipe database' },
                 ].map((f) => (
@@ -476,7 +476,7 @@ export default function AuthScreen() {
                   'Unlimited AI — no daily cap',
                   'Claude, GPT and Gemini to pick from',
                   'One-click connect, no keys to copy',
-                  'HelloFresh & Spoonacular recipes',
+                  'Verified quality recipes',
                   'Shared plan, list & pantry',
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2">
