@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle } from 'lucide-react';
+import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Wand2 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 const SOURCE_COLORS = {
@@ -19,6 +19,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [selected, setSelected] = useState({});   // { "1-Monday": true }
   const [servings, setServings] = useState({});   // { "1-Monday": 4 }  overrides per day
   const [dayNotes, setDayNotes] = useState({});   // { "1-Monday": "skip lunch" }
+  const [swapInput, setSwapInput] = useState({}); // { "1-Monday": "too heavy" }
+  const [swappingKey, setSwappingKey] = useState(null);
   const [showNotes, setShowNotes] = useState(false);
   const [expandedDay, setExpandedDay] = useState(null); // key of day with controls open
 
@@ -60,6 +62,50 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   function setDayServings(key, val) {
     const n = Math.min(Math.max(parseInt(val) || 2, 1), 12);
     setServings((prev) => ({ ...prev, [key]: n }));
+  }
+
+  async function swapDay(weekNum, dayObj) {
+    const key = `${weekNum}-${dayObj.day}`;
+    const request = (swapInput[key] || '').trim();
+    if (!request || swappingKey) return;
+    setSwappingKey(key);
+    try {
+      const otherDays = plan
+        .flatMap((w) => w.days)
+        .filter((d) => !(d.day === dayObj.day))
+        .map((d) => d.recipe?.name)
+        .filter(Boolean);
+      const updated = await apiFetch('/api/ai/regenerate-day', {
+        method: 'POST',
+        body: {
+          day_name: dayObj.day,
+          current_recipe_name: dayObj.recipe?.name || dayObj.name || '',
+          change_request: request,
+          other_days_names: otherDays,
+        },
+      });
+      // Replace the day in the plan state, keep selected/servings/notes.
+      setPlan((prev) => prev.map((w) => {
+        if (w.week !== weekNum) return w;
+        return {
+          ...w,
+          days: w.days.map((d) => (d.day === dayObj.day ? {
+            ...d,
+            recipe: updated.recipe,
+            name: updated.recipe?.name,
+            overview: updated.recipe?.overview,
+            reason: updated.reason,
+            leftover_for: updated.leftover_for,
+            uses_pantry: updated.uses_pantry,
+          } : d)),
+        };
+      }));
+      setSwapInput((p) => ({ ...p, [key]: '' }));
+    } catch (err) {
+      setError(err.message || 'Could not swap recipe');
+    } finally {
+      setSwappingKey(null);
+    }
   }
 
   function handleLoadPlan() {
@@ -170,6 +216,14 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         <div className="flex-1 min-w-0" onClick={() => toggleDay(key)}>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-xs font-bold text-orange-600 uppercase">{day.day.slice(0, 3)}</span>
+                            {(() => {
+                              const total = (recipe?.prepTime || day.prep_time || 0) + (recipe?.cookTime || day.cook_time || 0);
+                              return total > 0 ? (
+                                <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">
+                                  ⏱ {total} min
+                                </span>
+                              ) : null;
+                            })()}
                             {isStarred && <span className="text-xs bg-amber-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">⭐ Starred</span>}
                             {isAI && <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">✨ New</span>}
                             {recipe?.source && !isAI && (
@@ -242,7 +296,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                               Skip day
                             </button>
                           </div>
-                          <div className="pt-1 border-t border-orange-50">
+                          <div className="pt-1 border-t border-orange-50 space-y-2">
                             <input
                               type="text"
                               placeholder="Any notes for this day? (e.g. include lunch, skip breakfast, leftovers ok)"
@@ -250,6 +304,26 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                               onChange={(e) => setDayNotes((p) => ({ ...p, [key]: e.target.value }))}
                               className="w-full text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300"
                             />
+                            <div className="flex gap-1.5">
+                              <input
+                                type="text"
+                                placeholder='Ask for changes — "lighter", "no fish", "more veggies"…'
+                                value={swapInput[key] || ''}
+                                onChange={(e) => setSwapInput((p) => ({ ...p, [key]: e.target.value }))}
+                                onKeyDown={(e) => e.key === 'Enter' && swapDay(week.week, day)}
+                                disabled={swappingKey === key}
+                                className="flex-1 text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 disabled:opacity-50"
+                              />
+                              <button
+                                onClick={() => swapDay(week.week, day)}
+                                disabled={!(swapInput[key] || '').trim() || swappingKey === key}
+                                className="flex-shrink-0 px-2.5 py-1.5 bg-orange-500 text-white rounded-xl text-xs font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1"
+                                title="Swap this dish"
+                              >
+                                <Wand2 size={11} />
+                                {swappingKey === key ? '…' : 'Swap'}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )}
