@@ -1,13 +1,8 @@
-'use strict';
+import { getUserAndHousehold } from '../_lib/auth.js';
+import { decrypt } from '../_lib/crypto.js';
+import { createClient } from '@supabase/supabase-js';
 
-const { getUserAndHousehold } = require('../_lib/auth');
-const { decrypt } = require('../_lib/crypto');
-const { createClient } = require('@supabase/supabase-js');
-
-// POST /api/recipes/import
-// Body: { url: "https://..." }
-// Returns: normalized recipe object
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { url } = req.body || {};
@@ -18,7 +13,6 @@ module.exports = async function handler(req, res) {
   const apiKey = await resolveApiKey(req);
   if (!apiKey) return res.status(503).json({ error: 'No Gemini API key configured' });
 
-  // Fetch the page HTML
   let html;
   try {
     const pageRes = await fetch(url, {
@@ -31,7 +25,6 @@ module.exports = async function handler(req, res) {
     return res.status(422).json({ error: 'Could not reach that URL' });
   }
 
-  // Strip to just text content to stay within Gemini token limits
   const text = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -54,13 +47,13 @@ Return this exact structure (use null for missing fields):
   "cookTime": <number in minutes or null>,
   "servings": <number or 2>,
   "overview": "<one sentence description>",
-  "keywords": ["<tag1>", "<tag2>"],
+  "keywords": ["<tag1>"],
   "dietary": [],
   "cuisine": null,
   "season": null,
   "macros": { "calories": null, "protein": null, "carbs": null, "fat": null },
   "ingredients": [{ "name": "<ingredient name>", "amount": "<amount with unit or empty string>" }],
-  "steps": ["<step 1>", "<step 2>"]
+  "steps": ["<step 1>"]
 }
 
 If the page does not contain a recipe, return: { "error": "No recipe found on this page" }`;
@@ -89,12 +82,10 @@ If the page does not contain a recipe, return: { "error": "No recipe found on th
   }
 
   if (recipe.error) return res.status(422).json({ error: recipe.error });
-
-  // Ensure id is unique enough
   if (!recipe.id) recipe.id = `import-${Date.now()}`;
 
   res.json(recipe);
-};
+}
 
 async function resolveApiKey(req) {
   try {

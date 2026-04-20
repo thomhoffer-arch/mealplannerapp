@@ -1,11 +1,7 @@
-'use strict';
+import { createClient } from '@supabase/supabase-js';
+import { getUserAndHousehold } from '../_lib/auth.js';
 
-const { createClient } = require('@supabase/supabase-js');
-const { getUserAndHousehold } = require('../_lib/auth');
-
-// GET  /api/dinner-invitations  — list sent + received for the logged-in household
-// POST /api/dinner-invitations  — create a new invitation
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   const ctx = await getUserAndHousehold(req);
   if (!ctx) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -14,7 +10,6 @@ module.exports = async function handler(req, res) {
     process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 
-  // ── LIST ──────────────────────────────────────────────────────────────────
   if (req.method === 'GET') {
     const [sentRes, recvRes] = await Promise.all([
       supabase
@@ -55,7 +50,6 @@ module.exports = async function handler(req, res) {
     return res.json({ sent: sentRes.data || [], received });
   }
 
-  // ── CREATE ─────────────────────────────────────────────────────────────────
   if (req.method === 'POST') {
     const {
       meal_plan_item_id = null,
@@ -67,15 +61,9 @@ module.exports = async function handler(req, res) {
       guest_name = null,
     } = req.body || {};
 
-    if (!recipe_snapshot?.name) {
-      return res.status(400).json({ error: 'recipe_snapshot with a name is required' });
-    }
-    if (!dinner_date || !/^\d{4}-\d{2}-\d{2}$/.test(dinner_date)) {
-      return res.status(400).json({ error: 'dinner_date must be YYYY-MM-DD' });
-    }
-    if (dinner_time && !/^\d{2}:\d{2}(:\d{2})?$/.test(dinner_time)) {
-      return res.status(400).json({ error: 'dinner_time must be HH:MM' });
-    }
+    if (!recipe_snapshot?.name) return res.status(400).json({ error: 'recipe_snapshot with a name is required' });
+    if (!dinner_date || !/^\d{4}-\d{2}-\d{2}$/.test(dinner_date)) return res.status(400).json({ error: 'dinner_date must be YYYY-MM-DD' });
+    if (dinner_time && !/^\d{2}:\d{2}(:\d{2})?$/.test(dinner_time)) return res.status(400).json({ error: 'dinner_time must be HH:MM' });
 
     const { data, error } = await supabase
       .from('dinner_invitations')
@@ -96,9 +84,8 @@ module.exports = async function handler(req, res) {
     if (error) return res.status(500).json({ error: error.message });
 
     const origin = req.headers.origin || `https://${req.headers.host}`;
-    const shareUrl = `${origin}/?dinner_invite=${data.token}`;
-    return res.json({ token: data.token, shareUrl });
+    return res.json({ token: data.token, shareUrl: `${origin}/?dinner_invite=${data.token}` });
   }
 
   return res.status(405).end();
-};
+}

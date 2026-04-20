@@ -1,10 +1,6 @@
-'use strict';
+import { createClient } from '@supabase/supabase-js';
 
-const { createClient } = require('@supabase/supabase-js');
-
-// Verifies the Bearer JWT from the request and returns { user, householdId }.
-// Returns null if the token is missing, invalid, or the user has no household.
-async function getUserAndHousehold(req) {
+export async function getUserAndHousehold(req) {
   const token = req.headers.authorization?.replace('Bearer ', '').trim();
   if (!token) return null;
 
@@ -25,5 +21,3 @@ async function getUserAndHousehold(req) {
   if (!member) return null;
   return { user, householdId: member.household_id, supabase };
 }
-
-module.exports = { getUserAndHousehold };

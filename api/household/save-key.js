@@ -1,13 +1,8 @@
-'use strict';
+import { createClient } from '@supabase/supabase-js';
+import { getUserAndHousehold } from '../_lib/auth.js';
+import { encrypt } from '../_lib/crypto.js';
 
-const { createClient } = require('@supabase/supabase-js');
-const { getUserAndHousehold } = require('../_lib/auth');
-const { encrypt } = require('../_lib/crypto');
-
-// POST /api/household/save-key
-// Body: { key: "AIza..." }    → save/remove Gemini API key
-// Body: { token: "puter..." } → save/remove Puter auth token
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const ctx = await getUserAndHousehold(req);
@@ -18,7 +13,6 @@ module.exports = async function handler(req, res) {
     process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 
-  // Puter token path
   if ('token' in (req.body || {})) {
     const token = (req.body.token || '').trim();
 
@@ -46,7 +40,6 @@ module.exports = async function handler(req, res) {
     return res.json({ saved: true, hint });
   }
 
-  // Gemini key path
   const key = (req.body?.key || '').trim();
 
   if (!key) {
@@ -71,4 +64,4 @@ module.exports = async function handler(req, res) {
     .upsert({ household_id: ctx.householdId, gemini_api_key_encrypted: encrypted, gemini_api_key_hint: hint },
              { onConflict: 'household_id' });
   res.json({ saved: true, hint });
-};
+}

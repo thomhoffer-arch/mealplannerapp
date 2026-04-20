@@ -1,23 +1,10 @@
-'use strict';
-
-// Unified AI call — picks a provider based on what's configured at the
-// household level and returns the raw JSON text the prompt asked for.
-//
-// Priority order when resolving credentials:
-//   1. Puter auth token (user's own Puter account, pay-as-you-go)
-//   2. Personal Gemini API key (unlimited, BYOK)
-//   3. Shared Gemini key with daily quota (default)
-//
-// Puter endpoint is OpenAI-compatible, so shape mirrors OpenAI chat
-// completions. Gemini uses Google's generativelanguage API.
-
-const { decrypt } = require('./crypto');
+import { decrypt } from './crypto.js';
 
 const PUTER_ENDPOINT = 'https://api.puter.com/puterai/openai/v1/chat/completions';
 const PUTER_MODEL = process.env.PUTER_MODEL || 'claude-sonnet-4-5';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
-async function resolveAiProvider(supabase, householdId) {
+export async function resolveAiProvider(supabase, householdId) {
   try {
     const { data } = await supabase
       .from('household_preferences')
@@ -40,7 +27,7 @@ async function resolveAiProvider(supabase, householdId) {
   };
 }
 
-async function callAi(provider, token, prompt) {
+export async function callAi(provider, token, prompt) {
   if (provider === 'puter') {
     const res = await fetch(PUTER_ENDPOINT, {
       method: 'POST',
@@ -89,5 +76,3 @@ async function callAi(provider, token, prompt) {
   const parts = data.candidates?.[0]?.content?.parts || [];
   return parts[parts.length - 1]?.text || '';
 }
-
-module.exports = { resolveAiProvider, callAi };

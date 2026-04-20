@@ -162,7 +162,7 @@ export default function PreferencesModal({ household, onClose, inline = false, s
           )}
 
           {/* ── Dietary & taste preferences ── */}
-          {showDietary && (
+          {showDietary && (<>
           <div className={`space-y-2 ${showSettings ? 'border-t border-orange-100 pt-4' : ''}`}>
             <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Dietary &amp; taste preferences</p>
             <textarea
@@ -191,7 +191,7 @@ export default function PreferencesModal({ household, onClose, inline = false, s
               className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
             />
           </div>
-          )}
+          </>)}
 
           {/* ── Planning reminder ── */}
           {showSettings && (

@@ -1,13 +1,8 @@
-'use strict';
+import { createClient } from '@supabase/supabase-js';
+import { getUserAndHousehold } from '../_lib/auth.js';
+import { resolveAiProvider, callAi } from '../_lib/ai-call.js';
 
-const { createClient } = require('@supabase/supabase-js');
-const { getUserAndHousehold } = require('../_lib/auth');
-const { resolveAiProvider, callAi } = require('../_lib/ai-call');
-
-// POST /api/ai/shopping-insights
-// Body: { items: [{ name, amount }], recipes: [{ name, servings }] }
-// Returns: { insights: [{ ingredient, tip }] }
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { items = [], recipes = [] } = req.body || {};
@@ -31,10 +26,10 @@ ${recipeList || '(no recipe names provided)'}
 Their shopping list:
 ${itemList}
 
-Identify up to 5 ingredients where the household will likely buy more than they need — because recipes typically use only part of a standard supermarket pack (e.g. a recipe needs 200g but spinach is sold in 400g bags, or needs half a can of coconut milk). For each, give a short, practical tip on how to use up the rest (in another meal this week, a quick add-on, or how to store/freeze it). Only flag ingredients that genuinely come in larger packs than the recipe needs — skip staples like olive oil, salt, or spices.
+Identify up to 5 ingredients where the household will likely buy more than they need. For each, give a short practical tip on how to use up the rest.
 
 Return ONLY JSON, no markdown:
-{"insights":[{"ingredient":"spinach","tip":"Recipes need about 150g total — bags are usually 200–250g. Toss the rest into scrambled eggs or a lunchtime wrap."},{"ingredient":"coconut milk","tip":"One can is 400ml; Thai curry only needs 200ml. Use the rest in a quick rice pudding or freeze in an ice-cube tray."}]}
+{"insights":[{"ingredient":"spinach","tip":"Bags are usually 200–250g; toss the rest into scrambled eggs or a wrap."}]}
 
 Return an empty array if there are no meaningful waste opportunities.`;
 
@@ -52,4 +47,4 @@ Return an empty array if there are no meaningful waste opportunities.`;
   }
 
   res.json({ insights: parsed.insights || [] });
-};
+}

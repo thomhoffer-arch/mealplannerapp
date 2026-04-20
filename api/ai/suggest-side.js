@@ -1,14 +1,8 @@
-'use strict';
+import { createClient } from '@supabase/supabase-js';
+import { getUserAndHousehold } from '../_lib/auth.js';
+import { resolveAiProvider, callAi } from '../_lib/ai-call.js';
 
-const { createClient } = require('@supabase/supabase-js');
-const { getUserAndHousehold } = require('../_lib/auth');
-const { resolveAiProvider, callAi } = require('../_lib/ai-call');
-
-// POST /api/ai/suggest-side
-// Body A — side dish: { recipe: { name, cuisine_type?, ingredients? }, preference?: string }
-// Body B — surprise bag: { bag_ingredients: string, dietary_prefs?: string }
-// Returns: { suggestions: [{ name: string, description: string }] }
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { recipe, preference, bag_ingredients, dietary_prefs } = req.body || {};
@@ -26,10 +20,10 @@ module.exports = async function handler(req, res) {
   let prompt;
   if (isBag) {
     const dietPart = dietary_prefs ? ` Dietary notes: ${dietary_prefs}.` : '';
-    prompt = `A home cook just got a surprise food bag (like Too Good To Go) with these ingredients: ${bag_ingredients}.${dietPart} Suggest 2-3 complete meals they can cook with what they have. Use as much of the bag as possible to avoid waste. Each meal should be a real, well-known dish — adapted to use these specific ingredients. Return ONLY JSON: {"suggestions":[{"name":"...","description":"one sentence — what it is and which bag ingredients it uses"}]}`;
+    prompt = `A home cook just got a surprise food bag with these ingredients: ${bag_ingredients}.${dietPart} Suggest 2-3 complete meals they can cook with what they have. Return ONLY JSON: {"suggestions":[{"name":"...","description":"one sentence"}]}`;
   } else {
     const prefPart = preference ? ` ${preference}.` : '';
-    prompt = `Suggest 2-3 quick side dishes to go with ${recipe.name}.${prefPart} Each side should be simple (under 15 min), complement the main, and not repeat main ingredients. Return ONLY JSON: {"suggestions":[{"name":"...","description":"one line, what it adds"}]}`;
+    prompt = `Suggest 2-3 quick side dishes to go with ${recipe.name}.${prefPart} Each side should be simple (under 15 min). Return ONLY JSON: {"suggestions":[{"name":"...","description":"one line"}]}`;
   }
 
   let rawText;
@@ -46,4 +40,4 @@ module.exports = async function handler(req, res) {
   }
 
   res.json({ suggestions: parsed.suggestions || [] });
-};
+}

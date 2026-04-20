@@ -1,18 +1,13 @@
-'use strict';
+import { normalizeSpoonacular, normalizeHelloFresh } from '../_lib/normalize.js';
 
-const { normalizeSpoonacular, normalizeHelloFresh } = require('../_lib/normalize');
-
-// GET /api/recipes/search?q=pasta&dietary=vegetarian,gluten-free&time=<20min&cuisine=italian&source=all
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();
 
   const { q = '', dietary = '', time = '', cuisine = '', source = 'all' } = req.query;
 
   const hasQuery = q.trim().length > 0;
   const hasFilters = dietary || time || cuisine;
-  if (!hasQuery && !hasFilters) {
-    return res.json([]);
-  }
+  if (!hasQuery && !hasFilters) return res.json([]);
 
   const results = await Promise.allSettled([
     source !== 'hellofresh' ? searchSpoonacular(q, dietary, time, cuisine) : Promise.resolve([]),
@@ -22,10 +17,8 @@ module.exports = async function handler(req, res) {
   const spoonacularResults = results[0].status === 'fulfilled' ? results[0].value : [];
   const hellofreshResults = results[1].status === 'fulfilled' ? results[1].value : [];
 
-  // Interleave results: HF first (branded), then Spoonacular
-  const combined = [...hellofreshResults, ...spoonacularResults];
-  res.json(combined);
-};
+  res.json([...hellofreshResults, ...spoonacularResults]);
+}
 
 async function searchSpoonacular(q, dietary, time, cuisine) {
   if (!process.env.SPOONACULAR_API_KEY) return [];
@@ -43,11 +36,9 @@ async function searchSpoonacular(q, dietary, time, cuisine) {
   if (diets.includes('vegetarian')) params.set('diet', 'vegetarian');
   if (diets.includes('gluten-free')) params.set('intolerances', 'gluten');
   if (diets.includes('high-protein')) params.set('minProtein', '30');
-
   if (time === '<20min') params.set('maxReadyTime', '20');
   if (time === '20-40min') { params.set('minReadyTime', '20'); params.set('maxReadyTime', '40'); }
   if (time === '40+min') params.set('minReadyTime', '40');
-
   if (cuisine && cuisine !== 'light' && cuisine !== 'dutch') params.set('cuisine', cuisine);
 
   const response = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`);
@@ -60,13 +51,7 @@ async function searchHelloFresh(q, dietary, time, cuisine) {
   const token = await getHelloFreshToken();
   if (!token) return [];
 
-  const params = new URLSearchParams({
-    country: 'nl',
-    locale: 'nl-NL',
-    limit: '12',
-    order: '-favorites',
-  });
-
+  const params = new URLSearchParams({ country: 'nl', locale: 'nl-NL', limit: '12', order: '-favorites' });
   if (q) params.set('q', q);
 
   const response = await fetch(
@@ -77,12 +62,9 @@ async function searchHelloFresh(q, dietary, time, cuisine) {
   const data = await response.json();
 
   let recipes = (data.items || []).map(normalizeHelloFresh);
-
-  // Client-side filter for options Spoonacular handles server-side
   if (time === '<20min') recipes = recipes.filter((r) => r.prepTime + r.cookTime < 20);
   if (time === '20-40min') recipes = recipes.filter((r) => { const t = r.prepTime + r.cookTime; return t >= 20 && t <= 40; });
   if (time === '40+min') recipes = recipes.filter((r) => r.prepTime + r.cookTime > 40);
-
   return recipes;
 }
 
@@ -91,28 +73,19 @@ let _hfTokenExpiry = 0;
 
 async function getHelloFreshToken() {
   if (_hfToken && Date.now() < _hfTokenExpiry) return _hfToken;
-
   const clientId = process.env.HELLOFRESH_CLIENT_ID || 'hellofresh-dev-test';
   const clientSecret = process.env.HELLOFRESH_CLIENT_SECRET;
   if (!clientSecret) return null;
-
   try {
     const response = await fetch('https://gw.hellofresh.com/gw/auth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        grant_type: 'client_credentials',
-        scope: 'public',
-      }),
+      body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials', scope: 'public' }),
     });
     if (!response.ok) return null;
     const data = await response.json();
     _hfToken = data.access_token;
     _hfTokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
     return _hfToken;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }

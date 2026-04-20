@@ -1,25 +1,20 @@
-'use strict';
-
-const { createClient } = require('@supabase/supabase-js');
-const { getUserAndHousehold } = require('../_lib/auth');
-const { VOICE_GUIDE } = require('../_lib/voice');
-const { resolveAiProvider, callAi } = require('../_lib/ai-call');
-const { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
+import { createClient } from '@supabase/supabase-js';
+import { getUserAndHousehold } from '../_lib/auth.js';
+import { VOICE_GUIDE } from '../_lib/voice.js';
+import { resolveAiProvider, callAi } from '../_lib/ai-call.js';
+import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../_lib/usage.js';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const PRIORITY_LABELS = { 1: 'HIGH — include every week', 2: 'MEDIUM — include every 2 weeks', 3: 'OCCASIONAL — include if it fits' };
 
-// POST /api/ai/suggest-week
-// Body: { weeks: 1 | 2 }
-// Returns: { weeks: [{ week, days: [{ day, recipe }] }], notes }
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   try {
     return await _handler(req, res);
   } catch (err) {
     console.error('[suggest-week] unhandled error:', err);
     return res.status(500).json({ error: `Internal error: ${err.message}` });
   }
-};
+}
 
 async function _handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -44,7 +39,6 @@ async function _handler(req, res) {
     }
   }
 
-  // Load all data in parallel
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }] = await Promise.all([
     supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
@@ -58,7 +52,6 @@ async function _handler(req, res) {
   const starred = starredData || [];
   const members = membersData || [];
 
-  // Build a map for quick lookup and group by priority
   const starredMap = {};
   const byPriority = { 1: [], 2: [], 3: [] };
   starred.forEach((s) => {
@@ -67,7 +60,6 @@ async function _handler(req, res) {
     byPriority[p].push({ id: s.recipe_id, name: s.recipe_data?.name, source: s.recipe_data?.source, keywords: s.recipe_data?.keywords });
   });
 
-  // Recently planned (last 3 weeks worth) for variety context
   const recentNames = (recentPlanData || []).map((i) => i.recipe_data?.name).filter(Boolean);
 
   const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes);
@@ -91,7 +83,6 @@ async function _handler(req, res) {
     });
   }
 
-  // Enrich: swap starred_id references with full recipe objects
   const enrichedWeeks = (plan.weeks || []).map((week, wi) => ({
     week: wi + 1,
     days: (week.days || []).map((day) => {
@@ -119,7 +110,7 @@ async function _handler(req, res) {
   }));
 
   res.json({ weeks: enrichedWeeks, notes: plan.notes || '' });
-};
+}
 
 function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}) {
   let starredSection = '';
@@ -153,30 +144,28 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, pl
 
 You plan weeknight dinners for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinner meals for this household.
 
-RECIPE QUALITY — draw exclusively from well-tested home-cooking repertoire. These should be real, reliable dishes with proper technique — not vague combinations or random internet recipes. You know thousands of quality recipes from your training data. Suggest dishes you are confident about; adapt seasoning, protein swaps, or technique to match the household preferences below.
-
 HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}
 
-WHO'S EATING (individual preferences — the plan must work for everyone at the table; where people differ, suggest simple adaptations like "olives on the side", "bake the chicken on a separate tray", "swap tofu for prawns for [name]"):
+WHO'S EATING:
 ${membersSection || '  - (no individual preferences on file)'}
 
-STARRED RECIPES (this household's favourites — use them in the plan):
+STARRED RECIPES:
 ${starredSection || 'None starred yet — suggest freely based on preferences.'}
 
 RECENTLY EATEN (avoid repeating for 2 weeks):
 ${avoidList}
-${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED:\n${planExtrasText}\nAdd the requested extras as additional fields on the relevant day objects (e.g. "breakfast", "lunch", "baking"). Keep extras distinct across the week — no repeated lunches or side dishes.` : ''}
-${dayNotesSection ? `\nPER-DAY NOTES (override defaults for specific days):\n${dayNotesSection}` : ''}
+${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED:\n${planExtrasText}` : ''}
+${dayNotesSection ? `\nPER-DAY NOTES:\n${dayNotesSection}` : ''}
 STRICT RULES:
-1. Never plan the same main ingredient (e.g. pasta, chicken, salmon) two days in a row.
-2. Vary cuisine type every day (no Italian two consecutive days, etc.).
-3. Mix weekday-friendly quick meals (Mon–Thu, under 40 min) with more elaborate weekend meals (Fri–Sun).
+1. Never plan the same main ingredient two days in a row.
+2. Vary cuisine type every day.
+3. Mix weekday-friendly quick meals (Mon–Thu) with more elaborate weekend meals (Fri–Sun).
 4. Prioritise starred HIGH recipes — they should appear in week 1 if possible.
-5. Respect dietary preferences strictly. If members conflict (one vegetarian, one meat-eater), pick recipes that split gracefully and put the adaptation in the overview.
-6. Every recipe must be a real, well-known dish you are confident about — not a vague or invented combination.
-7. Never repeat the same lunch or side dish across the week — keep all extras varied just like dinners.
-8. Optimise for ingredient reuse: if a recipe uses part of a perishable pack (fresh herbs, leafy greens, coconut milk, cream, canned beans, etc.), deliberately plan another meal that week which uses the remainder. Mention this in the notes field.
+5. Respect dietary preferences strictly.
+6. Every recipe must be a real, well-known dish.
+7. Never repeat the same lunch or side dish across the week.
+8. Optimise for ingredient reuse.
 
 Return ONLY a JSON object, no markdown:
 {
@@ -195,9 +184,8 @@ Return ONLY a JSON object, no markdown:
       ]
     }
   ],
-  "notes": "<2-3 sentences explaining the plan, variety choices, and how preferences were handled>"
+  "notes": "<2-3 sentences explaining the plan>"
 }
 
 Each week must have exactly 7 days: Monday through Sunday.${numWeeks === 2 ? ' Return exactly 2 week objects.' : ' Return exactly 1 week object.'}`;
 }
-

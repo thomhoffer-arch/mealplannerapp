@@ -241,27 +241,6 @@ export default function AuthScreen() {
                 Enough dinners for the week, sorted in the time it takes the kettle to boil.
               </p>
               <div className="mt-10 flex flex-col items-start gap-4">
-                <LayoutGroup>
-                  <motion.p
-                    className="flex flex-wrap items-baseline gap-x-2 font-display text-2xl sm:text-3xl font-semibold text-orange-900"
-                    layout
-                    transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-                  >
-                    <motion.span layout transition={{ type: 'spring', damping: 30, stiffness: 400 }}>Give it a</motion.span>
-                    <TextRotate
-                      texts={['week.', 'try.', 'go.', 'Monday.', 'dinner.']}
-                      mainClassName="text-white px-3 bg-orange-500 overflow-hidden py-0.5 sm:py-1 justify-center rounded-full"
-                      staggerFrom="last"
-                      initial={{ y: '100%' }}
-                      animate={{ y: 0 }}
-                      exit={{ y: '-120%' }}
-                      staggerDuration={0.025}
-                      splitLevelClassName="overflow-hidden pb-0.5"
-                      transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-                      rotationInterval={2500}
-                    />
-                  </motion.p>
-                </LayoutGroup>
                 <Button
                   onClick={() => setView('plan')}
                   size="lg"
@@ -379,11 +358,29 @@ export default function AuthScreen() {
         </section>
 
         {/* CTA footer */}
-        <section className="max-w-3xl mx-auto px-6 py-24 text-center">
-          <h2 className="font-display text-3xl sm:text-4xl font-semibold text-orange-900 mb-3 leading-tight">
-            Give it a week.
-          </h2>
-          <p className="text-sm text-orange-900/80 mb-8">Free to use. No card needed.</p>
+        <section className="max-w-3xl mx-auto px-6 py-24 text-center flex flex-col items-center gap-6">
+          <LayoutGroup>
+            <motion.p
+              className="flex flex-wrap items-baseline justify-center gap-x-3 font-display text-3xl sm:text-4xl font-semibold text-orange-900"
+              layout
+              transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+            >
+              <motion.span layout transition={{ type: 'spring', damping: 30, stiffness: 400 }}>Give it a</motion.span>
+              <TextRotate
+                texts={['week.', 'try.', 'go.', 'Monday.', 'dinner.']}
+                mainClassName="text-white px-3 bg-orange-500 overflow-hidden py-0.5 sm:py-1 justify-center rounded-full"
+                staggerFrom="last"
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '-120%' }}
+                staggerDuration={0.025}
+                splitLevelClassName="overflow-hidden pb-0.5"
+                transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                rotationInterval={2500}
+              />
+            </motion.p>
+          </LayoutGroup>
+          <p className="text-sm text-orange-900/80">Free to use. No card needed.</p>
           <Button
             onClick={() => setView('plan')}
             size="lg"
