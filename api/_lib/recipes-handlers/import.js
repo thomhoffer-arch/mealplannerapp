@@ -1,5 +1,6 @@
 import { getUserAndHousehold } from '../auth.js';
 import { decrypt } from '../crypto.js';
+import { callGemini } from '../ai-call.js';
 import { createClient } from '@supabase/supabase-js';
 
 export default async function handleImport(req, res) {
@@ -56,21 +57,15 @@ Return this exact structure (use null for missing fields):
 
 If the page does not contain a recipe, return: { "error": "No recipe found on this page" }`;
 
-  const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    }
-  );
-
-  if (!geminiRes.ok) return res.status(502).json({ error: 'AI service error' });
-
-  const geminiData = await geminiRes.json();
+  let geminiData;
+  try {
+    ({ data: geminiData } = await callGemini(apiKey, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    }));
+  } catch (err) {
+    return res.status(502).json({ error: err.message || 'AI service error' });
+  }
   const raw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!raw) return res.status(502).json({ error: 'Empty AI response' });
 
