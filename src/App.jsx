@@ -937,7 +937,7 @@ export default function App() {
     setImportLoading(true);
     setImportError("");
     try {
-      const data = await apiFetch('/api/recipes/import', {
+      const data = await apiFetch('/api/recipes', {
         method: 'POST',
         body: { url },
       });
@@ -956,7 +956,7 @@ export default function App() {
     setSearchLoading(true);
     try {
       const params = new URLSearchParams({ q: query });
-      const res = await fetch(`/api/recipes/search?${params}`);
+      const res = await fetch(`/api/recipes?${params}`);
       if (!res.ok) throw new Error("Search failed");
       setRecipes(await res.json());
     } catch {

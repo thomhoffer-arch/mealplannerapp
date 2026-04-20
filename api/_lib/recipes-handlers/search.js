@@ -1,7 +1,6 @@
-import { normalizeSpoonacular, normalizeHelloFresh } from '../_lib/normalize.js';
+import { normalizeSpoonacular, normalizeHelloFresh } from '../normalize.js';
 
-export default async function handler(req, res) {
-  if (req.method !== 'GET') return res.status(405).end();
+export default async function handleSearch(req, res) {
 
   const { q = '', dietary = '', time = '', cuisine = '', source = 'all' } = req.query;
 

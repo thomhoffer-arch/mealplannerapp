@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import { getUserAndHousehold } from '../_lib/auth.js';
-import { VOICE_GUIDE } from '../_lib/voice.js';
-import { resolveAiProvider, callAi } from '../_lib/ai-call.js';
-import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../_lib/usage.js';
+import { getUserAndHousehold } from '../auth.js';
+import { VOICE_GUIDE } from '../voice.js';
+import { resolveAiProvider, callAi } from '../ai-call.js';
+import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../usage.js';
 
-export default async function handler(req, res) {
+export default async function handleSuggest(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { recipe, preferences, starredRecipes } = req.body || {};

@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-import { requireAuth } from '../_lib/auth.js';
-import { resolveAiProvider, callAi } from '../_lib/ai-call.js';
+import { requireAuth } from '../auth.js';
+import { resolveAiProvider, callAi } from '../ai-call.js';
 
-export default async function handler(req, res) {
+export default async function handleSuggestSide(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { recipe, preference, bag_ingredients, dietary_prefs } = req.body || {};
