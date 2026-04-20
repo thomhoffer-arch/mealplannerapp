@@ -22,8 +22,12 @@ const HANDLERS = {
 
 export default async function handler(req, res) {
   const { action } = req.query;
+  // One-line log per request so Vercel function logs reveal the exact
+  // method + action received. Helps diagnose 405s that shouldn't happen.
+  console.log(`[ai] ${req.method} action=${action}`);
+
   const impl = HANDLERS[action];
-  if (!impl) return res.status(404).json({ error: `Unknown AI action: ${action}` });
+  if (!impl) return res.status(404).json({ error: `Unknown AI action: ${action}`, known_actions: Object.keys(HANDLERS) });
   try {
     return await impl(req, res);
   } catch (err) {
