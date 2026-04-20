@@ -31,8 +31,12 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     setDayNotes({});
     setExpandedDay(null);
     try {
-      const sessionResult = await supabase.auth.getSession();
-      const token = sessionResult?.data?.session?.access_token;
+      // getUser() validates with the server and triggers a token refresh if needed.
+      // Then getSession() returns the up-to-date access_token.
+      const { error: userError } = await supabase.auth.getUser();
+      if (userError) throw new Error('Session expired — please sign out and back in.');
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       if (!token) throw new Error('Not signed in — please refresh and try again.');
       const res = await fetch('/api/ai/suggest-week', {
         method: 'POST',

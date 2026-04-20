@@ -10,14 +10,16 @@ export async function getUserAndHousehold(req) {
   );
 
   const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) return null;
+  if (error) { console.error('[auth] getUser error:', error.message); return null; }
+  if (!user) { console.error('[auth] getUser returned no user'); return null; }
 
-  const { data: member } = await supabase
+  const { data: member, error: memberError } = await supabase
     .from('household_members')
     .select('household_id')
     .eq('user_id', user.id)
     .single();
 
+  if (memberError) console.error('[auth] household_members query error:', memberError.message);
   if (!member) return null;
   return { user, householdId: member.household_id, supabase };
 }
