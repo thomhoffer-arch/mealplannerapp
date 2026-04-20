@@ -481,6 +481,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("week");
   const [basketSection, setBasketSection] = useState("shopping");
   const [householdMembers, setHouseholdMembers] = useState([]);
+  const [editingHouseholdName, setEditingHouseholdName] = useState(false);
+  const [householdNameDraft, setHouseholdNameDraft] = useState('');
   const searchInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [recipes, setRecipes] = useState([]);
@@ -1004,6 +1006,14 @@ export default function App() {
     setTimeout(() => setInviteCopied(false), 2000);
   }
 
+  async function saveHouseholdName() {
+    const name = householdNameDraft.trim();
+    if (!name || name === household.name) { setEditingHouseholdName(false); return; }
+    await supabase.from('households').update({ name }).eq('id', household.id);
+    setHousehold((h) => ({ ...h, name }));
+    setEditingHouseholdName(false);
+  }
+
   // ── Derived values ────────────────────────────────────────────────────────
   const selectedRecipeObjects = mealPlanItems.map((i) => i.recipe_data);
   const selectedIds = new Set(mealPlanItems.map((i) => i.recipe_id));
@@ -1027,13 +1037,15 @@ export default function App() {
 
   if (!user || !household) return <AuthScreen />;
 
-  // First-run gate: name + preferences. The member row exists (auth finished),
-  // they just haven't filled in their profile yet.
-  if (memberProfile && !memberProfile.onboarded_at) {
+  // First-run gate: only show onboarding when neither onboarded_at nor
+  // display_name is set — covers users created before the onboarded_at
+  // column migration was run.
+  if (memberProfile && !memberProfile.onboarded_at && !memberProfile.display_name) {
     return (
       <OnboardingScreen
         user={user}
         household={household}
+        memberProfile={memberProfile}
         onDone={() => {
           setMemberProfile((m) => ({ ...m, onboarded_at: new Date().toISOString() }));
           // Land them straight in the suggest-week modal so "see some
@@ -1899,7 +1911,27 @@ export default function App() {
             {/* Household card */}
             <div className="bg-white rounded-2xl border border-orange-100 p-4">
               <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Household</p>
-              <p className="text-sm font-semibold text-orange-900 mb-3">{household.name}</p>
+              {editingHouseholdName ? (
+                <div className="flex gap-2 mb-3">
+                  <input
+                    autoFocus
+                    value={householdNameDraft}
+                    onChange={(e) => setHouseholdNameDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveHouseholdName(); if (e.key === 'Escape') setEditingHouseholdName(false); }}
+                    className="flex-1 text-sm border border-orange-300 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900"
+                  />
+                  <button onClick={saveHouseholdName} className="px-3 py-1.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition">Save</button>
+                  <button onClick={() => setEditingHouseholdName(false)} className="px-3 py-1.5 text-orange-400 hover:text-orange-600 transition text-xs">Cancel</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setHouseholdNameDraft(household.name); setEditingHouseholdName(true); }}
+                  className="flex items-center gap-1.5 mb-3 group"
+                >
+                  <span className="text-sm font-semibold text-orange-900">{household.name}</span>
+                  <PenLine size={12} className="text-orange-400 opacity-0 group-hover:opacity-100 transition" />
+                </button>
+              )}
               {householdMembers.length > 0 && (
                 <div className="space-y-2 mb-4">
                   {householdMembers.map((m, i) => (

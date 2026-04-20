@@ -7,14 +7,15 @@ import { Scribble } from './glyphs';
 // Captures their name and a free-text preferences blob that we feed into the
 // LLM prompt for recipe suggestions. Marks household_members.onboarded_at so
 // we don't show it again.
-export default function OnboardingScreen({ user, household, onDone }) {
+export default function OnboardingScreen({ user, household, memberProfile, onDone }) {
   const initialName =
+    memberProfile?.display_name ||
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
     (user?.email ? user.email.split('@')[0] : '');
 
   const [name, setName] = useState(initialName);
-  const [prefs, setPrefs] = useState('');
+  const [prefs, setPrefs] = useState(memberProfile?.personal_prefs || '');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
