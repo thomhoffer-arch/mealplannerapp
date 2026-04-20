@@ -12,6 +12,7 @@ import InstallBanner from "./components/InstallBanner";
 import CreateRecipeModal from "./components/CreateRecipeModal";
 import StarredPanel from "./components/StarredPanel";
 import WeekSuggestModal from "./components/WeekSuggestModal";
+import SurpriseBagModal from "./components/SurpriseBagModal";
 import PuterWelcomeModal from "./components/PuterWelcomeModal";
 import GrocerHandoffModal from "./components/GrocerHandoffModal";
 import NotificationBell from "./components/NotificationBell";
@@ -474,7 +475,8 @@ export default function App() {
   const [preferences, setPreferences] = useState({});
   const [planExtrasText, setPlanExtrasText] = useState('');
   const [sideDishPanel, setSideDishPanel] = useState(null);
-  const [wasteInsights, setWasteInsights] = useState(null); // null | { loading, insights, error } // { key, mainRecipe, rid, input, loading, suggestions, error }
+  const [wasteInsights, setWasteInsights] = useState(null); // null | { loading, insights, error }
+  const [showBagModal, setShowBagModal] = useState(false); // { key, mainRecipe, rid, input, loading, suggestions, error }
 
   // ── Search state
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -1206,6 +1208,15 @@ export default function App() {
       )}
 
       {/* AI week suggestion modal */}
+      {showBagModal && (
+        <SurpriseBagModal
+          household={household}
+          dietaryPrefs={preferences?.preferences_text || ''}
+          onAddRecipes={async (recipes) => { for (const r of recipes) await toggleSelectedRecipe(r); setActiveTab('week'); }}
+          onClose={() => setShowBagModal(false)}
+        />
+      )}
+
       {showWeekSuggest && (
         <WeekSuggestModal
           household={household}
@@ -1399,11 +1410,18 @@ export default function App() {
                     <h2 className="font-display text-xl font-semibold text-orange-900 leading-none">This week</h2>
                     <p className="text-xs text-orange-400 mt-0.5">{mealPlanItems.length} meal{mealPlanItems.length !== 1 ? 's' : ''} planned</p>
                   </div>
-                  <button onClick={() => setShowWeekSuggest(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition shadow-sm">
-                    <Sparkles size={13} />
-                    Replan
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setShowBagModal(true)}
+                      className="w-9 h-9 flex items-center justify-center rounded-full border border-orange-200 text-orange-400 hover:border-orange-400 hover:text-orange-600 transition text-base"
+                      title="Cook from a surprise bag">
+                      🎁
+                    </button>
+                    <button onClick={() => setShowWeekSuggest(true)}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition shadow-sm">
+                      <Sparkles size={13} />
+                      Replan
+                    </button>
+                  </div>
                 </div>
 
                 <WeeklyNutritionCard recipes={selectedRecipeObjects} />
@@ -1662,6 +1680,17 @@ export default function App() {
                         <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Paste any URL — HelloFresh, Marley Spoon, NYT Cooking, anything.</span>
                       </span>
                       <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphLink /></span>
+                    </button>
+                  </li>
+                  <li>
+                    <button onClick={() => setShowBagModal(true)}
+                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
+                      <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">04</span>
+                      <span className="pt-1">
+                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Cook from a surprise bag</span>
+                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Got a Too Good To Go haul or random fridge bits? Tell AI what's there — it finds a meal.</span>
+                      </span>
+                      <span className="text-xl text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1">🎁</span>
                     </button>
                   </li>
                 </ol>
