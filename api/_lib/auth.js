@@ -47,7 +47,15 @@ export async function getUserAndHousehold(req, { allowAmbiguous = false } = {}) 
 
   if (memberErr) {
     console.error('[auth] household_members query failed:', memberErr.message);
-    return { error: { status: 500, message: 'Could not load household memberships' } };
+    const isPermissionDenied = /permission denied/i.test(memberErr.message || '');
+    return {
+      error: {
+        status: 500,
+        message: isPermissionDenied
+          ? 'Database permission denied — run supabase/migration_add_service_role_grants.sql, or verify SUPABASE_SERVICE_ROLE_KEY is the service_role key (not anon)'
+          : 'Could not load household memberships',
+      },
+    };
   }
 
   const memberships = [...new Set((rows || []).map((r) => r.household_id))];
