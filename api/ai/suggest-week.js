@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { getUserAndHousehold } = require('../_lib/auth');
 const { VOICE_GUIDE } = require('../_lib/voice');
 const { resolveAiProvider, callAi } = require('../_lib/ai-call');
-const { checkAndIncrementUsage, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
+const { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const PRIORITY_LABELS = { 1: 'HIGH — include every week', 2: 'MEDIUM — include every 2 weeks', 3: 'OCCASIONAL — include if it fits' };
@@ -26,7 +26,7 @@ module.exports = async function handler(req, res) {
   const { provider, token, usingSharedKey } = await resolveAiProvider(supabase, ctx.householdId);
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
-  if (usingSharedKey) {
+  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId))) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({

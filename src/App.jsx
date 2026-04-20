@@ -1376,15 +1376,15 @@ export default function App() {
               </div>
             ) : recipes.length > 0 ? (
               (() => {
-                const isPaid  = !!(preferences?.puter_token_hint);
+                const isPaid  = !!(preferences?.puter_token_hint || preferences?.is_gifted);
                 const isBYOK  = !isPaid && !!(preferences?.gemini_api_key_hint);
                 const limit   = isPaid ? Infinity : isBYOK ? 8 : 4;
                 const visible = recipes.slice(0, limit);
                 const lockedCount = Math.max(0, recipes.length - limit);
                 const lockMsg = isBYOK
-                  ? `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — connect Puter to see the full library.`
-                  : `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — add your Gemini key for more, or connect Puter for the full library.`;
-                const lockLabel = isBYOK ? 'Connect Puter' : 'Add a key to unlock';
+                  ? `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} in the full library — upgrade for all results.`
+                  : `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — add your Gemini key for more, or upgrade for the full library.`;
+                const lockLabel = isBYOK ? 'Upgrade for full access' : 'Add a key to unlock';
                 return (
                   <div className="space-y-3">
                     <p className="text-sm text-orange-600 font-medium">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} found</p>

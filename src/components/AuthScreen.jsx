@@ -447,7 +447,7 @@ export default function AuthScreen() {
               )}
             </button>
 
-            {/* Puter — pay-as-you-go */}
+            {/* Paid — full access */}
             <button
               onClick={() => setSelectedPlan('puter')}
               className={`text-left rounded-2xl border-2 p-5 transition-all ${
@@ -457,10 +457,7 @@ export default function AuthScreen() {
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-display text-base font-semibold text-orange-900">Pay-as-you-go</p>
-                  <span className="text-[10px] font-medium bg-orange-900 text-orange-50 px-2 py-0.5 rounded-full">via Puter</span>
-                </div>
+                <p className="font-display text-base font-semibold text-orange-900">Full access</p>
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
                   selectedPlan === 'puter' ? 'bg-orange-900 border-orange-900' : 'border-orange-300'
                 }`}>
@@ -468,13 +465,12 @@ export default function AuthScreen() {
                 </div>
               </div>
               <p className="font-display text-2xl font-semibold text-orange-900 mb-0.5">
-                €0 <span className="text-sm font-normal text-orange-500">/ month here</span>
+                Paid <span className="text-sm font-normal text-orange-500">— we provide the key</span>
               </p>
-              <p className="text-[11px] text-orange-500 mb-4">You pay Puter only for what you use.</p>
+              <p className="text-[11px] text-orange-500 mb-4">Pay via Puter, or directly once billing is live.</p>
               <ul className="space-y-2">
                 {[
                   'Unlimited AI — no weekly cap',
-                  'Claude, GPT and Gemini to pick from',
                   'Full recipe library, all results',
                   'All features unlocked',
                   'Shared plan, list & pantry',
@@ -487,7 +483,7 @@ export default function AuthScreen() {
               </ul>
               {selectedPlan === 'puter' && (
                 <p className="text-xs text-orange-500 mt-4 pt-3 border-t border-orange-100 italic leading-relaxed">
-                  After signup we'll open Puter once so you can connect. Top up a couple of euros and it covers weeks of planning.
+                  Currently via Puter — connect after signup. Top up a couple of euros and it covers weeks of planning.
                 </p>
               )}
             </button>

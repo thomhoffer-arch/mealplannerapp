@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { getUserAndHousehold } = require('../_lib/auth');
 const { VOICE_GUIDE } = require('../_lib/voice');
 const { resolveAiProvider, callAi } = require('../_lib/ai-call');
-const { checkAndIncrementUsage, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
+const { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
 
 // POST /api/ai/generate-recipe
 // Body: { recipe: { name, ... } }              → generate full recipe from stub
@@ -28,11 +28,11 @@ module.exports = async function handler(req, res) {
   const { provider, token, usingSharedKey } = await resolveAiProvider(supabase, ctx.householdId);
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
-  if (usingSharedKey) {
+  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId))) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({
-        error: `Weekly limit of ${WEEKLY_FREE_LIMIT} AI calls reached. Connect Puter or add your own Gemini key in Settings.`,
+        error: `Weekly limit of ${WEEKLY_FREE_LIMIT} AI calls reached. Add your Gemini key or upgrade in Settings for unlimited use.`,
       });
     }
   }
