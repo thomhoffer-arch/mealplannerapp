@@ -1661,7 +1661,10 @@ export default function App() {
                 {/* Day-by-day calendar */}
                 <div className="space-y-3">
                   {DAYS.map((day) => {
-                    const dayItem = mealPlanItems.find((i) => i.recipe_data?._plannedDay === day);
+                    const dayItem = mealPlanItems.find((i) => {
+                      const pd = i.recipe_data?._plannedDay;
+                      return pd && String(pd).toLowerCase().startsWith(day.toLowerCase().slice(0, 3));
+                    });
                     const recipe = dayItem?.recipe_data;
                     const rid = recipe ? String(recipe.id) : null;
                     const isToday = todayName === day;
@@ -1843,11 +1846,21 @@ export default function App() {
                 </div>
 
                 {/* Unscheduled recipes (added from search without a day) */}
-                {mealPlanItems.filter((i) => !i.recipe_data?._plannedDay).length > 0 && (
+                {mealPlanItems.filter((i) => {
+                  const pd = i.recipe_data?._plannedDay;
+                  if (!pd) return true;
+                  const matches = DAYS.some((d) => String(pd).toLowerCase().startsWith(d.toLowerCase().slice(0, 3)));
+                  return !matches;
+                }).length > 0 && (
                   <div className="mt-6">
                     <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-3">Not assigned to a day</p>
                     <div className="space-y-3">
-                      {mealPlanItems.filter((i) => !i.recipe_data?._plannedDay).map((item) => {
+                      {mealPlanItems.filter((i) => {
+                        const pd = i.recipe_data?._plannedDay;
+                        if (!pd) return true;
+                        const matches = DAYS.some((d) => String(pd).toLowerCase().startsWith(d.toLowerCase().slice(0, 3)));
+                        return !matches;
+                      }).map((item) => {
                         const recipe = item.recipe_data;
                         const rid = String(recipe.id);
                         return (
