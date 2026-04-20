@@ -980,9 +980,15 @@ export default function App() {
     const item = mealPlanItems.find((i) => i.recipe_id === rid);
     if (!item) return;
     const updatedRecipe = { ...item.recipe_data, ...fullData };
-    await supabase.from("meal_plan_items")
+    const { error } = await supabase.from("meal_plan_items")
       .update({ recipe_data: updatedRecipe })
       .eq("id", item.id);
+    if (error) { console.error('[generateAndSaveRecipe] update failed:', error); return; }
+    // Update local state directly so the expanded card rerenders with the
+    // full ingredients/steps immediately — don't wait for realtime.
+    setMealPlanItems((prev) => prev.map((i) =>
+      i.id === item.id ? { ...i, recipe_data: updatedRecipe } : i
+    ));
   }
 
   // ── Side dish helpers ─────────────────────────────────────────────────────

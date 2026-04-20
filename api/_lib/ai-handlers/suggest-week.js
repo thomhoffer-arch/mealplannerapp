@@ -224,7 +224,26 @@ STRICT RULES:
 2. Vary cuisine type every day.
 3. Mix weekday-friendly quick meals (Mon–Thu) with more elaborate weekend meals (Fri–Sun).
 4. Prioritise starred HIGH recipes — they should appear in week 1 if possible.
-5. Respect dietary preferences strictly.
+5. Dietary rules work in two layers — apply both:
+
+   5a. ABSOLUTE AVOIDS (never include). Covers allergies (nut,
+       shellfish, sesame…), ethical / religious rules (halal, kosher,
+       no beef, no pork), AND any phrase from the household
+       preferences shaped like "no X", "avoid X", "X-free", "can't
+       eat X", "hate X", "allergic to X". If they wrote "no eggs",
+       zero eggs anywhere — not even in pasta or baking. If they
+       wrote "no veggies", no vegetables at all in any dish, not
+       even garnish. Read the preferences carefully and extract
+       every explicit avoid.
+
+   5b. ADAPTIVE DIETS (keep the dish, adapt the ingredients). Covers
+       broad diets like gluten-free, dairy-free, low-carb,
+       vegetarian, vegan. Don't shrink the cuisine — adapt it. For
+       gluten-free, propose pasta dishes with gluten-free pasta and
+       name it explicitly ("Carbonara with gluten-free pasta"). For
+       vegetarian, adapt meat classics with plant-based substitutes
+       ("Mushroom bourguignon"). Variety within constraints, not
+       avoidance of entire cuisines.
 6. Every recipe must be a real, well-known dish.
 7. Never repeat the same lunch or side dish across the week.
 8. Optimise for ingredient reuse AND reach for pantry items where it works naturally.
