@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sparkles } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api';
 
 export default function SurpriseBagModal({ household, dietaryPrefs, onAddRecipes, onClose }) {
   const [ingredients, setIngredients] = useState('');
@@ -14,14 +14,10 @@ export default function SurpriseBagModal({ household, dietaryPrefs, onAddRecipes
     setError('');
     setSuggestions([]);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/ai/suggest-side', {
+      const data = await apiFetch('/api/ai/suggest-side', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ bag_ingredients: ingredients.trim(), dietary_prefs: dietaryPrefs || '' }),
+        body: { bag_ingredients: ingredients.trim(), dietary_prefs: dietaryPrefs || '' },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not get suggestions');
       setSuggestions(data.suggestions || []);
     } catch (err) {
       setError(err.message);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Eye, EyeOff, Trash2, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api';
 import ThemeToggle from './ThemeToggle';
 import PuterConnect from './PuterConnect';
 
@@ -65,22 +66,20 @@ export default function PreferencesModal({ household, onClose, inline = false, s
   async function handleSaveKey() {
     setKeyError('');
     setSavingKey(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch('/api/household/save-key', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ key: keyInput }),
-    });
-    const data = await res.json();
-    setSavingKey(false);
-    if (!res.ok) { setKeyError(data.error || 'Could not save key'); return; }
-    setKeyHint(data.hint || null);
-    setKeyInput('');
-    setSavedKey(true);
-    setTimeout(() => setSavedKey(false), 2000);
+    try {
+      const data = await apiFetch('/api/household/save-key', {
+        method: 'POST',
+        body: { key: keyInput },
+      });
+      setKeyHint(data.hint || null);
+      setKeyInput('');
+      setSavedKey(true);
+      setTimeout(() => setSavedKey(false), 2000);
+    } catch (err) {
+      setKeyError(err.message || 'Could not save key');
+    } finally {
+      setSavingKey(false);
+    }
   }
 
   async function handleSaveReminder() {
@@ -94,15 +93,9 @@ export default function PreferencesModal({ household, onClose, inline = false, s
 
   async function handleRemoveKey() {
     setSavingKey(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    await fetch('/api/household/save-key', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ key: '' }),
-    });
+    try {
+      await apiFetch('/api/household/save-key', { method: 'POST', body: { key: '' } });
+    } catch { /* surface nothing — the visual "removed" state is enough */ }
     setSavingKey(false);
     setKeyHint(null);
     setKeyInput('');
@@ -111,35 +104,27 @@ export default function PreferencesModal({ household, onClose, inline = false, s
   async function handleSavePuter() {
     setPuterError('');
     setSavingPuter(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch('/api/household/save-key', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ token: puterInput }),
-    });
-    const data = await res.json();
-    setSavingPuter(false);
-    if (!res.ok) { setPuterError(data.error || 'Could not save token'); return; }
-    setPuterHint(data.hint || null);
-    setPuterInput('');
-    setSavedPuter(true);
-    setTimeout(() => setSavedPuter(false), 2000);
+    try {
+      const data = await apiFetch('/api/household/save-key', {
+        method: 'POST',
+        body: { token: puterInput },
+      });
+      setPuterHint(data.hint || null);
+      setPuterInput('');
+      setSavedPuter(true);
+      setTimeout(() => setSavedPuter(false), 2000);
+    } catch (err) {
+      setPuterError(err.message || 'Could not save token');
+    } finally {
+      setSavingPuter(false);
+    }
   }
 
   async function handleRemovePuter() {
     setSavingPuter(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    await fetch('/api/household/save-key', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ token: '' }),
-    });
+    try {
+      await apiFetch('/api/household/save-key', { method: 'POST', body: { token: '' } });
+    } catch { /* surface nothing — the visual "removed" state is enough */ }
     setSavingPuter(false);
     setPuterHint(null);
     setPuterInput('');
