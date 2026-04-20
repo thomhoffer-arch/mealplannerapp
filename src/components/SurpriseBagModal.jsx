@@ -51,12 +51,9 @@ export default function SurpriseBagModal({ household, dietaryPrefs, onAddRecipes
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm flex flex-col max-h-[88vh]">
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-orange-50">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🎁</span>
-            <div>
-              <h2 className="font-display text-base font-bold text-orange-900">Surprise bag</h2>
-              <p className="text-xs text-orange-400">Too Good To Go or fridge clean-out</p>
-            </div>
+          <div>
+            <h2 className="font-display text-base font-bold text-orange-900">Cook from what you've got</h2>
+            <p className="text-xs text-orange-400">Too Good To Go bag, fridge clean-out, market find</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
             <X size={16} />
@@ -64,7 +61,7 @@ export default function SurpriseBagModal({ household, dietaryPrefs, onAddRecipes
         </div>
 
         <div className="px-5 py-4 overflow-y-auto flex-1">
-          <p className="text-xs text-orange-500 mb-3">Tell the AI what's in your bag and it'll suggest meals that use it all up.</p>
+          <p className="text-xs text-orange-500 mb-3">Write down what you've got — we'll find something worth cooking with it.</p>
           <textarea
             rows={3}
             placeholder="e.g. 2 chicken thighs, half a butternut squash, some wilting spinach, Greek yogurt, a lemon…"
@@ -80,7 +77,7 @@ export default function SurpriseBagModal({ household, dietaryPrefs, onAddRecipes
             className="w-full mt-2 py-2.5 bg-orange-500 text-white rounded-full font-semibold text-sm hover:bg-orange-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Sparkles size={13} />
-            {loading ? 'Thinking…' : 'Suggest meals'}
+            {loading ? 'Working on it…' : 'What can I make?'}
           </button>
 
           {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
@@ -88,13 +85,13 @@ export default function SurpriseBagModal({ household, dietaryPrefs, onAddRecipes
           {loading && (
             <div className="flex items-center gap-2 mt-4 text-xs text-orange-400">
               <div className="w-4 h-4 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-              Finding recipes for your bag…
+              Going through your ingredients…
             </div>
           )}
 
           {suggestions.length > 0 && (
             <div className="mt-4 space-y-2">
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Add to this week</p>
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Slot into this week</p>
               {suggestions.map((s) => (
                 <button
                   key={s.name}

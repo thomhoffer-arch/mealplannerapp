@@ -3,10 +3,6 @@ import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle } from '
 import { supabase } from '../lib/supabase';
 
 const SOURCE_COLORS = {
-  HelloFresh:       'bg-green-100 text-green-700',
-  'Marley Spoon':   'bg-amber-100 text-amber-700',
-  'NYT Cooking':    'bg-red-100 text-red-700',
-  Spoonacular:      'bg-orange-100 text-orange-700',
   'My Recipes':     'bg-amber-100 text-amber-700',
   'AI Suggestion':  'bg-orange-100 text-orange-600',
   'Web import':     'bg-orange-50 text-orange-500',

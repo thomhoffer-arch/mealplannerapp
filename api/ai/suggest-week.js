@@ -138,7 +138,7 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, pl
 
 You plan weeknight dinners for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinner meals for this household.
 
-RECIPE SOURCES — draw exclusively from well-tested, quality home-cooking repertoire. Think HelloFresh, Marley Spoon, NYT Cooking, Ottolenghi, Jamie Oliver, and similar published sources. These are tested, reliable recipes with proper technique — not random internet recipes. You know many of these from your training data. Suggest real dishes you are confident about; adapt the seasoning, protein swaps, or technique to match the household preferences below.
+RECIPE QUALITY — draw exclusively from well-tested home-cooking repertoire. These should be real, reliable dishes with proper technique — not vague combinations or random internet recipes. You know thousands of quality recipes from your training data. Suggest dishes you are confident about; adapt seasoning, protein swaps, or technique to match the household preferences below.
 
 HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}

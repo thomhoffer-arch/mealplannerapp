@@ -19,13 +19,9 @@ import NotificationBell from "./components/NotificationBell";
 import UpdateToast from "./components/UpdateToast";
 import ThemeToggle from "./components/ThemeToggle";
 import { applyTheme } from "./lib/theme";
-import { GlyphPot, GlyphSpyglass, GlyphLink, Scribble } from "./components/glyphs";
+import { GlyphPot, GlyphSpyglass, GlyphLink, GlyphBasket, Scribble } from "./components/glyphs";
 
 const SOURCE_COLORS = {
-  HelloFresh:      "bg-green-100 text-green-700",
-  "Marley Spoon":  "bg-amber-100 text-amber-700",
-  "NYT Cooking":   "bg-red-100 text-red-700",
-  Spoonacular:     "bg-orange-100 text-orange-700",
   "My Recipes":    "bg-amber-100 text-amber-700",
   "AI Suggestion": "bg-orange-100 text-orange-600",
   "Web import":    "bg-orange-50 text-orange-500",
@@ -1236,7 +1232,7 @@ export default function App() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="font-semibold text-orange-900 text-sm">Side for {sideDishPanel.mainRecipe?.name}</p>
-                <p className="text-xs text-orange-400">Pick one or refine the suggestion</p>
+                <p className="text-xs text-orange-400">Not right? Try different below.</p>
               </div>
               <button onClick={() => setSideDishPanel(null)} className="text-orange-300 hover:text-orange-500 transition"><X size={16} /></button>
             </div>
@@ -1245,7 +1241,7 @@ export default function App() {
             {sideDishPanel.loading && (
               <div className="flex items-center gap-2 py-3 mb-2">
                 <div className="w-4 h-4 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-                <p className="text-xs text-orange-400">Finding the perfect side…</p>
+                <p className="text-xs text-orange-400">Looking for a good side…</p>
               </div>
             )}
             {!sideDishPanel.loading && sideDishPanel.suggestions.length > 0 && (
@@ -1282,7 +1278,7 @@ export default function App() {
                   className="px-3 py-2 bg-orange-100 text-orange-600 rounded-full text-xs font-medium hover:bg-orange-200 transition flex items-center gap-1"
                 >
                   <Sparkles size={12} />
-                  Re-suggest
+                  Try again
                 </button>
               </div>
             )}
@@ -1393,7 +1389,7 @@ export default function App() {
               <div className="text-center py-12 text-orange-300">
                 <Search size={48} className="mx-auto mb-3 opacity-50" />
                 <p className="font-medium text-orange-400">Search or apply filters to discover recipes</p>
-                <p className="text-sm mt-1">powered by Spoonacular &amp; HelloFresh</p>
+                <p className="text-sm mt-1">quality recipes, adjusted to you</p>
               </div>
             )}
           </div>
@@ -1412,9 +1408,8 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setShowBagModal(true)}
-                      className="w-9 h-9 flex items-center justify-center rounded-full border border-orange-200 text-orange-400 hover:border-orange-400 hover:text-orange-600 transition text-base"
-                      title="Cook from a surprise bag">
-                      🎁
+                      className="px-3 py-1.5 border border-dashed border-orange-200 text-orange-400 rounded-full text-xs hover:border-orange-400 hover:text-orange-600 transition">
+                      What've I got?
                     </button>
                     <button onClick={() => setShowWeekSuggest(true)}
                       className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition shadow-sm">
@@ -1484,7 +1479,7 @@ export default function App() {
                                   className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-300 rounded-full hover:border-orange-400 hover:text-orange-500 transition"
                                   title="Mark as leftover day"
                                 >
-                                  ♻ Leftovers
+                                  Leftovers
                                 </button>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setActiveTab("search"); }}
@@ -1677,7 +1672,7 @@ export default function App() {
                       <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">03</span>
                       <span className="pt-1">
                         <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Import a recipe you love</span>
-                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Paste any URL — HelloFresh, Marley Spoon, NYT Cooking, anything.</span>
+                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Paste any recipe URL and we'll pull the ingredients automatically.</span>
                       </span>
                       <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphLink /></span>
                     </button>
@@ -1687,10 +1682,10 @@ export default function App() {
                       className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
                       <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">04</span>
                       <span className="pt-1">
-                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Cook from a surprise bag</span>
-                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Got a Too Good To Go haul or random fridge bits? Tell AI what's there — it finds a meal.</span>
+                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Cook from what you've got</span>
+                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Too Good To Go bag, fridge bits, market find — describe what you've got and we'll find something to cook.</span>
                       </span>
-                      <span className="text-xl text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1">🎁</span>
+                      <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphBasket /></span>
                     </button>
                   </li>
                 </ol>
@@ -1738,12 +1733,12 @@ export default function App() {
                       onClick={fetchWasteInsights}
                       className="w-full mt-2 py-2 border border-dashed border-orange-200 text-orange-400 rounded-full text-sm hover:border-orange-400 hover:text-orange-600 transition flex items-center justify-center gap-1.5"
                     >
-                      ♻ Reduce waste tips
+                      Reduce waste tips
                     </button>
                   ) : wasteInsights.loading ? (
                     <div className="flex items-center justify-center gap-2 mt-2 py-2 text-xs text-orange-400">
                       <div className="w-3.5 h-3.5 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-                      Analysing your shopping list…
+                      Checking your list for waste…
                     </div>
                   ) : null}
                 </div>
@@ -1752,7 +1747,7 @@ export default function App() {
                 {wasteInsights && !wasteInsights.loading && (
                   <div className="bg-green-50 border border-green-100 rounded-2xl p-4 mb-4">
                     <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">♻ Waste reduction tips</p>
+                      <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Waste reduction</p>
                       <button onClick={() => setWasteInsights(null)} className="text-green-400 hover:text-green-600 transition"><X size={14} /></button>
                     </div>
                     {wasteInsights.error ? (
@@ -1763,7 +1758,7 @@ export default function App() {
                       <div className="space-y-3">
                         {wasteInsights.insights.map((ins, i) => (
                           <div key={i} className="flex gap-2.5">
-                            <span className="text-base leading-none mt-0.5">🌿</span>
+                            <span className="text-green-400 font-bold text-base leading-none mt-0.5 flex-shrink-0">–</span>
                             <div>
                               <p className="text-sm font-semibold text-green-800 capitalize">{ins.ingredient}</p>
                               <p className="text-xs text-green-700 mt-0.5 leading-relaxed">{ins.tip}</p>

@@ -186,7 +186,7 @@ export default function PreferencesModal({ household, onClose }) {
           {/* ── What else to plan ── */}
           <div className="space-y-2 border-t border-orange-100 pt-4">
             <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Also plan</p>
-            <p className="text-xs text-orange-400">Describe any extras beyond dinner — the planner will include them automatically.</p>
+            <p className="text-xs text-orange-400">Dinner's always in. Describe anything else you'd like planned — the rest is up to you.</p>
             <textarea
               rows={3}
               placeholder="e.g. Quick breakfasts Mon–Fri. Packed lunches for Tom. A bake for Sunday afternoon."
