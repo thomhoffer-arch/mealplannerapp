@@ -275,12 +275,12 @@ export default function AuthScreen() {
                     </motion.p>
                   </button>
                 </LayoutGroup>
-                <p className="text-xs text-orange-700/70">Free to use. No card needed.</p>
+                <p className="text-xs text-orange-700/70">Creates your free account · no card needed.</p>
                 <button
                   onClick={() => { setMode('login'); setView('auth'); }}
                   className="mt-2 text-sm text-orange-700 hover:text-orange-900 transition underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
                 >
-                  I already have an account →
+                  Sign in to your account →
                 </button>
               </div>
             </div>
@@ -619,6 +619,8 @@ export default function AuthScreen() {
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
             type="email"
+            name="email"
+            autoComplete="email"
             placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -627,6 +629,8 @@ export default function AuthScreen() {
           />
           <input
             type="password"
+            name="password"
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             placeholder="Password (min. 6 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
