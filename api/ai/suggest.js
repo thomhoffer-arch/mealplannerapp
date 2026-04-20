@@ -1,15 +1,10 @@
-'use strict';
+import { createClient } from '@supabase/supabase-js';
+import { getUserAndHousehold } from '../_lib/auth.js';
+import { VOICE_GUIDE } from '../_lib/voice.js';
+import { resolveAiProvider, callAi } from '../_lib/ai-call.js';
+import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../_lib/usage.js';
 
-const { createClient } = require('@supabase/supabase-js');
-const { getUserAndHousehold } = require('../_lib/auth');
-const { VOICE_GUIDE } = require('../_lib/voice');
-const { resolveAiProvider, callAi } = require('../_lib/ai-call');
-const { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
-
-// POST /api/ai/suggest
-// Body: { recipe, preferences, starredRecipes }
-// Returns: { suitable, issues, substitutions, tips }
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { recipe, preferences, starredRecipes } = req.body || {};
@@ -18,13 +13,11 @@ module.exports = async function handler(req, res) {
   const ctx = await getUserAndHousehold(req).catch(() => null);
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  // Resolve provider: Puter token → Gemini BYOK → shared Gemini
   const { provider, token, usingSharedKey } = ctx
     ? await resolveAiProvider(supabase, ctx.householdId)
     : { provider: 'gemini', token: process.env.GEMINI_API_KEY || null, usingSharedKey: true };
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
-  // Enforce weekly cap only when using the shared server key
   if (usingSharedKey && ctx && !(await isGiftedHousehold(supabase, ctx.householdId))) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
@@ -50,53 +43,33 @@ module.exports = async function handler(req, res) {
   } catch {
     res.status(502).json({ error: 'Could not parse AI response' });
   }
-};
+}
 
 function buildPrompt(recipe, preferences, starredRecipes) {
   const preferencesText = (preferences.preferences_text || '').trim();
-
   const ingredientList = (recipe.ingredients || [])
     .map((i) => `- ${i.amount ? i.amount + ' ' : ''}${i.name}`)
     .join('\n');
-
-  const starredSection = starredRecipes.length
-    ? `RECIPES THIS HOUSEHOLD HAS STARRED (use to infer taste preferences):\n${starredRecipes.map((r) => `- ${r.name} (${r.source})`).join('\n')}`
-    : '';
+  const starredNames = (starredRecipes || []).slice(0, 10).map((r) => r.name).filter(Boolean).join(', ');
 
   return `${VOICE_GUIDE}
 
 ---
 
-You help a household adapt a recipe to their preferences. Write any prose (substitution reasons, tips) in the voice above. Analyse this recipe and suggest specific adaptations.
-
-HOUSEHOLD PREFERENCES:
-${preferencesText || 'No preferences provided — suggest general improvements if any.'}
-
-${starredSection}
+Analyse this recipe for a household and return suitability information.
 
 RECIPE: ${recipe.name}
-Source: ${recipe.source || 'Unknown'}
-Servings: ${recipe.servings || 2}
-
 INGREDIENTS:
-${ingredientList || 'Not listed'}
+${ingredientList || '(none listed)'}
 
-STEPS (summary):
-${(recipe.steps || []).slice(0, 3).join(' | ') || 'Not listed'}
+HOUSEHOLD PREFERENCES: ${preferencesText || 'none'}
+STARRED RECIPES (favourites for context): ${starredNames || 'none'}
 
-Return ONLY a JSON object with this exact structure — no markdown, no explanation:
+Return ONLY a JSON object:
 {
-  "suitable": <boolean — true if recipe already fits the preferences>,
-  "issues": [<string — each specific problem found, e.g. "pasta contains gluten">],
-  "substitutions": [
-    {
-      "original": "<exact ingredient as listed>",
-      "replacement": "<what to use instead>",
-      "reason": "<one short sentence why>"
-    }
-  ],
-  "tips": "<optional short paragraph with any useful cooking notes for the adaptations>"
-}
-
-If the recipe already fits all preferences, return suitable: true, empty issues and substitutions arrays, and a brief encouraging tip.`;
+  "suitable": true/false,
+  "issues": ["issue 1"],
+  "substitutions": [{"original": "ingredient", "substitute": "alternative", "reason": "why"}],
+  "tips": ["tip 1"]
+}`;
 }

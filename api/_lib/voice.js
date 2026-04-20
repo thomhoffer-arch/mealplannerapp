@@ -1,11 +1,4 @@
-'use strict';
-
-// Voice guidance prepended to every user-facing LLM prompt in the app.
-// Distilled from common "AI-writing" tells so generated text — dish names,
-// overviews, cooking tips, planner notes — reads like a person who actually
-// cooks at home wrote it, not a chatbot.
-
-const VOICE_GUIDE = `VOICE — read before writing any user-facing text.
+export const VOICE_GUIDE = `VOICE — read before writing any user-facing text.
 
 Goal: sound like a person who cooks at home, not an assistant describing a recipe.
 
@@ -40,5 +33,3 @@ Examples:
   Prefer: "Get the pan hot before the oil goes in, otherwise the chicken sticks."
 - Avoid: "This week offers a delightful variety of cuisines to keep meals exciting!"
   Prefer: "Italian Monday, Thai Tuesday, then a slow-roast on Sunday to use the leftovers."`;
-
-module.exports = { VOICE_GUIDE };

@@ -1,24 +1,16 @@
-'use strict';
+import { createClient } from '@supabase/supabase-js';
+import { getUserAndHousehold } from '../_lib/auth.js';
+import { VOICE_GUIDE } from '../_lib/voice.js';
+import { resolveAiProvider, callAi } from '../_lib/ai-call.js';
+import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../_lib/usage.js';
 
-const { createClient } = require('@supabase/supabase-js');
-const { getUserAndHousehold } = require('../_lib/auth');
-const { VOICE_GUIDE } = require('../_lib/voice');
-const { resolveAiProvider, callAi } = require('../_lib/ai-call');
-const { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } = require('../_lib/usage');
-
-// POST /api/ai/generate-recipe
-// Body: { recipe: { name, ... } }              → generate full recipe from stub
-// Body: { recipe: { name, ... }, request: "" } → adjust existing recipe per request
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { recipe, request } = req.body || {};
   if (!recipe?.name) return res.status(400).json({ error: 'recipe.name is required' });
 
   const isAdjust = typeof request === 'string' && request.trim().length > 0;
-  if (isAdjust === false && request !== undefined && request !== null) {
-    return res.status(400).json({ error: 'request must be a non-empty string when provided' });
-  }
 
   const ctx = await getUserAndHousehold(req).catch(() => null);
   if (!ctx) return res.status(401).json({ error: 'Unauthorized' });
@@ -53,7 +45,7 @@ module.exports = async function handler(req, res) {
   }
 
   res.json(result);
-};
+}
 
 function buildGeneratePrompt(recipe) {
   const { name, overview, cuisineType, prepTime, cookTime } = recipe;
@@ -70,27 +62,10 @@ Write a complete dinner recipe for "${name}".${overviewHint}
 ${cuisineHint}${timeHint}
 Portions for 2 people.
 
-Write it like a confident home cook — specific quantities, steps that explain what to look for, not just what to do.
-
-RULES:
-1. 6–10 ingredients with precise amounts. Use weight (g/ml) for things that vary by size, count for things that don't ("2 chicken thighs", "150g cherry tomatoes", "3 tbsp olive oil", "1 lemon, zested and juiced").
-2. 4–7 numbered steps. Each step 1–3 sentences. Say what to look for: colour, texture, sound, smell — not just timings. Timings are a guide, not a rule.
-3. No brand names. No "enjoy your meal". No "this dish". No closing sentence.
-4. If there's a useful tip (e.g. resting meat, salting pasta water properly), weave it into the relevant step — don't bolt it on at the end.
-5. servings: 2
-6. Estimate macros per serving — rough is fine.
-7. Adjust prepTime and cookTime if the original estimate seems off for this recipe.
-
 Return ONLY a JSON object, no markdown:
 {
-  "ingredients": [
-    { "name": "chicken thighs, bone-in skin-on", "amount": "2" },
-    { "name": "cherry tomatoes", "amount": "200g" }
-  ],
-  "steps": [
-    "Pat the chicken dry and season generously on both sides...",
-    "Heat a wide, heavy pan over medium-high — hot enough that a drop of water bounces off..."
-  ],
+  "ingredients": [{ "name": "chicken thighs, bone-in skin-on", "amount": "2" }],
+  "steps": ["Pat the chicken dry and season generously on both sides..."],
   "servings": 2,
   "prepTime": <minutes as integer>,
   "cookTime": <minutes as integer>,
@@ -111,37 +86,20 @@ function buildAdjustPrompt(recipe, request) {
 
 ---
 
-You are adjusting an existing recipe based on a specific user request. Change only what the request asks for. Keep everything else exactly as-is — same structure, same portions, same style.
+Adjust this recipe based on the user request. Change only what the request asks for.
 
 RECIPE: ${recipe.name}
-Servings: ${recipe.servings || 2}
-Prep: ${recipe.prepTime || '?'} min | Cook: ${recipe.cookTime || '?'} min
-
-CURRENT INGREDIENTS:
+INGREDIENTS:
 ${ingredientsList || '  (none listed)'}
-
-CURRENT STEPS:
+STEPS:
 ${stepsList || '  (none listed)'}
 
 USER REQUEST: "${request}"
 
-RULES:
-1. Only change what the request asks for. If they say "use chicken breast instead of thighs", swap the ingredient and update the relevant step — nothing else.
-2. Keep the same number of steps where possible. Only add or remove a step if the change genuinely requires it.
-3. If the request is about quantity or spice level, adjust just the ingredient amount and mention it in the relevant step.
-4. Keep the voice: specific, direct, no marketing adjectives.
-5. Return the complete updated recipe (all ingredients and all steps), not just the changed parts.
-
 Return ONLY a JSON object, no markdown:
 {
-  "ingredients": [
-    { "name": "chicken breast, skinless", "amount": "2" },
-    { "name": "cherry tomatoes", "amount": "200g" }
-  ],
-  "steps": [
-    "Pat the chicken dry...",
-    "..."
-  ],
+  "ingredients": [{ "name": "...", "amount": "..." }],
+  "steps": ["..."],
   "servings": ${recipe.servings || 2},
   "prepTime": <minutes as integer>,
   "cookTime": <minutes as integer>,

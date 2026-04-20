@@ -1,15 +1,11 @@
-'use strict';
+import { normalizeSpoonacular } from '../_lib/normalize.js';
 
-const { normalizeSpoonacular } = require('../_lib/normalize');
-
-// GET /api/recipes/:id
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();
 
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'id required' });
 
-  // HelloFresh recipes already carry full data in recipe_data — no extra fetch needed
   if (String(id).startsWith('hf-')) {
     return res.status(404).json({ error: 'Use meal_plan_items.recipe_data for HelloFresh recipes' });
   }
@@ -28,4 +24,4 @@ module.exports = async function handler(req, res) {
 
   const data = await response.json();
   res.json(normalizeSpoonacular(data));
-};
+}

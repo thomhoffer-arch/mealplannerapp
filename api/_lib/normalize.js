@@ -1,7 +1,4 @@
-'use strict';
-
-// Maps a Spoonacular recipe object to the app's unified recipe format
-function normalizeSpoonacular(r) {
+export function normalizeSpoonacular(r) {
   const readyIn = r.readyInMinutes || 30;
   const prepTime = Math.round(readyIn * 0.4);
   const cookTime = readyIn - prepTime;
@@ -56,8 +53,7 @@ function normalizeSpoonacular(r) {
   };
 }
 
-// Maps a HelloFresh API recipe object to the app's unified recipe format
-function normalizeHelloFresh(r) {
+export function normalizeHelloFresh(r) {
   const nutrients = r.nutrition || [];
   const getNutrient = (tag) =>
     Math.round(nutrients.find((n) => n.type === tag)?.amount || 0);
@@ -102,5 +98,3 @@ function normalizeHelloFresh(r) {
     sourceUrl: `https://www.hellofresh.com/recipes/${r.slug}`,
   };
 }
-
-module.exports = { normalizeSpoonacular, normalizeHelloFresh };
