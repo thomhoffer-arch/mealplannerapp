@@ -3,6 +3,7 @@ import { requireAuth } from '../auth.js';
 import { VOICE_GUIDE } from '../voice.js';
 import { resolveAiProvider, callAi } from '../ai-call.js';
 import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../usage.js';
+import { searchPhoto } from '../pexels.js';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const PRIORITY_LABELS = { 1: 'HIGH — include every week', 2: 'MEDIUM — include every 2 weeks', 3: 'OCCASIONAL — include if it fits' };
@@ -136,6 +137,17 @@ async function _handler(req, res) {
       };
     }),
   }));
+
+  // Fire all Pexels lookups in parallel; fails soft per day if PEXELS_API_KEY
+  // isn't set or the service is flaky — the card simply renders without a
+  // photo rather than blocking the whole plan.
+  await Promise.all(enrichedWeeks.flatMap((week) =>
+    week.days.map(async (day) => {
+      if (!day.recipe?.name) return;
+      const photo = await searchPhoto(day.recipe.name);
+      if (photo) day.photo = photo;
+    })
+  ));
 
   res.json({ weeks: enrichedWeeks, notes: plan.notes || '' });
 }

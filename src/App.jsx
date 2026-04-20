@@ -1688,6 +1688,14 @@ export default function App() {
 
                           {recipe ? (
                             <>
+                              {recipe._plannerPhoto?.url && (
+                                <img
+                                  src={recipe._plannerPhoto.thumbnail || recipe._plannerPhoto.url}
+                                  alt={recipe._plannerPhoto.alt || recipe.name}
+                                  loading="lazy"
+                                  className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
+                                />
+                              )}
                               <div className="flex-1 min-w-0">
                                 <p className={`font-semibold text-sm leading-snug ${isCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>
                                   {recipe.name}
@@ -1699,6 +1707,11 @@ export default function App() {
                                     recipe._aiSuggestion && (!recipe.ingredients || !recipe.ingredients.length) ? '· tap to generate' : null,
                                   ].filter(Boolean).join(' · ')}
                                 </p>
+                                {recipe._plannerLeftoverFor && (
+                                  <span className="inline-block mt-1 text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">
+                                    → {recipe._plannerLeftoverFor}
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-1.5 flex-shrink-0">
                                 {isCooked && <Check size={14} className="text-sage-500" />}
@@ -1757,6 +1770,51 @@ export default function App() {
                         {/* Expanded full recipe view */}
                         {recipe && expandedRecipes[rid] && (
                           <div className="border-t border-orange-100">
+                            {/* Planner context — only when the day came from the week planner */}
+                            {(recipe._plannerPhoto?.url || recipe._plannerReason || recipe._plannerLeftoverFor || (recipe._plannerUsesPantry || []).length > 0) && (
+                              <div className="bg-orange-50/50 border-b border-orange-100">
+                                {recipe._plannerPhoto?.url && (
+                                  <div className="relative h-40 w-full bg-orange-100 overflow-hidden">
+                                    <img
+                                      src={recipe._plannerPhoto.url}
+                                      alt={recipe._plannerPhoto.alt || recipe.name}
+                                      loading="lazy"
+                                      className="absolute inset-0 w-full h-full object-cover"
+                                    />
+                                    {recipe._plannerPhoto.photographer && (
+                                      <a
+                                        href={recipe._plannerPhoto.photographer_url || 'https://www.pexels.com'}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        📷 {recipe._plannerPhoto.photographer}
+                                      </a>
+                                    )}
+                                  </div>
+                                )}
+                                <div className="px-4 py-3 space-y-2">
+                                  {recipe._plannerReason && (
+                                    <p className="text-xs text-orange-700 italic leading-snug">✨ {recipe._plannerReason}</p>
+                                  )}
+                                  {((recipe._plannerUsesPantry || []).length > 0 || recipe._plannerLeftoverFor) && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {recipe._plannerLeftoverFor && (
+                                        <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">
+                                          → {recipe._plannerLeftoverFor}
+                                        </span>
+                                      )}
+                                      {(recipe._plannerUsesPantry || []).map((item) => (
+                                        <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100">
+                                          🥫 {item}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                             <SelectedRecipeCard
                               recipe={recipe}
                               expanded={true}

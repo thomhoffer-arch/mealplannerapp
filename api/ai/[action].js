@@ -4,6 +4,7 @@ import handleSuggestSide from '../_lib/ai-handlers/suggest-side.js';
 import handleGenerateRecipe from '../_lib/ai-handlers/generate-recipe.js';
 import handleShoppingInsights from '../_lib/ai-handlers/shopping-insights.js';
 import handleModerate from '../_lib/ai-handlers/moderate.js';
+import handleRegenerateDay from '../_lib/ai-handlers/regenerate-day.js';
 import { applyCors } from '../_lib/cors.js';
 
 // Single entry point for all AI operations.
@@ -19,6 +20,7 @@ const HANDLERS = {
   'generate-recipe':   handleGenerateRecipe,
   'shopping-insights': handleShoppingInsights,
   'moderate':          handleModerate,
+  'regenerate-day':    handleRegenerateDay,
 };
 
 export default async function handler(req, res) {
