@@ -19,6 +19,8 @@ export default function PreferencesModal({ household, onClose, inline = false, s
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderDay, setReminderDay] = useState('sunday');
   const [savingReminder, setSavingReminder] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [savingNotifications, setSavingNotifications] = useState(false);
   const [extrasText, setExtrasText] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [keyError, setKeyError] = useState('');
@@ -30,7 +32,7 @@ export default function PreferencesModal({ household, onClose, inline = false, s
   useEffect(() => {
     supabase
       .from('household_preferences')
-      .select('preferences_text, gemini_api_key_hint, puter_token_hint, reminder_enabled, reminder_day, plan_extras_text')
+      .select('preferences_text, gemini_api_key_hint, puter_token_hint, reminder_enabled, reminder_day, plan_extras_text, notifications_enabled')
       .eq('household_id', household.id)
       .single()
       .then(({ data }) => {
@@ -41,6 +43,8 @@ export default function PreferencesModal({ household, onClose, inline = false, s
           setReminderEnabled(data.reminder_enabled || false);
           setReminderDay(data.reminder_day || 'sunday');
           setExtrasText(data.plan_extras_text || '');
+          // Default to on for households that predate the column.
+          setNotificationsEnabled(data.notifications_enabled !== false);
         }
       });
   }, [household.id]);
@@ -210,6 +214,35 @@ export default function PreferencesModal({ household, onClose, inline = false, s
               className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm">
               {savingReminder ? 'Saving…' : 'Save reminder'}
             </button>
+          </div>
+
+          {/* ── Activity notifications ── */}
+          <div className="space-y-2 border-t border-orange-100 pt-4">
+            <div className="flex items-center gap-2">
+              <Bell size={14} className="text-orange-600" />
+              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Activity notifications</p>
+            </div>
+            <p className="text-xs text-orange-400">In-app badge when meal plan or starred recipes change. Turn off to silence.</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-orange-900 font-medium">Show notifications</span>
+              <button
+                onClick={async () => {
+                  const next = !notificationsEnabled;
+                  setNotificationsEnabled(next);
+                  setSavingNotifications(true);
+                  await supabase.from('household_preferences').upsert(
+                    { household_id: household.id, notifications_enabled: next },
+                    { onConflict: 'household_id' }
+                  );
+                  setSavingNotifications(false);
+                  onClose?.();
+                }}
+                disabled={savingNotifications}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${notificationsEnabled ? 'bg-orange-500' : 'bg-orange-200'}`}
+              >
+                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
           </div>
 
           {/* ── Gemini API key ── */}

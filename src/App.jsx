@@ -473,7 +473,15 @@ export default function App() {
   const [showPuterWelcome, setShowPuterWelcome] = useState(false);
   const [showGrocerHandoff, setShowGrocerHandoff] = useState(false);
   const [showReminderBanner, setShowReminderBanner] = useState(false);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(() => {
+    // Rehydrate unread notifications from localStorage so the Profile-tab
+    // badge survives reloads. Keyed separately per household; the effect
+    // below narrows to the active one on load.
+    try {
+      const raw = localStorage.getItem('mp:notifications');
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
   const [showSettings, setShowSettings] = useState(false);
   const [preferences, setPreferences] = useState({});
   const [planExtrasText, setPlanExtrasText] = useState('');
@@ -819,11 +827,23 @@ export default function App() {
   }, [preferences.reminder_enabled, preferences.reminder_day, mealPlanItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Activity notifications ────────────────────────────────────────────────
+  // Filter stored notifications to the active household when it changes.
   useEffect(() => {
     if (!household) return;
+    setNotifications((prev) => prev.filter((n) => n.household_id === household.id));
+  }, [household?.id]);
+
+  // Persist unread notifications so the Profile-tab badge survives reloads.
+  useEffect(() => {
+    try { localStorage.setItem('mp:notifications', JSON.stringify(notifications)); } catch {}
+  }, [notifications]);
+
+  useEffect(() => {
+    if (!household) return;
+    if (preferences.notifications_enabled === false) return; // user opted out
     function addNotification(message) {
       setNotifications((prev) => [
-        { id: Date.now(), message, timestamp: new Date(), read: false },
+        { id: Date.now(), message, timestamp: new Date(), read: false, household_id: household.id },
         ...prev,
       ].slice(0, 20));
     }
@@ -837,7 +857,7 @@ export default function App() {
         (p) => addNotification(`${p.new?.recipe_data?.name || 'A recipe'} was starred`))
       .subscribe();
     return () => supabase.removeChannel(channel);
-  }, [household?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [household?.id, preferences.notifications_enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const notifUnread = notifications.filter((n) => !n.read).length;
 
