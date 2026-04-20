@@ -14,7 +14,7 @@ const SOURCE_COLORS = {
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-export default function WeekSuggestModal({ household, onClose, onLoadPlan, planMealTypes }) {
+export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText }) {
   const [numWeeks, setNumWeeks] = useState(1);
   const [loading, setLoading]   = useState(false);
   const [plan, setPlan]         = useState(null);
@@ -22,11 +22,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planM
   const [error, setError]       = useState('');
   const [selected, setSelected] = useState({});   // { "1-Monday": true }
   const [servings, setServings] = useState({});   // { "1-Monday": 4 }  overrides per day
-  const [dayExtras, setDayExtras] = useState({}); // { "1-Monday": { breakfast: false, lunch: true } }
+  const [dayNotes, setDayNotes] = useState({});   // { "1-Monday": "skip lunch" }
   const [showNotes, setShowNotes] = useState(false);
   const [expandedDay, setExpandedDay] = useState(null); // key of day with controls open
-
-  const activeExtras = Object.entries(planMealTypes || {}).filter(([, v]) => v).map(([k]) => k);
 
   async function generate() {
     setLoading(true);
@@ -34,7 +32,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planM
     setPlan(null);
     setSelected({});
     setServings({});
-    setDayExtras({});
+    setDayNotes({});
     setExpandedDay(null);
     try {
       const sessionResult = await supabase.auth.getSession();
@@ -46,7 +44,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planM
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ weeks: numWeeks, plan_meal_types: planMealTypes || {} }),
+        body: JSON.stringify({ weeks: numWeeks, plan_extras_text: planExtrasText || '', day_notes: dayNotes }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not generate plan');
@@ -72,18 +70,6 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planM
     if (selected[key]) setExpandedDay(null);
   }
 
-  function getDayExtra(key, type) {
-    if (dayExtras[key] && type in dayExtras[key]) return dayExtras[key][type];
-    return !!(planMealTypes?.[type]); // default to global setting
-  }
-
-  function toggleDayExtra(key, type) {
-    setDayExtras((prev) => ({
-      ...prev,
-      [key]: { ...(prev[key] || {}), [type]: !getDayExtra(key, type) },
-    }));
-  }
-
   function setDayServings(key, val) {
     const n = Math.min(Math.max(parseInt(val) || 2, 1), 12);
     setServings((prev) => ({ ...prev, [key]: n }));
@@ -98,10 +84,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planM
         if (selected[key] && day.recipe) {
           const override = servings[key];
           const base = override ? { ...day.recipe, servings: override } : day.recipe;
-          const extras = activeExtras.length
-            ? activeExtras.reduce((acc, t) => { acc[t] = getDayExtra(key, t); return acc; }, {})
-            : undefined;
-          recipes.push({ ...base, _plannedDay: day.day, _plannedWeek: week.week, ...(extras ? { _mealExtras: extras } : {}) });
+          recipes.push({ ...base, _plannedDay: day.day, _plannedWeek: week.week });
         }
       });
     });
@@ -256,23 +239,15 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planM
                               Skip day
                             </button>
                           </div>
-                          {activeExtras.length > 0 && (
-                            <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-orange-50">
-                              <span className="text-xs text-orange-400 mr-0.5">Also plan:</span>
-                              {activeExtras.map((type) => {
-                                const on = getDayExtra(key, type);
-                                return (
-                                  <button
-                                    key={type}
-                                    onClick={() => toggleDayExtra(key, type)}
-                                    className={`text-xs px-2.5 py-1 rounded-full font-medium border transition ${on ? 'bg-orange-500 text-white border-orange-500' : 'border-orange-200 text-orange-400'}`}
-                                  >
-                                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
+                          <div className="pt-1 border-t border-orange-50">
+                            <input
+                              type="text"
+                              placeholder="Any notes for this day? (e.g. include lunch, skip breakfast, leftovers ok)"
+                              value={dayNotes[key] || ''}
+                              onChange={(e) => setDayNotes((p) => ({ ...p, [key]: e.target.value }))}
+                              className="w-full text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300"
+                            />
+                          </div>
                         </div>
                       )}
                     </div>

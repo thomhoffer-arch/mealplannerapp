@@ -15,7 +15,7 @@ const PRIORITY_LABELS = { 1: 'HIGH — include every week', 2: 'MEDIUM — inclu
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { weeks = 1, plan_meal_types = {} } = req.body || {};
+  const { weeks = 1, plan_extras_text = '', day_notes = {} } = req.body || {};
   const numWeeks = Math.min(Math.max(Number(weeks) || 1, 1), 2);
 
   const ctx = await getUserAndHousehold(req).catch(() => null);
@@ -61,7 +61,7 @@ module.exports = async function handler(req, res) {
   // Recently planned (last 3 weeks worth) for variety context
   const recentNames = (recentPlanData || []).map((i) => i.recipe_data?.name).filter(Boolean);
 
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_meal_types);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes);
 
   let rawText;
   try {
@@ -106,7 +106,7 @@ module.exports = async function handler(req, res) {
   res.json({ weeks: enrichedWeeks, notes: plan.notes || '' });
 };
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planMealTypes = {}) {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}) {
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -119,11 +119,10 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, pl
   const weeksText = numWeeks === 2 ? 'two separate weeks (week 1 and week 2)' : 'one week';
   const avoidList = recentNames.length ? recentNames.slice(0, 10).join(', ') : 'none';
 
-  const extrasSection = [
-    planMealTypes.breakfast ? 'BREAKFAST: Add one breakfast idea per day (simple, quick). Return as "breakfast" field on each day object.' : null,
-    planMealTypes.lunch ? 'LUNCH: Add one lunch idea Mon–Fri (packable or quick). Return as "lunch" field on each day object.' : null,
-    planMealTypes.baking ? 'WEEKEND BAKING: Suggest one bake for the weekend (Sat or Sun). Return as "weekend_bake" field on any one weekend day.' : null,
-  ].filter(Boolean).join('\n');
+  const dayNotesSection = Object.entries(dayNotes || {})
+    .filter(([, v]) => v && v.trim())
+    .map(([k, v]) => `  - ${k}: ${v}`)
+    .join('\n');
 
   const membersSection = (members || [])
     .map((m) => {
@@ -152,7 +151,8 @@ ${starredSection || 'None starred yet — suggest freely based on preferences.'}
 
 RECENTLY EATEN (avoid repeating for 2 weeks):
 ${avoidList}
-${extrasSection ? `\nEXTRAS REQUESTED:\n${extrasSection}` : ''}
+${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED:\n${planExtrasText}\nAdd the requested extras as additional fields on the relevant day objects (e.g. "breakfast", "lunch", "baking"). Keep extras distinct across the week — no repeated lunches or side dishes.` : ''}
+${dayNotesSection ? `\nPER-DAY NOTES (override defaults for specific days):\n${dayNotesSection}` : ''}
 STRICT RULES:
 1. Never plan the same main ingredient (e.g. pasta, chicken, salmon) two days in a row.
 2. Vary cuisine type every day (no Italian two consecutive days, etc.).
@@ -160,6 +160,7 @@ STRICT RULES:
 4. Prioritise starred HIGH recipes — they should appear in week 1 if possible.
 5. Respect dietary preferences strictly. If members conflict (one vegetarian, one meat-eater), pick recipes that split gracefully and put the adaptation in the overview.
 6. Every recipe must be a real, well-known dish you are confident about — not a vague or invented combination.
+7. Never repeat the same lunch or side dish across the week — keep all extras varied just like dinners.
 
 Return ONLY a JSON object, no markdown:
 {

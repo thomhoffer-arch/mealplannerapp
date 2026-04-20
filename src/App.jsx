@@ -472,7 +472,7 @@ export default function App() {
   const [showGrocerHandoff, setShowGrocerHandoff] = useState(false);
   const [showReminderBanner, setShowReminderBanner] = useState(false);
   const [preferences, setPreferences] = useState({});
-  const [planMealTypes, setPlanMealTypes] = useState({ lunch: false, breakfast: false, baking: false });
+  const [planExtrasText, setPlanExtrasText] = useState('');
   const [sideDishPanel, setSideDishPanel] = useState(null); // { key, mainRecipe, rid, input, loading, suggestions, error }
 
   // ── Search state
@@ -670,8 +670,7 @@ export default function App() {
     const { data } = await supabase
       .from("household_preferences").select("*").eq("household_id", household.id).maybeSingle();
     setPreferences(data || {});
-    const mt = data?.plan_meal_types || {};
-    setPlanMealTypes({ lunch: !!mt.lunch, breakfast: !!mt.breakfast, baking: !!mt.baking });
+    setPlanExtrasText(data?.plan_extras_text || '');
   }
 
   // ── Post-signup Puter connect prompt ──────────────────────────────────────
@@ -840,14 +839,15 @@ export default function App() {
     loadMealPlan();
   }
 
-  async function fetchSideSuggestions(dayKey, mainRecipe) {
+  async function fetchSideSuggestions(dayKey, mainRecipe, preference) {
     setSideDishPanel((p) => ({ ...p, loading: true, error: '', suggestions: [] }));
+    const pref = preference !== undefined ? preference : sideDishPanel?.input || '';
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/ai/suggest-side', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ recipe: { name: mainRecipe.name, cuisine_type: mainRecipe.cuisineType, ingredients: mainRecipe.ingredients }, preference: sideDishPanel?.input || '' }),
+        body: JSON.stringify({ recipe: { name: mainRecipe.name, cuisine_type: mainRecipe.cuisineType, ingredients: mainRecipe.ingredients }, preference: pref }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not get suggestions');
@@ -1185,7 +1185,7 @@ export default function App() {
       {showWeekSuggest && (
         <WeekSuggestModal
           household={household}
-          planMealTypes={planMealTypes}
+          planExtrasText={planExtrasText}
           onClose={() => setShowWeekSuggest(false)}
           onLoadPlan={async (recipes) => {
             for (const recipe of recipes) await toggleSelectedRecipe(recipe);
@@ -1201,38 +1201,20 @@ export default function App() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="font-semibold text-orange-900 text-sm">Side for {sideDishPanel.mainRecipe?.name}</p>
-                <p className="text-xs text-orange-400">What are you in the mood for?</p>
+                <p className="text-xs text-orange-400">Pick one or refine the suggestion</p>
               </div>
               <button onClick={() => setSideDishPanel(null)} className="text-orange-300 hover:text-orange-500 transition"><X size={16} /></button>
             </div>
-            <div className="flex gap-2 mb-3">
-              <input
-                type="text"
-                placeholder="e.g. something light, a salad, bread… (optional)"
-                value={sideDishPanel.input}
-                onChange={(e) => setSideDishPanel((p) => ({ ...p, input: e.target.value }))}
-                onKeyDown={(e) => e.key === 'Enter' && !sideDishPanel.loading && fetchSideSuggestions(sideDishPanel.key, sideDishPanel.mainRecipe)}
-                className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 placeholder-orange-300"
-                autoFocus
-              />
-              <button
-                onClick={() => fetchSideSuggestions(sideDishPanel.key, sideDishPanel.mainRecipe)}
-                disabled={sideDishPanel.loading}
-                className="px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5"
-              >
-                <Sparkles size={13} />
-                {sideDishPanel.loading ? '…' : 'Suggest'}
-              </button>
-            </div>
-            {sideDishPanel.error && <p className="text-xs text-red-500 mb-2">{sideDishPanel.error}</p>}
+
+            {/* Suggestions shown first */}
             {sideDishPanel.loading && (
-              <div className="flex items-center gap-2 py-2">
+              <div className="flex items-center gap-2 py-3 mb-2">
                 <div className="w-4 h-4 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
                 <p className="text-xs text-orange-400">Finding the perfect side…</p>
               </div>
             )}
-            {sideDishPanel.suggestions.length > 0 && (
-              <div className="space-y-2">
+            {!sideDishPanel.loading && sideDishPanel.suggestions.length > 0 && (
+              <div className="space-y-2 mb-3">
                 {sideDishPanel.suggestions.map((s) => (
                   <button
                     key={s.name}
@@ -1243,6 +1225,30 @@ export default function App() {
                     <p className="text-xs text-orange-500 mt-0.5">{s.description}</p>
                   </button>
                 ))}
+              </div>
+            )}
+
+            {sideDishPanel.error && <p className="text-xs text-red-500 mb-2">{sideDishPanel.error}</p>}
+
+            {/* Refine input — shown after initial load */}
+            {!sideDishPanel.loading && (
+              <div className="flex gap-2 border-t border-orange-50 pt-3">
+                <input
+                  type="text"
+                  placeholder="Something different? (e.g. a salad, bread, rice…)"
+                  value={sideDishPanel.input}
+                  onChange={(e) => setSideDishPanel((p) => ({ ...p, input: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && fetchSideSuggestions(sideDishPanel.key, sideDishPanel.mainRecipe)}
+                  className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 placeholder-orange-300"
+                  autoFocus={sideDishPanel.suggestions.length === 0}
+                />
+                <button
+                  onClick={() => fetchSideSuggestions(sideDishPanel.key, sideDishPanel.mainRecipe)}
+                  className="px-3 py-2 bg-orange-100 text-orange-600 rounded-full text-xs font-medium hover:bg-orange-200 transition flex items-center gap-1"
+                >
+                  <Sparkles size={12} />
+                  Re-suggest
+                </button>
               </div>
             )}
           </div>
@@ -1430,12 +1436,21 @@ export default function App() {
                           ) : (
                             <>
                               <p className="flex-1 text-sm text-orange-200 italic">Free evening</p>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setActiveTab("search"); }}
-                                className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition"
-                              >
-                                + Add
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
+                                  className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-300 rounded-full hover:border-orange-400 hover:text-orange-500 transition"
+                                  title="Mark as leftover day"
+                                >
+                                  ♻ Leftovers
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setActiveTab("search"); }}
+                                  className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition"
+                                >
+                                  + Add
+                                </button>
+                              </div>
                             </>
                           )}
                         </div>
@@ -1456,7 +1471,7 @@ export default function App() {
                               </div>
                             ) : (
                               <button
-                                onClick={(e) => { e.stopPropagation(); setSideDishPanel({ key: `${day}-side`, mainRecipe: recipe, rid, input: '', loading: false, suggestions: [], error: '' }); }}
+                                onClick={(e) => { e.stopPropagation(); const p = { key: `${day}-side`, mainRecipe: recipe, rid, input: '', loading: true, suggestions: [], error: '' }; setSideDishPanel(p); fetchSideSuggestions(p.key, recipe, ''); }}
                                 className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400"
                               >
                                 + Add a side
