@@ -97,6 +97,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             reason: updated.reason,
             leftover_for: updated.leftover_for,
             uses_pantry: updated.uses_pantry,
+            photo: updated.photo,
           } : d)),
         };
       }));
@@ -199,9 +200,31 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                   const isExpanded = expandedDay === key;
 
                   return (
-                    <div key={day.day} className={`rounded-2xl border-2 transition-all ${
+                    <div key={day.day} className={`rounded-2xl border-2 transition-all overflow-hidden ${
                       isSelected ? 'border-orange-400 bg-orange-50' : 'border-orange-100 bg-white opacity-60'
                     }`}>
+                      {/* Hero photo (Pexels) */}
+                      {day.photo?.url && (
+                        <div className="relative h-28 w-full bg-orange-100">
+                          <img
+                            src={day.photo.url}
+                            alt={day.photo.alt || recipe?.name || day.name}
+                            loading="lazy"
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                          {day.photo.photographer && (
+                            <a
+                              href={day.photo.photographer_url || 'https://www.pexels.com'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="absolute bottom-1 right-1 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              📷 {day.photo.photographer}
+                            </a>
+                          )}
+                        </div>
+                      )}
                       {/* Main row */}
                       <div className="flex items-start gap-2 px-3 py-3">
                         <button

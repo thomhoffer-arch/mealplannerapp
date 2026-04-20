@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '../auth.js';
 import { VOICE_GUIDE } from '../voice.js';
 import { resolveAiProvider, callAi } from '../ai-call.js';
+import { searchPhoto } from '../pexels.js';
 
 // Regenerate a single day of a week plan based on user feedback.
 // Takes the current day's recipe + the user's change request ("swap for
@@ -153,11 +154,14 @@ Return ONLY JSON, no markdown:
     };
   }
 
+  const photo = recipe?.name ? await searchPhoto(recipe.name) : null;
+
   return res.json({
     day: parsed.day || day_name,
     recipe,
     reason: parsed.reason || '',
     leftover_for: parsed.leftover_for || null,
     uses_pantry: Array.isArray(parsed.uses_pantry) ? parsed.uses_pantry : [],
+    photo,
   });
 }
