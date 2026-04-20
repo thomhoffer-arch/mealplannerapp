@@ -1049,52 +1049,15 @@ export default function App() {
     <div className="min-h-screen bg-white font-outfit">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-3.5">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-xl font-semibold text-orange-900 leading-none tracking-tight">
-              {memberProfile?.display_name ? `${memberProfile.display_name}'s kitchen` : 'Meal Planner'}
-            </h1>
-            <p className="text-xs text-orange-600 mt-0.5">{household.name}</p>
-          </div>
+        <div className="max-w-2xl mx-auto flex items-center justify-end">
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
               <span className="bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                 {selectedIds.size} meals
               </span>
             )}
-            {/* Invite button */}
-            <div className="relative">
-              <button
-                onClick={() => setShowInvite((v) => !v)}
-                className="w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
-                title="Invite partner"
-              >
-                <Users size={18} />
-              </button>
-              {showInvite && (
-                <div className="absolute right-0 top-11 bg-white rounded-2xl shadow-lg border border-orange-100 p-4 w-72 z-40">
-                  <p className="text-sm font-semibold text-orange-900 mb-1">Invite your partner</p>
-                  <p className="text-xs text-orange-600 mb-3">Share this link — they'll join your kitchen automatically.</p>
-                  <div className="flex gap-2">
-                    <input
-                      readOnly
-                      value={inviteUrl}
-                      className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-900 truncate"
-                    />
-                    <button
-                      onClick={copyInviteLink}
-                      className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center gap-1"
-                    >
-                      {inviteCopied ? <Check size={12} /> : <Link2 size={12} />}
-                      {inviteCopied ? "Copied" : "Copy"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
             {/* Notifications */}
             <NotificationBell household={household} />
-            <ThemeToggle />
 
             {/* Starred recipes panel */}
             <button
@@ -1108,14 +1071,6 @@ export default function App() {
                   {starredItems.length}
                 </span>
               )}
-            </button>
-            {/* Sign out */}
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
-              title="Sign out"
-            >
-              <LogOut size={18} />
             </button>
           </div>
         </div>
@@ -1932,6 +1887,7 @@ export default function App() {
                   <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
                   <p className="text-xs text-orange-400 truncate">{user?.email}</p>
                 </div>
+                <ThemeToggle />
                 <button onClick={() => supabase.auth.signOut()}
                   className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 hover:text-orange-600 transition"
                   title="Sign out">
@@ -2002,9 +1958,6 @@ export default function App() {
             </button>
           ))}
         </div>
-        <p className="text-[10px] text-orange-400/70 text-center pb-0.5 select-none">
-          v{import.meta.env.VITE_APP_VERSION || "dev"}
-        </p>
       </nav>
     </div>
   );
