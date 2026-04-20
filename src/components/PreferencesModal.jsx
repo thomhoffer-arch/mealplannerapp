@@ -17,6 +17,7 @@ export default function PreferencesModal({ household, onClose }) {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderDay, setReminderDay] = useState('sunday');
   const [savingReminder, setSavingReminder] = useState(false);
+  const [planMealTypes, setPlanMealTypes] = useState({ lunch: false, breakfast: false, baking: false });
   const [showKey, setShowKey] = useState(false);
   const [keyError, setKeyError] = useState('');
   const [savingPrefs, setSavingPrefs] = useState(false);
@@ -27,7 +28,7 @@ export default function PreferencesModal({ household, onClose }) {
   useEffect(() => {
     supabase
       .from('household_preferences')
-      .select('preferences_text, gemini_api_key_hint, puter_token_hint, reminder_enabled, reminder_day')
+      .select('preferences_text, gemini_api_key_hint, puter_token_hint, reminder_enabled, reminder_day, plan_meal_types')
       .eq('household_id', household.id)
       .single()
       .then(({ data }) => {
@@ -37,6 +38,8 @@ export default function PreferencesModal({ household, onClose }) {
           setPuterHint(data.puter_token_hint || null);
           setReminderEnabled(data.reminder_enabled || false);
           setReminderDay(data.reminder_day || 'sunday');
+          const mt = data.plan_meal_types || {};
+          setPlanMealTypes({ lunch: !!mt.lunch, breakfast: !!mt.breakfast, baking: !!mt.baking });
         }
       });
   }, [household.id]);
@@ -50,6 +53,15 @@ export default function PreferencesModal({ household, onClose }) {
     setSavingPrefs(false);
     setSavedPrefs(true);
     setTimeout(() => setSavedPrefs(false), 2000);
+  }
+
+  async function handleToggleMealType(key) {
+    const updated = { ...planMealTypes, [key]: !planMealTypes[key] };
+    setPlanMealTypes(updated);
+    await supabase.from('household_preferences').upsert(
+      { household_id: household.id, plan_meal_types: updated },
+      { onConflict: 'household_id' }
+    );
   }
 
   async function handleSaveKey() {
@@ -172,6 +184,30 @@ export default function PreferencesModal({ household, onClose }) {
               className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
               {savedPrefs ? <><Check size={14} /> Saved</> : savingPrefs ? 'Saving…' : 'Save preferences'}
             </button>
+          </div>
+
+          {/* ── What to plan ── */}
+          <div className="space-y-2 border-t border-orange-100 pt-4">
+            <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Also plan</p>
+            <p className="text-xs text-orange-400">Dinner is always included. Enable extras for your household.</p>
+            {[
+              { key: 'breakfast', label: 'Breakfast ideas', desc: 'Morning suggestions for the week' },
+              { key: 'lunch',     label: 'Lunch ideas',     desc: 'Midday meals Mon–Fri' },
+              { key: 'baking',    label: 'Weekend baking',  desc: 'One bake for the weekend' },
+            ].map(({ key, label, desc }) => (
+              <div key={key} className="flex items-center justify-between py-1">
+                <div>
+                  <p className="text-sm text-orange-800 font-medium">{label}</p>
+                  <p className="text-xs text-orange-400">{desc}</p>
+                </div>
+                <button
+                  onClick={() => handleToggleMealType(key)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${planMealTypes[key] ? 'bg-orange-500' : 'bg-orange-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${planMealTypes[key] ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            ))}
           </div>
 
           {/* ── Planning reminder ── */}

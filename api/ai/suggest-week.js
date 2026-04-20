@@ -15,7 +15,7 @@ const PRIORITY_LABELS = { 1: 'HIGH — include every week', 2: 'MEDIUM — inclu
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { weeks = 1 } = req.body || {};
+  const { weeks = 1, plan_meal_types = {} } = req.body || {};
   const numWeeks = Math.min(Math.max(Number(weeks) || 1, 1), 2);
 
   const ctx = await getUserAndHousehold(req).catch(() => null);
@@ -61,7 +61,7 @@ module.exports = async function handler(req, res) {
   // Recently planned (last 3 weeks worth) for variety context
   const recentNames = (recentPlanData || []).map((i) => i.recipe_data?.name).filter(Boolean);
 
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_meal_types);
 
   let rawText;
   try {
@@ -106,7 +106,7 @@ module.exports = async function handler(req, res) {
   res.json({ weeks: enrichedWeeks, notes: plan.notes || '' });
 };
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks) {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planMealTypes = {}) {
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -118,6 +118,12 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks) {
 
   const weeksText = numWeeks === 2 ? 'two separate weeks (week 1 and week 2)' : 'one week';
   const avoidList = recentNames.length ? recentNames.slice(0, 10).join(', ') : 'none';
+
+  const extrasSection = [
+    planMealTypes.breakfast ? 'BREAKFAST: Add one breakfast idea per day (simple, quick). Return as "breakfast" field on each day object.' : null,
+    planMealTypes.lunch ? 'LUNCH: Add one lunch idea Mon–Fri (packable or quick). Return as "lunch" field on each day object.' : null,
+    planMealTypes.baking ? 'WEEKEND BAKING: Suggest one bake for the weekend (Sat or Sun). Return as "weekend_bake" field on any one weekend day.' : null,
+  ].filter(Boolean).join('\n');
 
   const membersSection = (members || [])
     .map((m) => {
@@ -146,7 +152,7 @@ ${starredSection || 'None starred yet — suggest freely based on preferences.'}
 
 RECENTLY EATEN (avoid repeating for 2 weeks):
 ${avoidList}
-
+${extrasSection ? `\nEXTRAS REQUESTED:\n${extrasSection}` : ''}
 STRICT RULES:
 1. Never plan the same main ingredient (e.g. pasta, chicken, salmon) two days in a row.
 2. Vary cuisine type every day (no Italian two consecutive days, etc.).

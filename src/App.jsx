@@ -472,6 +472,8 @@ export default function App() {
   const [showGrocerHandoff, setShowGrocerHandoff] = useState(false);
   const [showReminderBanner, setShowReminderBanner] = useState(false);
   const [preferences, setPreferences] = useState({});
+  const [planMealTypes, setPlanMealTypes] = useState({ lunch: false, breakfast: false, baking: false });
+  const [sideDishPanel, setSideDishPanel] = useState(null); // { key, mainRecipe, rid, input, loading, suggestions, error }
 
   // ── Search state
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -668,6 +670,8 @@ export default function App() {
     const { data } = await supabase
       .from("household_preferences").select("*").eq("household_id", household.id).maybeSingle();
     setPreferences(data || {});
+    const mt = data?.plan_meal_types || {};
+    setPlanMealTypes({ lunch: !!mt.lunch, breakfast: !!mt.breakfast, baking: !!mt.baking });
   }
 
   // ── Post-signup Puter connect prompt ──────────────────────────────────────
@@ -820,6 +824,37 @@ export default function App() {
     await supabase.from("meal_plan_items")
       .update({ recipe_data: updatedRecipe })
       .eq("id", item.id);
+  }
+
+  // ── Side dish helpers ─────────────────────────────────────────────────────
+  async function saveSideDish(itemId, sideDish) {
+    const item = mealPlanItems.find((i) => String(i.recipe_data?.id) === String(itemId));
+    if (!item) return;
+    const updated = { ...item.recipe_data };
+    if (sideDish) {
+      updated._sideDish = sideDish;
+    } else {
+      delete updated._sideDish;
+    }
+    await supabase.from('meal_plan_items').update({ recipe_data: updated }).eq('id', item.id);
+    loadMealPlan();
+  }
+
+  async function fetchSideSuggestions(dayKey, mainRecipe) {
+    setSideDishPanel((p) => ({ ...p, loading: true, error: '', suggestions: [] }));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/ai/suggest-side', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ recipe: { name: mainRecipe.name, cuisine_type: mainRecipe.cuisineType, ingredients: mainRecipe.ingredients }, preference: sideDishPanel?.input || '' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not get suggestions');
+      setSideDishPanel((p) => ({ ...p, loading: false, suggestions: data.suggestions || [] }));
+    } catch (err) {
+      setSideDishPanel((p) => ({ ...p, loading: false, error: err.message }));
+    }
   }
 
   // ── Recipe search ─────────────────────────────────────────────────────────
@@ -1150,12 +1185,68 @@ export default function App() {
       {showWeekSuggest && (
         <WeekSuggestModal
           household={household}
+          planMealTypes={planMealTypes}
           onClose={() => setShowWeekSuggest(false)}
           onLoadPlan={async (recipes) => {
             for (const recipe of recipes) await toggleSelectedRecipe(recipe);
             setActiveTab("week");
           }}
         />
+      )}
+
+      {/* Side dish panel */}
+      {sideDishPanel && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/20" onClick={() => setSideDishPanel(null)}>
+          <div className="bg-white rounded-t-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="font-semibold text-orange-900 text-sm">Side for {sideDishPanel.mainRecipe?.name}</p>
+                <p className="text-xs text-orange-400">What are you in the mood for?</p>
+              </div>
+              <button onClick={() => setSideDishPanel(null)} className="text-orange-300 hover:text-orange-500 transition"><X size={16} /></button>
+            </div>
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                placeholder="e.g. something light, a salad, bread… (optional)"
+                value={sideDishPanel.input}
+                onChange={(e) => setSideDishPanel((p) => ({ ...p, input: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && !sideDishPanel.loading && fetchSideSuggestions(sideDishPanel.key, sideDishPanel.mainRecipe)}
+                className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 placeholder-orange-300"
+                autoFocus
+              />
+              <button
+                onClick={() => fetchSideSuggestions(sideDishPanel.key, sideDishPanel.mainRecipe)}
+                disabled={sideDishPanel.loading}
+                className="px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Sparkles size={13} />
+                {sideDishPanel.loading ? '…' : 'Suggest'}
+              </button>
+            </div>
+            {sideDishPanel.error && <p className="text-xs text-red-500 mb-2">{sideDishPanel.error}</p>}
+            {sideDishPanel.loading && (
+              <div className="flex items-center gap-2 py-2">
+                <div className="w-4 h-4 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
+                <p className="text-xs text-orange-400">Finding the perfect side…</p>
+              </div>
+            )}
+            {sideDishPanel.suggestions.length > 0 && (
+              <div className="space-y-2">
+                {sideDishPanel.suggestions.map((s) => (
+                  <button
+                    key={s.name}
+                    onClick={() => { saveSideDish(sideDishPanel.rid, s); setSideDishPanel(null); }}
+                    className="w-full text-left bg-orange-50 hover:bg-orange-100 rounded-xl px-3 py-2.5 transition border border-orange-100"
+                  >
+                    <p className="text-sm font-semibold text-orange-900">{s.name}</p>
+                    <p className="text-xs text-orange-500 mt-0.5">{s.description}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Post-cook rating prompt */}
@@ -1348,6 +1439,31 @@ export default function App() {
                             </>
                           )}
                         </div>
+
+                        {/* Side dish row */}
+                        {recipe && (
+                          <div className="px-4 pb-3 -mt-1">
+                            {recipe._sideDish ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2.5 py-1 font-medium">
+                                  + {recipe._sideDish.name}
+                                </span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); saveSideDish(rid, null); }}
+                                  className="text-orange-300 hover:text-orange-500 transition text-xs"
+                                  title="Remove side dish"
+                                >×</button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setSideDishPanel({ key: `${day}-side`, mainRecipe: recipe, rid, input: '', loading: false, suggestions: [], error: '' }); }}
+                                className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400"
+                              >
+                                + Add a side
+                              </button>
+                            )}
+                          </div>
+                        )}
 
                         {/* Expanded full recipe view */}
                         {recipe && expandedRecipes[rid] && (
