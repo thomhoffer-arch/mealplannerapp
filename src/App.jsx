@@ -535,6 +535,20 @@ export default function App() {
     loadHousehold();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Keep the membership list fresh across devices — when a new row appears
+  // (invite accepted elsewhere) or disappears (kicked / left), re-run
+  // loadHousehold so the switcher and active household reflect reality.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`user-memberships-${user.id}`)
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'household_members', filter: `user_id=eq.${user.id}` },
+          () => loadHousehold())
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function loadHousehold() {
     setAuthLoading(true);
     const RLS_HINT =
@@ -600,6 +614,38 @@ export default function App() {
     setAuthLoading(false);
   }
 
+  async function leaveHousehold() {
+    if (!household) return;
+    const ok = window.confirm(`Leave "${household.name}"? You'll lose access to its meal plan, starred recipes and preferences. If you're the only member left, the household will be deleted.`);
+    if (!ok) return;
+    try {
+      await apiFetch('/api/household/save-key', { method: 'DELETE' });
+      // Realtime subscription will fire loadHousehold, but kick it off
+      // immediately so the UI updates without waiting for the round-trip.
+      setActiveHouseholdId(null);
+      loadHousehold();
+    } catch (err) {
+      window.alert(err.message || 'Could not leave household');
+    }
+  }
+
+  async function removeMember(memberUserId, memberName) {
+    const ok = window.confirm(`Remove ${memberName || 'this member'} from "${household.name}"?`);
+    if (!ok) return;
+    try {
+      await apiFetch('/api/household/save-key', {
+        method: 'DELETE',
+        body: { member_user_id: memberUserId },
+      });
+      // Refresh the member list; realtime only watches the current user.
+      const { data } = await supabase.from('household_members')
+        .select('display_name, user_id, personal_prefs').eq('household_id', household.id);
+      setHouseholdMembers(data || []);
+    } catch (err) {
+      window.alert(err.message || 'Could not remove member');
+    }
+  }
+
   // Switch the active household without a full reload. The useEffect on
   // [household] picks up the change and re-fetches all household-scoped data.
   function switchHousehold(id) {
@@ -633,7 +679,7 @@ export default function App() {
     loadPantry();
     loadTemplates();
     loadUserRecipes();
-    supabase.from('household_members').select('display_name, user_id').eq('household_id', household.id)
+    supabase.from('household_members').select('display_name, user_id, personal_prefs').eq('household_id', household.id)
       .then(({ data }) => setHouseholdMembers(data || []));
 
     const channel = supabase
@@ -2032,14 +2078,34 @@ export default function App() {
               )}
               {householdMembers.length > 0 && (
                 <div className="space-y-2 mb-4">
-                  {householdMembers.map((m, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-bold text-orange-600">{(m.display_name || '?')[0].toUpperCase()}</span>
+                  {householdMembers.map((m, i) => {
+                    const isSelf = m.user_id === user?.id;
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-bold text-orange-600">{(m.display_name || '?')[0].toUpperCase()}</span>
+                        </div>
+                        <span className="text-sm text-orange-900 flex-1">{m.display_name || 'Member'}{isSelf && ' (you)'}</span>
+                        {!isSelf && householdMembers.length > 1 && (
+                          <button
+                            onClick={() => removeMember(m.user_id, m.display_name)}
+                            className="text-xs text-orange-400 hover:text-red-500 transition"
+                            title="Remove from household"
+                          >
+                            Remove
+                          </button>
+                        )}
                       </div>
-                      <span className="text-sm text-orange-900">{m.display_name || 'Member'}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
+                  {householdMembers.length > 1 && (
+                    <button
+                      onClick={leaveHousehold}
+                      className="w-full mt-2 text-xs text-orange-400 hover:text-red-500 transition flex items-center justify-center gap-1 py-1.5"
+                    >
+                      Leave this household
+                    </button>
+                  )}
                 </div>
               )}
               <div className="flex gap-2 border-t border-orange-50 pt-3">

@@ -2,13 +2,17 @@ import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '../_lib/auth.js';
 import { encrypt } from '../_lib/crypto.js';
 
-// Household actions endpoint. Despite the legacy filename, it now serves
-// both reads and writes:
-//   GET  → list the caller's households (uses allowAmbiguous so users with
-//          multiple memberships can call it without selecting one first).
-//   POST → save/remove the household's Gemini key or Puter token.
+// Household actions endpoint. Legacy filename — it now serves all
+// household-scoped actions (folded to stay under the 12-fn Vercel cap):
 //
-// Folded together to stay under the Vercel Hobby 12-function cap.
+//   GET                           → list the caller's households
+//   POST  { key | token }         → save/remove Gemini key or Puter token
+//   DELETE                        → leave the active household
+//   DELETE { member_user_id }     → remove a member (any member can kick
+//                                    another — symmetrical, trust-based;
+//                                    tighten later if you need ownership).
+//                                    If the last member leaves, the
+//                                    household is deleted via cascade.
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     const ctx = await requireAuth(req, res, { allowAmbiguous: true });
@@ -25,6 +29,44 @@ export default async function handler(req, res) {
 
     if (error) return res.status(500).json({ error: error.message });
     return res.json({ households: data || [], active_id: ctx.householdId });
+  }
+
+  if (req.method === 'DELETE') {
+    const ctx = await requireAuth(req, res);
+    if (!ctx) return;
+
+    const targetUserId = (req.body?.member_user_id || ctx.user.id);
+
+    // Verify the target is actually in this household.
+    const { data: target } = await ctx.supabase
+      .from('household_members')
+      .select('user_id')
+      .eq('household_id', ctx.householdId)
+      .eq('user_id', targetUserId)
+      .maybeSingle();
+
+    if (!target) return res.status(404).json({ error: 'Not a member of this household' });
+
+    const { error: delErr } = await ctx.supabase
+      .from('household_members')
+      .delete()
+      .eq('household_id', ctx.householdId)
+      .eq('user_id', targetUserId);
+
+    if (delErr) return res.status(500).json({ error: delErr.message });
+
+    // If that was the last member, drop the household so data doesn't orphan.
+    // Everything referencing household_id cascades via the FK definitions.
+    const { count } = await ctx.supabase
+      .from('household_members')
+      .select('*', { count: 'exact', head: true })
+      .eq('household_id', ctx.householdId);
+
+    if (count === 0) {
+      await ctx.supabase.from('households').delete().eq('id', ctx.householdId);
+    }
+
+    return res.json({ removed: true, household_deleted: count === 0 });
   }
 
   if (req.method !== 'POST') return res.status(405).end();
