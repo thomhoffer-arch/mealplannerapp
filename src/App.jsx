@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, Settings,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
@@ -1930,6 +1930,11 @@ export default function App() {
                   <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
                   <p className="text-xs text-orange-400 truncate">{user?.email}</p>
                 </div>
+                <button onClick={() => setShowSettings((v) => !v)}
+                  className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition ${showSettings ? 'bg-orange-100 text-orange-600' : 'text-orange-400 hover:bg-orange-50 hover:text-orange-600'}`}
+                  title="Settings">
+                  <Settings size={15} />
+                </button>
                 <ThemeToggle />
                 <button onClick={() => supabase.auth.signOut()}
                   className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 hover:text-orange-600 transition"
@@ -1938,6 +1943,13 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {/* Settings panel — expands below user card */}
+            {showSettings && (
+              <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                <PreferencesModal household={household} section="settings" inline={true} onClose={loadPreferences} />
+              </div>
+            )}
 
             {/* Notifications */}
             <div className="bg-white rounded-2xl border border-orange-100 overflow-hidden">
@@ -2024,18 +2036,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* Settings — collapsible */}
-            <div className="bg-white rounded-2xl border border-orange-100 overflow-hidden">
-              <button onClick={() => setShowSettings((v) => !v)}
-                className="w-full flex items-center justify-between px-4 py-3">
-                <span className="text-sm font-semibold text-orange-900">Settings</span>
-                <ChevronDown size={16} className={`text-orange-400 transition-transform ${showSettings ? 'rotate-180' : ''}`} />
-              </button>
-              {showSettings && (
-                <div className="border-t border-orange-100">
-                  <PreferencesModal household={household} inline={true} onClose={loadPreferences} />
-                </div>
-              )}
+            {/* Dietary wishes — always visible */}
+            <div className="bg-white rounded-2xl border border-orange-100 p-4">
+              <PreferencesModal household={household} section="dietary" inline={true} onClose={loadPreferences} />
             </div>
           </div>
         )}
