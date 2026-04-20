@@ -14,6 +14,7 @@ import CreateRecipeModal from "./components/CreateRecipeModal";
 import StarredPanel from "./components/StarredPanel";
 import HouseholdSwitcher from "./components/HouseholdSwitcher";
 import SharedRecipeView from "./components/SharedRecipeView";
+import AccountActions from "./components/AccountActions";
 import WeekSuggestModal from "./components/WeekSuggestModal";
 import SurpriseBagModal from "./components/SurpriseBagModal";
 import PuterWelcomeModal from "./components/PuterWelcomeModal";
@@ -2171,6 +2172,9 @@ export default function App() {
             <div className="bg-white rounded-2xl border border-orange-100 p-4">
               <PreferencesModal household={household} section="dietary" inline={true} onClose={loadPreferences} />
             </div>
+
+            {/* Data export + account deletion */}
+            <AccountActions />
           </div>
         )}
       </main>
