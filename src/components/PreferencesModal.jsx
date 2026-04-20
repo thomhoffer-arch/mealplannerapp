@@ -194,7 +194,7 @@ export default function PreferencesModal({ household, onClose, inline = false, s
           </>)}
 
           {/* ── Planning reminder ── */}
-          {showSettings && (
+          {showSettings && (<>
           <div className="space-y-2 border-t border-orange-100 pt-4">
             <div className="flex items-center gap-2">
               <Bell size={14} className="text-orange-600" />
@@ -328,7 +328,7 @@ export default function PreferencesModal({ household, onClose, inline = false, s
               </div>
             )}
           </div>
-          )}
+          </>)}
         </div>
   );
 
