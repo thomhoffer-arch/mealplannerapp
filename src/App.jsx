@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
@@ -15,7 +15,6 @@ import WeekSuggestModal from "./components/WeekSuggestModal";
 import SurpriseBagModal from "./components/SurpriseBagModal";
 import PuterWelcomeModal from "./components/PuterWelcomeModal";
 import GrocerHandoffModal from "./components/GrocerHandoffModal";
-import NotificationBell from "./components/NotificationBell";
 import UpdateToast from "./components/UpdateToast";
 import ThemeToggle from "./components/ThemeToggle";
 import { applyTheme } from "./lib/theme";
@@ -468,6 +467,8 @@ export default function App() {
   const [showPuterWelcome, setShowPuterWelcome] = useState(false);
   const [showGrocerHandoff, setShowGrocerHandoff] = useState(false);
   const [showReminderBanner, setShowReminderBanner] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showSettings, setShowSettings] = useState(false);
   const [preferences, setPreferences] = useState({});
   const [planExtrasText, setPlanExtrasText] = useState('');
   const [sideDishPanel, setSideDishPanel] = useState(null);
@@ -723,6 +724,44 @@ export default function App() {
       setShowReminderBanner(true);
     }
   }, [preferences.reminder_enabled, preferences.reminder_day, mealPlanItems]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Activity notifications ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!household) return;
+    function addNotification(message) {
+      setNotifications((prev) => [
+        { id: Date.now(), message, timestamp: new Date(), read: false },
+        ...prev,
+      ].slice(0, 20));
+    }
+    const channel = supabase
+      .channel(`notif-${household.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'meal_plan_items', filter: `household_id=eq.${household.id}` },
+        (p) => addNotification(`${p.new?.recipe_data?.name || 'A recipe'} was added to the meal plan`))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'meal_plan_items', filter: `household_id=eq.${household.id}` },
+        (p) => addNotification(`${p.old?.recipe_data?.name || 'A recipe'} was removed from the meal plan`))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'starred_recipes', filter: `household_id=eq.${household.id}` },
+        (p) => addNotification(`${p.new?.recipe_data?.name || 'A recipe'} was starred`))
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [household?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const notifUnread = notifications.filter((n) => !n.read).length;
+
+  function markAllNotifsRead() {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  }
+  function dismissNotif(id) {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }
+  function formatNotifTime(date) {
+    const mins = Math.round((Date.now() - date) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.round(hrs / 24)}d ago`;
+  }
 
   async function loadStarred() {
     const { data } = await supabase
@@ -1059,34 +1098,14 @@ export default function App() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-white font-outfit">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-orange-100 px-4 py-3.5">
-        <div className="max-w-2xl mx-auto flex items-center justify-end">
-          <div className="flex items-center gap-2">
-            {selectedIds.size > 0 && (
-              <span className="bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                {selectedIds.size} meals
-              </span>
-            )}
-            {/* Notifications */}
-            <NotificationBell household={household} />
-
-            {/* Starred recipes panel */}
-            <button
-              onClick={() => setShowStarred(true)}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition relative"
-              title="Starred recipes"
-            >
-              <Star size={18} />
-              {starredItems.length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-amber-400 rounded-full text-white text-[9px] font-bold flex items-center justify-center">
-                  {starredItems.length}
-                </span>
-              )}
-            </button>
-          </div>
+      {/* Selection indicator — only visible when meals are selected */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-2 flex justify-end max-w-2xl mx-auto">
+          <span className="bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+            {selectedIds.size} meals selected
+          </span>
         </div>
-      </header>
+      )}
 
       {/* Reminder banner */}
       {showReminderBanner && (
@@ -1279,22 +1298,34 @@ export default function App() {
         {/* ── WEEK TAB ── */}
         {activeTab === "week" && (
           <div>
-            {/* Search bar — always visible at top of week tab */}
-            <div className="relative mb-4">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400" size={18} />
-              <input
-                ref={searchInputRef}
-                type="search"
-                placeholder="Search recipes…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-10 py-3 rounded-2xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 text-sm"
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 hover:text-orange-600 transition">
-                  <X size={16} />
-                </button>
-              )}
+            {/* Search bar + starred button */}
+            <div className="flex gap-2 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400" size={18} />
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  placeholder="Search recipes…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-11 pr-10 py-3 rounded-2xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 text-sm"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 hover:text-orange-600 transition">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+              <button onClick={() => setShowStarred(true)}
+                className="relative flex-shrink-0 w-12 rounded-2xl border border-orange-200 bg-white flex items-center justify-center text-orange-400 hover:text-orange-600 hover:border-orange-300 transition"
+                title="Saved recipes">
+                <Star size={18} />
+                {starredItems.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-400 rounded-full text-white text-[9px] font-bold flex items-center justify-center">
+                    {starredItems.length}
+                  </span>
+                )}
+              </button>
             </div>
 
             {searchQuery ? (
@@ -1908,6 +1939,44 @@ export default function App() {
               </div>
             </div>
 
+            {/* Notifications */}
+            <div className="bg-white rounded-2xl border border-orange-100 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-orange-50">
+                <span className="text-sm font-semibold text-orange-900">Notifications</span>
+                {notifUnread > 0 && (
+                  <button onClick={markAllNotifsRead}
+                    className="text-xs text-orange-600 hover:text-orange-900 font-medium flex items-center gap-1 transition">
+                    <Check size={11} /> Mark all read
+                  </button>
+                )}
+              </div>
+              {notifications.length === 0 ? (
+                <div className="text-center py-6 text-orange-400">
+                  <Bell size={24} className="mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No activity yet</p>
+                  <p className="text-xs mt-0.5 text-orange-400/70">Changes your partner makes will appear here</p>
+                </div>
+              ) : (
+                <div className="max-h-64 overflow-y-auto">
+                  {notifications.map((n) => (
+                    <div key={n.id}
+                      className={`flex items-start gap-2 px-4 py-3 border-b border-orange-50 last:border-0 ${n.read ? '' : 'bg-orange-50/60'}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-orange-900 leading-snug">{n.message}</p>
+                        <p className="text-xs text-orange-400 mt-0.5">{formatNotifTime(n.timestamp)}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
+                        {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
+                        <button onClick={() => dismissNotif(n.id)} className="text-orange-400 hover:text-orange-600 transition">
+                          <X size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Household card */}
             <div className="bg-white rounded-2xl border border-orange-100 p-4">
               <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Household</p>
@@ -1955,8 +2024,19 @@ export default function App() {
               </div>
             </div>
 
-            {/* Preferences — inline */}
-            <PreferencesModal household={household} inline={true} onClose={loadPreferences} />
+            {/* Settings — collapsible */}
+            <div className="bg-white rounded-2xl border border-orange-100 overflow-hidden">
+              <button onClick={() => setShowSettings((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3">
+                <span className="text-sm font-semibold text-orange-900">Settings</span>
+                <ChevronDown size={16} className={`text-orange-400 transition-transform ${showSettings ? 'rotate-180' : ''}`} />
+              </button>
+              {showSettings && (
+                <div className="border-t border-orange-100">
+                  <PreferencesModal household={household} inline={true} onClose={loadPreferences} />
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
@@ -1970,7 +2050,7 @@ export default function App() {
           {[
             { id: "week",    icon: Calendar,     label: "Week" },
             { id: "basket",  icon: ShoppingCart, label: "Basket",  badge: (() => { const u = shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length; return u > 0 ? u : null; })() },
-            { id: "profile", icon: User,         label: "Profile" },
+            { id: "profile", icon: User,         label: "Profile", badge: notifUnread > 0 ? notifUnread : null },
           ].map(({ id, icon: Icon, label, badge }) => (
             <button key={id} onClick={() => setActiveTab(id)}
               className={`flex-1 flex flex-col items-center justify-center py-3 gap-0.5 transition-all relative ${
