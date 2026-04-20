@@ -1,6 +1,8 @@
 import { normalizeSpoonacular } from '../_lib/normalize.js';
+import { applyCors } from '../_lib/cors.js';
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
   if (req.method !== 'GET') return res.status(405).end();
 
   const { id } = req.query;

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '../_lib/auth.js';
 import { encrypt } from '../_lib/crypto.js';
+import { applyCors } from '../_lib/cors.js';
 
 // Household actions endpoint. Legacy filename — it now serves all
 // household-scoped actions (folded to stay under the 12-fn Vercel cap):
@@ -14,6 +15,7 @@ import { encrypt } from '../_lib/crypto.js';
 //                                    If the last member leaves, the
 //                                    household is deleted via cascade.
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
   if (req.method === 'GET') {
     const ctx = await requireAuth(req, res, { allowAmbiguous: true });
     if (!ctx) return;
