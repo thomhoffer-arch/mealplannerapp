@@ -1049,13 +1049,7 @@ export default function App() {
     <div className="min-h-screen bg-white font-outfit">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-3.5">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-xl font-semibold text-orange-900 leading-none tracking-tight">
-              {memberProfile?.display_name ? `${memberProfile.display_name}'s kitchen` : 'Meal Planner'}
-            </h1>
-            <p className="text-xs text-orange-600 mt-0.5">{household.name}</p>
-          </div>
+        <div className="max-w-2xl mx-auto flex items-center justify-end">
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
               <span className="bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
@@ -2002,9 +1996,6 @@ export default function App() {
             </button>
           ))}
         </div>
-        <p className="text-[10px] text-orange-400/70 text-center pb-0.5 select-none">
-          v{import.meta.env.VITE_APP_VERSION || "dev"}
-        </p>
       </nav>
     </div>
   );
