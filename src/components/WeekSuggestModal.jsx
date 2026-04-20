@@ -182,6 +182,21 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           {(recipe?.overview || day.overview) && (
                             <p className="text-xs text-orange-600 mt-0.5 line-clamp-1">{recipe?.overview || day.overview}</p>
                           )}
+                          {day.reason && (
+                            <p className="text-[11px] text-orange-400 mt-1 italic leading-snug">✨ {day.reason}</p>
+                          )}
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {day.leftover_for && (
+                              <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">
+                                → {day.leftover_for}
+                              </span>
+                            )}
+                            {(day.uses_pantry || []).slice(0, 3).map((item) => (
+                              <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full">
+                                🥫 {item}
+                              </span>
+                            ))}
+                          </div>
                         </div>
 
                         {/* Per-day options toggle — only when selected */}

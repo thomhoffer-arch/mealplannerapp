@@ -13,6 +13,9 @@ import InstallBanner from "./components/InstallBanner";
 import CreateRecipeModal from "./components/CreateRecipeModal";
 import StarredPanel from "./components/StarredPanel";
 import HouseholdSwitcher from "./components/HouseholdSwitcher";
+import SharedRecipeView from "./components/SharedRecipeView";
+import AccountActions from "./components/AccountActions";
+import { extractAvoids, checkRecipe, summarizeConflicts } from "./lib/dietary";
 import WeekSuggestModal from "./components/WeekSuggestModal";
 import SurpriseBagModal from "./components/SurpriseBagModal";
 import PuterWelcomeModal from "./components/PuterWelcomeModal";
@@ -136,8 +139,10 @@ function SelectedRecipeCard({
   recipe, expanded, onToggleExpand, onToggleCooked, isCooked,
   customIngredients, onAddCustom, onRemoveCustom, onRemove,
   newIngredientInput, onInputChange, preferences, starredRecipes, onAcceptSubstitution,
-  rating, onGenerateRecipe,
+  rating, onGenerateRecipe, onShareRecipe,
 }) {
+  const [sharing, setSharing] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
   const [aiLoading, setAiLoading] = useState(false);
@@ -226,6 +231,26 @@ function SelectedRecipeCard({
               <p className="text-xs mt-0.5">{"⭐".repeat(rating)}</p>
             )}
           </div>
+          <button
+            onClick={async () => {
+              if (sharing) return;
+              setSharing(true);
+              try {
+                const url = await onShareRecipe(recipe);
+                await navigator.clipboard?.writeText(url);
+                setShareCopied(true);
+                setTimeout(() => setShareCopied(false), 2000);
+              } catch (err) {
+                window.alert(err.message || 'Could not create share link');
+              } finally {
+                setSharing(false);
+              }
+            }}
+            className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
+            title={shareCopied ? 'Link copied!' : 'Share recipe'}
+          >
+            {shareCopied ? <Check size={16} className="text-orange-600" /> : <Link2 size={16} />}
+          </button>
           <button
             onClick={() => onToggleExpand(rid)}
             className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
@@ -449,7 +474,15 @@ export default function App() {
   const [showPuterWelcome, setShowPuterWelcome] = useState(false);
   const [showGrocerHandoff, setShowGrocerHandoff] = useState(false);
   const [showReminderBanner, setShowReminderBanner] = useState(false);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(() => {
+    // Rehydrate unread notifications from localStorage so the Profile-tab
+    // badge survives reloads. Keyed separately per household; the effect
+    // below narrows to the active one on load.
+    try {
+      const raw = localStorage.getItem('mp:notifications');
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
   const [showSettings, setShowSettings] = useState(false);
   const [preferences, setPreferences] = useState({});
   const [planExtrasText, setPlanExtrasText] = useState('');
@@ -535,6 +568,20 @@ export default function App() {
     loadHousehold();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Keep the membership list fresh across devices — when a new row appears
+  // (invite accepted elsewhere) or disappears (kicked / left), re-run
+  // loadHousehold so the switcher and active household reflect reality.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`user-memberships-${user.id}`)
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'household_members', filter: `user_id=eq.${user.id}` },
+          () => loadHousehold())
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function loadHousehold() {
     setAuthLoading(true);
     const RLS_HINT =
@@ -600,6 +647,46 @@ export default function App() {
     setAuthLoading(false);
   }
 
+  async function shareRecipe(recipe) {
+    const { shareUrl } = await apiFetch('/api/recipes', {
+      method: 'POST',
+      body: { action: 'share', recipe },
+    });
+    return shareUrl;
+  }
+
+  async function leaveHousehold() {
+    if (!household) return;
+    const ok = window.confirm(`Leave "${household.name}"? You'll lose access to its meal plan, starred recipes and preferences. If you're the only member left, the household will be deleted.`);
+    if (!ok) return;
+    try {
+      await apiFetch('/api/household/save-key', { method: 'DELETE' });
+      // Realtime subscription will fire loadHousehold, but kick it off
+      // immediately so the UI updates without waiting for the round-trip.
+      setActiveHouseholdId(null);
+      loadHousehold();
+    } catch (err) {
+      window.alert(err.message || 'Could not leave household');
+    }
+  }
+
+  async function removeMember(memberUserId, memberName) {
+    const ok = window.confirm(`Remove ${memberName || 'this member'} from "${household.name}"?`);
+    if (!ok) return;
+    try {
+      await apiFetch('/api/household/save-key', {
+        method: 'DELETE',
+        body: { member_user_id: memberUserId },
+      });
+      // Refresh the member list; realtime only watches the current user.
+      const { data } = await supabase.from('household_members')
+        .select('display_name, user_id, personal_prefs').eq('household_id', household.id);
+      setHouseholdMembers(data || []);
+    } catch (err) {
+      window.alert(err.message || 'Could not remove member');
+    }
+  }
+
   // Switch the active household without a full reload. The useEffect on
   // [household] picks up the change and re-fetches all household-scoped data.
   function switchHousehold(id) {
@@ -633,7 +720,7 @@ export default function App() {
     loadPantry();
     loadTemplates();
     loadUserRecipes();
-    supabase.from('household_members').select('display_name, user_id').eq('household_id', household.id)
+    supabase.from('household_members').select('display_name, user_id, personal_prefs').eq('household_id', household.id)
       .then(({ data }) => setHouseholdMembers(data || []));
 
     const channel = supabase
@@ -741,11 +828,23 @@ export default function App() {
   }, [preferences.reminder_enabled, preferences.reminder_day, mealPlanItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Activity notifications ────────────────────────────────────────────────
+  // Filter stored notifications to the active household when it changes.
   useEffect(() => {
     if (!household) return;
+    setNotifications((prev) => prev.filter((n) => n.household_id === household.id));
+  }, [household?.id]);
+
+  // Persist unread notifications so the Profile-tab badge survives reloads.
+  useEffect(() => {
+    try { localStorage.setItem('mp:notifications', JSON.stringify(notifications)); } catch {}
+  }, [notifications]);
+
+  useEffect(() => {
+    if (!household) return;
+    if (preferences.notifications_enabled === false) return; // user opted out
     function addNotification(message) {
       setNotifications((prev) => [
-        { id: Date.now(), message, timestamp: new Date(), read: false },
+        { id: Date.now(), message, timestamp: new Date(), read: false, household_id: household.id },
         ...prev,
       ].slice(0, 20));
     }
@@ -759,7 +858,7 @@ export default function App() {
         (p) => addNotification(`${p.new?.recipe_data?.name || 'A recipe'} was starred`))
       .subscribe();
     return () => supabase.removeChannel(channel);
-  }, [household?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [household?.id, preferences.notifications_enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const notifUnread = notifications.filter((n) => !n.read).length;
 
@@ -941,6 +1040,24 @@ export default function App() {
         method: 'POST',
         body: { url },
       });
+
+      // Safety pass — classify content before saving. 'block' refuses,
+      // 'warn' asks the user, 'ok' proceeds silently. Failures here
+      // shouldn't block the happy path, so swallow any moderation error.
+      let mod;
+      try {
+        mod = await apiFetch('/api/ai/moderate', { method: 'POST', body: { recipe: data } });
+      } catch { /* moderation is best-effort */ }
+
+      if (mod?.severity === 'block') {
+        setImportError(`Blocked: ${mod.summary || 'content failed safety review'}`);
+        return;
+      }
+      if (mod?.severity === 'warn') {
+        const msg = `Heads up: ${mod.summary || 'this recipe has some flags'}\n\n${(mod.issues || []).map((i) => `• ${i}`).join('\n')}\n\nAdd it anyway?`;
+        if (!window.confirm(msg)) return;
+      }
+
       await toggleSelectedRecipe(data);
       setImportUrl("");
       setActiveTab("week");
@@ -978,13 +1095,29 @@ export default function App() {
     const existing = mealPlanItems.find((i) => i.recipe_id === rid);
     if (existing) {
       await supabase.from("meal_plan_items").delete().eq("id", existing.id);
-    } else {
-      await supabase.from("meal_plan_items").insert({
-        household_id: household.id,
-        recipe_id: rid,
-        recipe_data: recipe,
-      });
+      return;
     }
+    // Hard dietary guardrail — runs deterministically on top of the LLM's
+    // soft respect for preferences. Only nags on ADD, not REMOVE, and only
+    // when the recipe has actual ingredients (stubs are checked later when
+    // they get filled in).
+    if ((recipe.ingredients || []).length > 0) {
+      const avoids = extractAvoids(preferences?.preferences_text || '', householdMembers);
+      const conflicts = checkRecipe(recipe, avoids);
+      if (conflicts.length) {
+        const ok = window.confirm(
+          `Heads up — this recipe contains ingredients the household said they avoid:\n\n` +
+          summarizeConflicts(conflicts) +
+          `\n\nAdd it anyway?`
+        );
+        if (!ok) return;
+      }
+    }
+    await supabase.from("meal_plan_items").insert({
+      household_id: household.id,
+      recipe_id: rid,
+      recipe_data: recipe,
+    });
   }
 
   async function toggleCookedRecipe(rid) {
@@ -1067,6 +1200,22 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { setWasteInsights(null); }, [shoppingList.length]);
 
+  // ── Public recipe share view ─────────────────────────────────────────────
+  // Rendered before the auth gate so unsigned visitors can see shared recipes.
+  const shareToken = new URLSearchParams(window.location.search).get('recipe_share');
+  if (shareToken) {
+    return (
+      <SharedRecipeView
+        token={shareToken}
+        onClose={() => {
+          window.history.replaceState({}, '', window.location.pathname);
+          // Forces re-render without the share param.
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
   // ── Loading / auth gate ───────────────────────────────────────────────────
   if (authLoading) {
     return (
@@ -1107,6 +1256,7 @@ export default function App() {
             memberships={memberships}
             activeId={household?.id}
             onSwitch={switchHousehold}
+            onLeave={leaveHousehold}
             variant="chip"
           />
           {selectedIds.size > 0 && (
@@ -1586,6 +1736,7 @@ export default function App() {
                               starredRecipes={starredRecipes}
                               onAcceptSubstitution={acceptSubstitution}
                               onGenerateRecipe={generateAndSaveRecipe}
+                              onShareRecipe={shareRecipe}
                               rating={recipeRatings[rid] || null}
                               inlineExpanded
                             />
@@ -2032,14 +2183,34 @@ export default function App() {
               )}
               {householdMembers.length > 0 && (
                 <div className="space-y-2 mb-4">
-                  {householdMembers.map((m, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-bold text-orange-600">{(m.display_name || '?')[0].toUpperCase()}</span>
+                  {householdMembers.map((m, i) => {
+                    const isSelf = m.user_id === user?.id;
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-bold text-orange-600">{(m.display_name || '?')[0].toUpperCase()}</span>
+                        </div>
+                        <span className="text-sm text-orange-900 flex-1">{m.display_name || 'Member'}{isSelf && ' (you)'}</span>
+                        {!isSelf && householdMembers.length > 1 && (
+                          <button
+                            onClick={() => removeMember(m.user_id, m.display_name)}
+                            className="text-xs text-orange-400 hover:text-red-500 transition"
+                            title="Remove from household"
+                          >
+                            Remove
+                          </button>
+                        )}
                       </div>
-                      <span className="text-sm text-orange-900">{m.display_name || 'Member'}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
+                  {householdMembers.length > 1 && (
+                    <button
+                      onClick={leaveHousehold}
+                      className="w-full mt-2 text-xs text-orange-400 hover:text-red-500 transition flex items-center justify-center gap-1 py-1.5"
+                    >
+                      Leave this household
+                    </button>
+                  )}
                 </div>
               )}
               <div className="flex gap-2 border-t border-orange-50 pt-3">
@@ -2057,6 +2228,9 @@ export default function App() {
             <div className="bg-white rounded-2xl border border-orange-100 p-4">
               <PreferencesModal household={household} section="dietary" inline={true} onClose={loadPreferences} />
             </div>
+
+            {/* Data export + account deletion */}
+            <AccountActions />
           </div>
         )}
       </main>

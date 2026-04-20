@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, Users } from 'lucide-react';
+import { Check, ChevronDown, LogOut, Users } from 'lucide-react';
 
 // Renders nothing if the user only belongs to one household — there's nothing
 // to switch between, and the household name is already visible elsewhere.
 //
 // variant: 'card' (default) renders inside a panel for the Profile tab.
 //          'chip' renders a compact pill with a popover; suits a sticky header.
-export default function HouseholdSwitcher({ memberships, activeId, onSwitch, variant = 'card' }) {
+// onLeave: optional — when provided, a "Leave this household" row is rendered
+//          at the bottom of the dropdown (only in the chip variant for now;
+//          the card variant already has a dedicated Leave button elsewhere).
+export default function HouseholdSwitcher({ memberships, activeId, onSwitch, onLeave, variant = 'card' }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
 
@@ -63,6 +66,15 @@ export default function HouseholdSwitcher({ memberships, activeId, onSwitch, var
               Your households
             </div>
             {pickList()}
+            {onLeave && (
+              <button
+                onClick={() => { setOpen(false); onLeave(activeId); }}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-left border-t border-orange-50 hover:bg-red-50 transition"
+              >
+                <LogOut size={12} className="text-orange-400" />
+                <span className="text-xs text-orange-400 hover:text-red-500 flex-1">Leave {activeName}</span>
+              </button>
+            )}
           </div>
         )}
       </div>
