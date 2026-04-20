@@ -1046,7 +1046,7 @@ export default function App() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-paper font-outfit">
+    <div className="min-h-screen bg-white font-outfit">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-3.5">
         <div className="max-w-2xl mx-auto flex items-center justify-between">

@@ -101,8 +101,8 @@ html { scroll-behavior: smooth; }
 /* Subtle warm decorative backdrop — used on hero/auth backgrounds */
 .bg-paper {
   background-image:
-    radial-gradient(circle at 18% 12%, rgb(var(--c-orange-200) / 0.22) 0%, transparent 45%),
-    radial-gradient(circle at 85% 85%, rgb(var(--c-sage-400) / 0.14) 0%, transparent 45%);
+    radial-gradient(circle at 18% 12%, rgb(var(--c-orange-200) / 0.10) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgb(var(--c-sage-400) / 0.07) 0%, transparent 45%);
 }
 
 /* In dark mode, re-map bg-white surfaces (cards, modals, sticky chrome) to a

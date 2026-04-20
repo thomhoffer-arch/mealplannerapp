@@ -59,13 +59,17 @@ is tempting because it's "safe." Resist.
    another. If you're tempted to make three things identical, vary
    at least one axis.
 
-5. **Radius on CTAs.** `rounded-lg` for primary buttons via
-   `src/components/ui/button.jsx`. `rounded-full` for pill-shaped
-   secondary actions. `rounded-[22px]` for feature cards.
+5. **Radius on CTAs.** `rounded-full` for pill-shaped primary CTAs
+   (use `shadow-warm-lg` and explicit `px-8`). `rounded-lg` for compact
+   buttons inside cards via `src/components/ui/button.jsx`. `rounded-[22px]`
+   for feature cards. Never use `rounded-lg` directly on hero-level CTAs —
+   it reads as a form element, not an invitation.
 
-6. **Warm paper palette.** `bg-paper`, orange-50/orange-100 borders,
-   orange-900 for display type. Sage for success. Purple ONLY for
-   AI-owned surfaces. Don't reach for blue.
+6. **Warm paper palette.** `bg-paper` on the landing/auth screens only.
+   The authenticated app shell uses `bg-white` — clean and modern, letting
+   the orange-tinted cards and tiles do the warmth work. orange-50/orange-100
+   borders throughout. Sage for success. Purple ONLY for AI-owned surfaces.
+   Don't reach for blue.
 
 7. **Asymmetric hero spacing.** Hero headline hangs left of centre,
    prose hangs in a ~60% column, CTAs in the remaining ~40%. Avoid
@@ -355,6 +359,36 @@ to hard-coded UI copy:
 - British English. "flavours", "starter", "favourite".
 - No marketing verbs ("unlock", "unleash", "supercharge").
 - No closing summary sentences that restate the section.
+
+---
+
+## CTA hierarchy
+
+One page, one primary action. Never two filled buttons competing.
+
+| Level     | Style                                                       | When                        |
+|-----------|-------------------------------------------------------------|-----------------------------|
+| Primary   | `bg-orange-500 text-white rounded-full px-8 shadow-warm-lg` | One per page/modal          |
+| Secondary | `border-orange-400 text-orange-700 rounded-full`            | Alongside primary           |
+| Tertiary  | Text link, underline, `text-orange-700 decoration-orange-300` | Sign in, dismiss, less-used |
+
+Rule: the hero must have exactly one explicitly styled pill button. The decorated text (`font-display`, `TextRotate` animation) is brand copy — not the click target.
+
+---
+
+## Surface discipline
+
+Don't use `bg-orange-50` as the default fill for every item — it makes the whole screen feel warm-heavy and indistinct.
+
+| Surface         | Class              | Use                                                    |
+|-----------------|--------------------|--------------------------------------------------------|
+| Landing/auth    | `bg-paper`         | Pre-login screens only                                 |
+| App shell       | `bg-white`         | Authenticated wrapper                                  |
+| Card/item       | `bg-white`         | Recipe cards, plan items, list rows                    |
+| Active/selected | `bg-orange-50`     | Pressed, selected, or open state only                  |
+| Section block   | `bg-orange-50/60`  | Full-width alternating sections (not individual items) |
+
+Rule: if you catch yourself putting `bg-orange-50` on every list item, stop. Use `bg-white` items with `border-orange-100` dividers instead.
 
 ---
 
