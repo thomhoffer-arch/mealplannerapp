@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import ThemeToggle from './ThemeToggle';
 import PuterConnect from './PuterConnect';
 
-export default function PreferencesModal({ household, onClose }) {
+export default function PreferencesModal({ household, onClose, inline = false }) {
   const [text, setText] = useState('');
   const [keyInput, setKeyInput] = useState('');
   const [keyHint, setKeyHint] = useState(null);
@@ -144,20 +144,8 @@ export default function PreferencesModal({ household, onClose }) {
     setPuterInput('');
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <div>
-            <h2 className="text-base font-bold text-orange-900">Household preferences</h2>
-            <p className="text-xs text-orange-500 mt-0.5">Shared with your household</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="px-5 pb-5 space-y-5">
+  const inner = (
+    <div className={inline ? "space-y-5" : "px-5 pb-5 space-y-5"}>
           {/* ── Appearance ── */}
           <div className="space-y-2">
             <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Appearance</p>
@@ -332,6 +320,23 @@ export default function PreferencesModal({ household, onClose }) {
             )}
           </div>
         </div>
+  );
+
+  if (inline) return inner;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <div>
+            <h2 className="text-base font-bold text-orange-900">Household preferences</h2>
+            <p className="text-xs text-orange-500 mt-0.5">Shared with your household</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
+            <X size={16} />
+          </button>
+        </div>
+        {inner}
       </div>
     </div>
   );

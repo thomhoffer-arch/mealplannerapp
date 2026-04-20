@@ -241,44 +241,39 @@ export default function AuthScreen() {
               <p className="mt-8 sm:mt-10 text-lg text-orange-800/85 leading-relaxed max-w-md">
                 Enough dinners for the week, sorted in the time it takes the kettle to boil.
               </p>
-              <div className="mt-10 flex flex-col items-start gap-3">
+              <div className="mt-10 flex flex-col items-start gap-4">
                 <LayoutGroup>
-                  <button
-                    type="button"
-                    onClick={() => setView('plan')}
-                    className="text-left group"
+                  <motion.p
+                    className="flex flex-wrap items-baseline gap-x-2 font-display text-2xl sm:text-3xl font-semibold text-orange-900"
+                    layout
+                    transition={{ type: 'spring', damping: 30, stiffness: 400 }}
                   >
-                    <motion.p
-                      className="flex flex-wrap items-baseline gap-x-2 font-display text-2xl sm:text-3xl font-semibold text-orange-900"
-                      layout
+                    <motion.span layout transition={{ type: 'spring', damping: 30, stiffness: 400 }}>Give it a</motion.span>
+                    <TextRotate
+                      texts={['week.', 'try.', 'go.', 'Monday.', 'dinner.']}
+                      mainClassName="text-white px-3 bg-orange-500 overflow-hidden py-0.5 sm:py-1 justify-center rounded-full"
+                      staggerFrom="last"
+                      initial={{ y: '100%' }}
+                      animate={{ y: 0 }}
+                      exit={{ y: '-120%' }}
+                      staggerDuration={0.025}
+                      splitLevelClassName="overflow-hidden pb-0.5"
                       transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-                    >
-                      <motion.span layout transition={{ type: 'spring', damping: 30, stiffness: 400 }}>Give it a</motion.span>
-                      <TextRotate
-                        texts={['week.', 'try.', 'go.', 'Monday.', 'dinner.']}
-                        mainClassName="text-white px-3 bg-orange-500 overflow-hidden py-0.5 sm:py-1 justify-center rounded-full"
-                        staggerFrom="last"
-                        initial={{ y: '100%' }}
-                        animate={{ y: 0 }}
-                        exit={{ y: '-120%' }}
-                        staggerDuration={0.025}
-                        splitLevelClassName="overflow-hidden pb-0.5"
-                        transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-                        rotationInterval={2500}
-                      />
-                      <motion.span
-                        layout
-                        className="text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity translate-x-0 group-hover:translate-x-1 duration-200"
-                      >
-                        →
-                      </motion.span>
-                    </motion.p>
-                  </button>
+                      rotationInterval={2500}
+                    />
+                  </motion.p>
                 </LayoutGroup>
-                <p className="text-xs text-orange-700/70">Creates your free account · no card needed.</p>
+                <Button
+                  onClick={() => setView('plan')}
+                  size="lg"
+                  className="rounded-full px-8 shadow-warm-lg"
+                >
+                  Start planning — it's free
+                </Button>
+                <p className="text-xs text-orange-700/70">No card needed. Takes 30 seconds.</p>
                 <button
                   onClick={() => { setMode('login'); setView('auth'); }}
-                  className="mt-2 text-sm text-orange-700 hover:text-orange-900 transition underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
+                  className="text-sm text-orange-700 hover:text-orange-900 transition underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
                 >
                   Sign in to your account →
                 </button>
@@ -305,8 +300,18 @@ export default function AuthScreen() {
               roughly like this —
             </p>
 
-            {/* The notebook week itself */}
-            <NotebookWeekScene />
+            {/* The notebook week — framed inside a minimal app chrome so it
+                reads as "this is the actual app", not just an illustration. */}
+            <div className="rounded-[22px] border border-orange-200 shadow-warm-lg overflow-hidden">
+              <div className="bg-orange-50/60 border-b border-orange-100 px-4 py-2.5 flex items-center gap-2">
+                <span className="font-display italic text-orange-500 text-xs">Meal Planner</span>
+                <span className="text-orange-300 text-xs">·</span>
+                <span className="font-display italic text-orange-400 text-xs">week of 13 oct</span>
+              </div>
+              <div className="bg-white px-4 py-5">
+                <NotebookWeekScene />
+              </div>
+            </div>
 
             {/* Three chapters led by a hand-drawn glyph — sides alternate
                 so the eye doesn't read three identical rows. */}

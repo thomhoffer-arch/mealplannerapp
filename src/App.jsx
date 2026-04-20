@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, Settings, Sparkles, Star, Package, PenLine,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
@@ -479,6 +479,9 @@ export default function App() {
   const todayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];
 
   const [activeTab, setActiveTab] = useState("week");
+  const [basketSection, setBasketSection] = useState("shopping");
+  const [householdMembers, setHouseholdMembers] = useState([]);
+  const searchInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [recipes, setRecipes] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -612,6 +615,8 @@ export default function App() {
     loadPantry();
     loadTemplates();
     loadUserRecipes();
+    supabase.from('household_members').select('display_name, user_id').eq('household_id', household.id)
+      .then(({ data }) => setHouseholdMembers(data || []));
 
     const channel = supabase
       .channel(`hh-${household.id}`)
@@ -1041,7 +1046,7 @@ export default function App() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-paper font-outfit">
+    <div className="min-h-screen bg-white font-outfit">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-3.5">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
@@ -1091,14 +1096,6 @@ export default function App() {
             <NotificationBell household={household} />
             <ThemeToggle />
 
-            {/* Preferences */}
-            <button
-              onClick={() => setShowPreferences(true)}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
-              title="Household preferences"
-            >
-              <Settings size={18} />
-            </button>
             {/* Starred recipes panel */}
             <button
               onClick={() => setShowStarred(true)}
@@ -1312,135 +1309,138 @@ export default function App() {
       {/* Main content */}
       <main className="max-w-2xl mx-auto px-4 pt-4 pb-28">
 
-        {/* ── SEARCH TAB ── */}
-        {activeTab === "search" && (
-          <div>
-            <div className="relative mb-4">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-300" size={18} />
-              <input
-                type="search"
-                placeholder="Search recipes — try 'quick pasta' or 'vegetarian under 30 min'…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 text-sm"
-              />
-            </div>
-
-            {/* URL import + manual create */}
-            <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
-              <div className="flex items-center justify-between mb-2.5">
-                <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Import from any website</p>
-                <button onClick={() => setShowCreateRecipe(true)}
-                  className="flex items-center gap-1 text-xs font-semibold text-orange-500 hover:text-orange-700 transition">
-                  <PenLine size={12} /> Create your own
-                </button>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  placeholder="Paste a recipe URL…"
-                  value={importUrl}
-                  onChange={(e) => { setImportUrl(e.target.value); setImportError(""); }}
-                  onKeyDown={(e) => e.key === "Enter" && importFromUrl()}
-                  className="flex-1 border border-orange-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
-                />
-                <button onClick={importFromUrl} disabled={importLoading || !importUrl.trim()}
-                  className="flex-shrink-0 px-4 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
-                  <Link2 size={14} />
-                  {importLoading ? "Importing…" : "Import"}
-                </button>
-              </div>
-              {importError && <p className="text-xs text-red-500 mt-2">{importError}</p>}
-            </div>
-
-            {/* User-created recipes */}
-            {userRecipes.length > 0 && (
-              <div className="mb-4">
-                <p className="text-sm text-orange-600 font-medium mb-2">Your recipes</p>
-                <div className="space-y-3">
-                  {userRecipes.map((recipe) => (
-                    <RecipeCard key={recipe.id} recipe={recipe}
-                      isSelected={selectedIds.has(String(recipe.id))}
-                      isStarred={starredIds.has(String(recipe.id))}
-                      onToggleSelect={toggleSelectedRecipe}
-                      onToggleStar={toggleStar} />
-                  ))}
-                </div>
-                {recipes.length > 0 && <div className="border-t border-orange-100 my-4" />}
-              </div>
-            )}
-
-            {searchLoading ? (
-              <div className="flex justify-center py-12">
-                <div className="w-7 h-7 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-              </div>
-            ) : recipes.length > 0 ? (
-              (() => {
-                const isPaid  = !!(preferences?.puter_token_hint || preferences?.is_gifted);
-                const isBYOK  = !isPaid && !!(preferences?.gemini_api_key_hint);
-                const limit   = isPaid ? Infinity : isBYOK ? 8 : 4;
-                const visible = recipes.slice(0, limit);
-                const lockedCount = Math.max(0, recipes.length - limit);
-                const lockMsg = isBYOK
-                  ? `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} in the full library — upgrade for all results.`
-                  : `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — add your Gemini key for more, or upgrade for the full library.`;
-                const lockLabel = isBYOK ? 'Upgrade for full access' : 'Add a key to unlock';
-                return (
-                  <div className="space-y-3">
-                    <p className="text-sm text-orange-600 font-medium">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} found</p>
-                    {visible.map((recipe) => (
-                      <RecipeCard key={recipe.id} recipe={recipe}
-                        isSelected={selectedIds.has(String(recipe.id))}
-                        isStarred={starredIds.has(String(recipe.id))}
-                        onToggleSelect={toggleSelectedRecipe}
-                        onToggleStar={toggleStar} />
-                    ))}
-                    {lockedCount > 0 && (
-                      <>
-                        {[0, 1].map((i) => (
-                          <div key={i} className="relative rounded-2xl border border-orange-100 bg-white overflow-hidden">
-                            <div className="px-4 py-4 space-y-2.5 pointer-events-none select-none" style={{ filter: 'blur(4px)' }}>
-                              <div className="flex items-center gap-3">
-                                <div className="w-5 h-5 rounded-full bg-orange-100 flex-shrink-0" />
-                                <div className="h-3.5 bg-orange-100 rounded-full" style={{ width: `${55 + i * 15}%` }} />
-                              </div>
-                              <div className="h-3 bg-orange-50 rounded-full w-2/3" />
-                              <div className="h-3 bg-orange-50 rounded-full w-1/2" />
-                            </div>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/75">
-                              <svg className="w-4 h-4 text-orange-400 mb-1.5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7a4.5 4.5 0 00-9 0v3.5M5 10.5h14a1 1 0 011 1V20a1 1 0 01-1 1H5a1 1 0 01-1-1v-8.5a1 1 0 011-1z" /></svg>
-                              <p className="text-xs font-medium text-orange-700">{lockLabel}</p>
-                            </div>
-                          </div>
-                        ))}
-                        <div className="text-center py-3">
-                          <p className="text-xs text-orange-500 mb-2">{lockMsg}</p>
-                          <button
-                            onClick={() => setShowPreferences(true)}
-                            className="text-xs px-4 py-1.5 bg-orange-500 text-white rounded-full font-semibold hover:bg-orange-600 transition"
-                          >
-                            Open Settings
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })()
-            ) : (
-              <div className="text-center py-12 text-orange-300">
-                <Search size={48} className="mx-auto mb-3 opacity-50" />
-                <p className="font-medium text-orange-400">Search or apply filters to discover recipes</p>
-                <p className="text-sm mt-1">quality recipes, adjusted to you</p>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* ── WEEK TAB ── */}
         {activeTab === "week" && (
           <div>
-            {mealPlanItems.length > 0 ? (
+            {/* Search bar — always visible at top of week tab */}
+            <div className="relative mb-4">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-300" size={18} />
+              <input
+                ref={searchInputRef}
+                type="search"
+                placeholder="Search recipes…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-10 py-3 rounded-2xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 text-sm"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-300 hover:text-orange-500 transition">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {searchQuery ? (
+              <div>
+                {/* URL import + manual create */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Import from any website</p>
+                    <button onClick={() => setShowCreateRecipe(true)}
+                      className="flex items-center gap-1 text-xs font-semibold text-orange-500 hover:text-orange-700 transition">
+                      <PenLine size={12} /> Create your own
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="Paste a recipe URL…"
+                      value={importUrl}
+                      onChange={(e) => { setImportUrl(e.target.value); setImportError(""); }}
+                      onKeyDown={(e) => e.key === "Enter" && importFromUrl()}
+                      className="flex-1 border border-orange-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
+                    />
+                    <button onClick={importFromUrl} disabled={importLoading || !importUrl.trim()}
+                      className="flex-shrink-0 px-4 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
+                      <Link2 size={14} />
+                      {importLoading ? "Importing…" : "Import"}
+                    </button>
+                  </div>
+                  {importError && <p className="text-xs text-red-500 mt-2">{importError}</p>}
+                </div>
+
+                {userRecipes.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm text-orange-600 font-medium mb-2">Your recipes</p>
+                    <div className="space-y-3">
+                      {userRecipes.map((recipe) => (
+                        <RecipeCard key={recipe.id} recipe={recipe}
+                          isSelected={selectedIds.has(String(recipe.id))}
+                          isStarred={starredIds.has(String(recipe.id))}
+                          onToggleSelect={toggleSelectedRecipe}
+                          onToggleStar={toggleStar} />
+                      ))}
+                    </div>
+                    {recipes.length > 0 && <div className="border-t border-orange-100 my-4" />}
+                  </div>
+                )}
+
+                {searchLoading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="w-7 h-7 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
+                  </div>
+                ) : recipes.length > 0 ? (
+                  (() => {
+                    const isPaid  = !!(preferences?.puter_token_hint || preferences?.is_gifted);
+                    const isBYOK  = !isPaid && !!(preferences?.gemini_api_key_hint);
+                    const limit   = isPaid ? Infinity : isBYOK ? 8 : 4;
+                    const visible = recipes.slice(0, limit);
+                    const lockedCount = Math.max(0, recipes.length - limit);
+                    const lockMsg = isBYOK
+                      ? `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} in the full library — upgrade for all results.`
+                      : `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — add your Gemini key for more, or upgrade for the full library.`;
+                    const lockLabel = isBYOK ? 'Upgrade for full access' : 'Add a key to unlock';
+                    return (
+                      <div className="space-y-3">
+                        <p className="text-sm text-orange-600 font-medium">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} found</p>
+                        {visible.map((recipe) => (
+                          <RecipeCard key={recipe.id} recipe={recipe}
+                            isSelected={selectedIds.has(String(recipe.id))}
+                            isStarred={starredIds.has(String(recipe.id))}
+                            onToggleSelect={toggleSelectedRecipe}
+                            onToggleStar={toggleStar} />
+                        ))}
+                        {lockedCount > 0 && (
+                          <>
+                            {[0, 1].map((i) => (
+                              <div key={i} className="relative rounded-2xl border border-orange-100 bg-white overflow-hidden">
+                                <div className="px-4 py-4 space-y-2.5 pointer-events-none select-none" style={{ filter: 'blur(4px)' }}>
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-5 h-5 rounded-full bg-orange-100 flex-shrink-0" />
+                                    <div className="h-3.5 bg-orange-100 rounded-full" style={{ width: `${55 + i * 15}%` }} />
+                                  </div>
+                                  <div className="h-3 bg-orange-50 rounded-full w-2/3" />
+                                  <div className="h-3 bg-orange-50 rounded-full w-1/2" />
+                                </div>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/75">
+                                  <svg className="w-4 h-4 text-orange-400 mb-1.5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7a4.5 4.5 0 00-9 0v3.5M5 10.5h14a1 1 0 011 1V20a1 1 0 01-1 1H5a1 1 0 01-1-1v-8.5a1 1 0 011-1z" /></svg>
+                                  <p className="text-xs font-medium text-orange-700">{lockLabel}</p>
+                                </div>
+                              </div>
+                            ))}
+                            <div className="text-center py-3">
+                              <p className="text-xs text-orange-500 mb-2">{lockMsg}</p>
+                              <button
+                                onClick={() => { setSearchQuery(''); setActiveTab("profile"); }}
+                                className="text-xs px-4 py-1.5 bg-orange-500 text-white rounded-full font-semibold hover:bg-orange-600 transition"
+                              >
+                                Open Settings
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="text-center py-12 text-orange-300">
+                    <Search size={48} className="mx-auto mb-3 opacity-50" />
+                    <p className="font-medium text-orange-400">Search or apply filters to discover recipes</p>
+                    <p className="text-sm mt-1">quality recipes, adjusted to you</p>
+                  </div>
+                )}
+              </div>
+            ) : mealPlanItems.length > 0 ? (
               <>
                 {/* Header row */}
                 <div className="flex items-center justify-between mb-5">
@@ -1524,7 +1524,7 @@ export default function App() {
                                   Leftovers
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setActiveTab("search"); }}
+                                  onClick={(e) => { e.stopPropagation(); setTimeout(() => searchInputRef.current?.focus(), 0); }}
                                   className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition"
                                 >
                                   + Add
@@ -1691,6 +1691,7 @@ export default function App() {
                       className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
                       <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">01</span>
                       <span className="pt-1">
+                        {/* TODO: replace "Let AI plan the week" with app-name-driven copy */}
                         <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Let AI plan the week</span>
                         <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Seven dinners picked to your household's taste. Swap anything you don't fancy.</span>
                       </span>
@@ -1698,18 +1699,18 @@ export default function App() {
                     </button>
                   </li>
                   <li>
-                    <button onClick={() => setActiveTab("search")}
+                    <button onClick={() => setTimeout(() => searchInputRef.current?.focus(), 0)}
                       className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
                       <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">02</span>
                       <span className="pt-1">
                         <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Search and star</span>
-                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Search recipes and star your favourites for the AI to use.</span>
+                        <span className="block text-sm text-orange-800/80 leading-relaxed max-w-md">Search recipes and star your favourites for the planner to use.</span>
                       </span>
                       <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphSpyglass /></span>
                     </button>
                   </li>
                   <li>
-                    <button onClick={() => { setActiveTab("search"); setTimeout(() => document.querySelector('input[type=url]')?.focus(), 0); }}
+                    <button onClick={() => { setTimeout(() => document.querySelector('input[type=url]')?.focus(), 0); }}
                       className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
                       <span className="font-display italic text-4xl sm:text-5xl text-orange-300 group-hover:text-orange-500 leading-none pt-1 select-none transition-colors">03</span>
                       <span className="pt-1">
@@ -1736,9 +1737,21 @@ export default function App() {
           </div>
         )}
 
-        {/* ── SHOPPING TAB ── */}
-        {activeTab === "shopping" && (
+        {/* ── BASKET TAB (shopping + pantry) ── */}
+        {activeTab === "basket" && (
           <div>
+            {/* Segmented toggle */}
+            <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl mb-4">
+              {["shopping", "pantry"].map((section) => (
+                <button key={section} onClick={() => setBasketSection(section)}
+                  className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${basketSection === section ? "bg-white text-orange-900 shadow-sm" : "text-orange-400 hover:text-orange-600"}`}>
+                  {section.charAt(0).toUpperCase() + section.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {basketSection === "shopping" && (
+              <>
             {shoppingList.length > 0 ? (
               <>
                 <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
@@ -1848,58 +1861,114 @@ export default function App() {
                 <ShoppingCart size={48} className="mx-auto mb-3 opacity-50" />
                 <p className="font-medium text-orange-400">Your shopping list is empty</p>
                 <p className="text-sm mt-1">Select recipes to build your list</p>
-                <button onClick={() => setActiveTab("search")}
+                <button onClick={() => setActiveTab("week")}
                   className="mt-4 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition">
                   Find Recipes
                 </button>
               </div>
             )}
-          </div>
-        )}
-        {/* ── PANTRY TAB ── */}
-        {activeTab === "pantry" && (
-          <div>
-            <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
-              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">What's already at home</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="e.g. 500g pasta, olive oil…"
-                  value={pantryInput}
-                  onChange={(e) => setPantryInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addPantryItem()}
-                  className="flex-1 border border-orange-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
-                />
-                <button onClick={addPantryItem} disabled={!pantryInput.trim()}
-                  className="flex-shrink-0 px-4 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
-                  Add
-                </button>
-              </div>
-              <p className="text-xs text-orange-400 mt-2">Items here are skipped (greyed out) in your shopping list.</p>
-            </div>
+              </>
+            )}
 
-            {pantryItems.length > 0 ? (
-              <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
-                {pantryItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between px-4 py-3">
-                    <div>
-                      <span className="text-sm font-medium text-orange-900">{item.name}</span>
-                      {item.amount && <span className="text-xs text-orange-400 ml-2">{item.amount}</span>}
-                    </div>
-                    <button onClick={() => removePantryItem(item.id)}
-                      className="text-orange-300 hover:text-red-400 transition ml-3">
-                      <Trash2 size={15} />
+            {basketSection === "pantry" && (
+              <div>
+                <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
+                  <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">What's already at home</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. 500g pasta, olive oil…"
+                      value={pantryInput}
+                      onChange={(e) => setPantryInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addPantryItem()}
+                      className="flex-1 border border-orange-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
+                    />
+                    <button onClick={addPantryItem} disabled={!pantryInput.trim()}
+                      className="flex-shrink-0 px-4 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50">
+                      Add
                     </button>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16 text-orange-300">
-                <Package size={48} className="mx-auto mb-3 opacity-50" />
-                <p className="font-medium text-orange-400">Your pantry is empty</p>
-                <p className="text-sm mt-1">Add ingredients you already have at home</p>
+                  <p className="text-xs text-orange-400 mt-2">Items here are skipped (greyed out) in your shopping list.</p>
+                </div>
+                {pantryItems.length > 0 ? (
+                  <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+                    {pantryItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between px-4 py-3">
+                        <div>
+                          <span className="text-sm font-medium text-orange-900">{item.name}</span>
+                          {item.amount && <span className="text-xs text-orange-400 ml-2">{item.amount}</span>}
+                        </div>
+                        <button onClick={() => removePantryItem(item.id)}
+                          className="text-orange-300 hover:text-red-400 transition ml-3">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16 text-orange-300">
+                    <Package size={48} className="mx-auto mb-3 opacity-50" />
+                    <p className="font-medium text-orange-400">Your pantry is empty</p>
+                    <p className="text-sm mt-1">Add ingredients you already have at home</p>
+                  </div>
+                )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── PROFILE TAB ── */}
+        {activeTab === "profile" && (
+          <div className="space-y-4 pb-4">
+            {/* User card */}
+            <div className="bg-white rounded-2xl border border-orange-100 p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                  <span className="font-display text-xl font-bold text-orange-500">
+                    {(memberProfile?.display_name || user?.email || '?')[0].toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
+                  <p className="text-xs text-orange-400 truncate">{user?.email}</p>
+                </div>
+                <button onClick={() => supabase.auth.signOut()}
+                  className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-300 hover:bg-orange-50 hover:text-orange-500 transition"
+                  title="Sign out">
+                  <LogOut size={15} />
+                </button>
+              </div>
+            </div>
+
+            {/* Household card */}
+            <div className="bg-white rounded-2xl border border-orange-100 p-4">
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">Household</p>
+              <p className="text-sm font-semibold text-orange-900 mb-3">{household.name}</p>
+              {householdMembers.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {householdMembers.map((m, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-bold text-orange-500">{(m.display_name || '?')[0].toUpperCase()}</span>
+                      </div>
+                      <span className="text-sm text-orange-800">{m.display_name || 'Member'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2 border-t border-orange-50 pt-3">
+                <input readOnly value={inviteUrl}
+                  className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-700 truncate" />
+                <button onClick={copyInviteLink}
+                  className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center gap-1">
+                  {inviteCopied ? <Check size={12} /> : <Link2 size={12} />}
+                  {inviteCopied ? "Copied" : "Invite"}
+                </button>
+              </div>
+            </div>
+
+            {/* Preferences — inline */}
+            <PreferencesModal household={household} inline={true} onClose={loadPreferences} />
           </div>
         )}
       </main>
@@ -1911,13 +1980,11 @@ export default function App() {
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/90 backdrop-blur-md border-t border-orange-100 safe-bottom">
         <div className="max-w-2xl mx-auto flex items-stretch">
           {[
-            { id: "search",   icon: Search,       label: "Search" },
-            { id: "week",     icon: Calendar,     label: "Week",     badge: selectedIds.size },
-            { id: "shopping", icon: ShoppingCart, label: "Shopping", badge: shoppingList.filter((i) => !i.inPantry).length - checkedCount > 0 ? shoppingList.filter((i) => !i.inPantry).length - checkedCount : null },
-            { id: "pantry",   icon: Package,      label: "Pantry",   badge: pantryItems.length || null },
-            { id: "settings", icon: Settings,     label: "Settings" },
+            { id: "week",    icon: Calendar,     label: "Week" },
+            { id: "basket",  icon: ShoppingCart, label: "Basket",  badge: (() => { const u = shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length; return u > 0 ? u : null; })() },
+            { id: "profile", icon: User,         label: "Profile" },
           ].map(({ id, icon: Icon, label, badge }) => (
-            <button key={id} onClick={() => id === 'settings' ? setShowPreferences(true) : setActiveTab(id)}
+            <button key={id} onClick={() => setActiveTab(id)}
               className={`flex-1 flex flex-col items-center justify-center py-3 gap-0.5 transition-all relative ${
                 activeTab === id ? "text-orange-600" : "text-gray-400 hover:text-orange-400"}`}>
               {activeTab === id && (

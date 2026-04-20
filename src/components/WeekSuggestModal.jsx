@@ -98,7 +98,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-orange-50">
           <div className="flex items-center gap-2">
             <Sparkles size={17} className="text-orange-500" />
-            <h2 className="font-display text-base font-bold text-orange-900">AI week planner</h2>
+            {/* TODO: replace "AI week planner" with app name */}
+            <h2 className="font-display text-base font-bold text-orange-900">Week planner</h2>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
             <X size={16} />
