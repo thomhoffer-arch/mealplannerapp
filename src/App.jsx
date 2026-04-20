@@ -13,6 +13,7 @@ import InstallBanner from "./components/InstallBanner";
 import CreateRecipeModal from "./components/CreateRecipeModal";
 import StarredPanel from "./components/StarredPanel";
 import HouseholdSwitcher from "./components/HouseholdSwitcher";
+import SharedRecipeView from "./components/SharedRecipeView";
 import WeekSuggestModal from "./components/WeekSuggestModal";
 import SurpriseBagModal from "./components/SurpriseBagModal";
 import PuterWelcomeModal from "./components/PuterWelcomeModal";
@@ -136,8 +137,10 @@ function SelectedRecipeCard({
   recipe, expanded, onToggleExpand, onToggleCooked, isCooked,
   customIngredients, onAddCustom, onRemoveCustom, onRemove,
   newIngredientInput, onInputChange, preferences, starredRecipes, onAcceptSubstitution,
-  rating, onGenerateRecipe,
+  rating, onGenerateRecipe, onShareRecipe,
 }) {
+  const [sharing, setSharing] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
   const [aiLoading, setAiLoading] = useState(false);
@@ -226,6 +229,26 @@ function SelectedRecipeCard({
               <p className="text-xs mt-0.5">{"⭐".repeat(rating)}</p>
             )}
           </div>
+          <button
+            onClick={async () => {
+              if (sharing) return;
+              setSharing(true);
+              try {
+                const url = await onShareRecipe(recipe);
+                await navigator.clipboard?.writeText(url);
+                setShareCopied(true);
+                setTimeout(() => setShareCopied(false), 2000);
+              } catch (err) {
+                window.alert(err.message || 'Could not create share link');
+              } finally {
+                setSharing(false);
+              }
+            }}
+            className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
+            title={shareCopied ? 'Link copied!' : 'Share recipe'}
+          >
+            {shareCopied ? <Check size={16} className="text-orange-600" /> : <Link2 size={16} />}
+          </button>
           <button
             onClick={() => onToggleExpand(rid)}
             className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
@@ -612,6 +635,14 @@ export default function App() {
       onboarded_at:   active.onboarded_at,
     });
     setAuthLoading(false);
+  }
+
+  async function shareRecipe(recipe) {
+    const { shareUrl } = await apiFetch('/api/recipes', {
+      method: 'POST',
+      body: { action: 'share', recipe },
+    });
+    return shareUrl;
   }
 
   async function leaveHousehold() {
@@ -1112,6 +1143,22 @@ export default function App() {
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { setWasteInsights(null); }, [shoppingList.length]);
+
+  // ── Public recipe share view ─────────────────────────────────────────────
+  // Rendered before the auth gate so unsigned visitors can see shared recipes.
+  const shareToken = new URLSearchParams(window.location.search).get('recipe_share');
+  if (shareToken) {
+    return (
+      <SharedRecipeView
+        token={shareToken}
+        onClose={() => {
+          window.history.replaceState({}, '', window.location.pathname);
+          // Forces re-render without the share param.
+          window.location.reload();
+        }}
+      />
+    );
+  }
 
   // ── Loading / auth gate ───────────────────────────────────────────────────
   if (authLoading) {
@@ -1632,6 +1679,7 @@ export default function App() {
                               starredRecipes={starredRecipes}
                               onAcceptSubstitution={acceptSubstitution}
                               onGenerateRecipe={generateAndSaveRecipe}
+                              onShareRecipe={shareRecipe}
                               rating={recipeRatings[rid] || null}
                               inlineExpanded
                             />
