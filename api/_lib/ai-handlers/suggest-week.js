@@ -39,13 +39,14 @@ async function _handler(req, res) {
     }
   }
 
-  const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }] = await Promise.all([
+  const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }, { data: pantryData }] = await Promise.all([
     supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
-    supabase.from('cooked_recipes').select('recipe_id').eq('household_id', ctx.householdId),
+    supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
-      .order('added_at', { ascending: false }).limit(21),
+      .order('added_at', { ascending: false }).limit(30),
     supabase.from('household_members').select('display_name, personal_prefs').eq('household_id', ctx.householdId),
+    supabase.from('pantry_items').select('name').eq('household_id', ctx.householdId),
   ]);
 
   const preferences = prefData?.preferences_text || '';
@@ -60,9 +61,28 @@ async function _handler(req, res) {
     byPriority[p].push({ id: s.recipe_id, name: s.recipe_data?.name, source: s.recipe_data?.source, keywords: s.recipe_data?.keywords });
   });
 
-  const recentNames = (recentPlanData || []).map((i) => i.recipe_data?.name).filter(Boolean);
+  // Resolve recipe_id → name via every source we have, so we can label
+  // the rating history with human-readable dish names in the prompt.
+  const nameByRecipeId = {};
+  starred.forEach((s) => { if (s.recipe_data?.name) nameByRecipeId[s.recipe_id] = s.recipe_data.name; });
+  (recentPlanData || []).forEach((p) => {
+    const id = p.recipe_data?.id;
+    if (id && p.recipe_data?.name) nameByRecipeId[id] = p.recipe_data.name;
+  });
 
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes);
+  const loved = [];
+  const disliked = [];
+  (cookedData || []).forEach((c) => {
+    const name = nameByRecipeId[c.recipe_id];
+    if (!name || !c.rating) return;
+    if (c.rating >= 4) loved.push(name);
+    else if (c.rating <= 2) disliked.push(name);
+  });
+
+  const recentNames = (recentPlanData || []).slice(0, 10).map((i) => i.recipe_data?.name).filter(Boolean);
+  const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
+
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames);
 
   let rawText;
   try {
@@ -105,14 +125,22 @@ async function _handler(req, res) {
           _aiSuggestion: true,
         };
       }
-      return { day: day.day, recipe };
+      // Surface per-day reasoning + leftover chaining directly on the day so the UI
+      // can show "why this?" and the cook-once-eat-twice pairing.
+      return {
+        day: day.day,
+        recipe,
+        reason: day.reason || '',
+        leftover_for: day.leftover_for || null,
+        uses_pantry: Array.isArray(day.uses_pantry) ? day.uses_pantry : [],
+      };
     }),
   }));
 
   res.json({ weeks: enrichedWeeks, notes: plan.notes || '' });
 }
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}) {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = []) {
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -155,6 +183,13 @@ ${starredSection || 'None starred yet — suggest freely based on preferences.'}
 
 RECENTLY EATEN (avoid repeating for 2 weeks):
 ${avoidList}
+
+RATINGS HISTORY — what this household actually liked when they cooked it:
+${loved.length ? `  LOVED (4-5★): ${loved.slice(0, 15).join(', ')}` : '  (no high ratings recorded yet)'}
+${disliked.length ? `  DISLIKED (1-2★): ${disliked.slice(0, 15).join(', ')} — avoid these patterns` : ''}
+
+PANTRY (already on the shelf — prefer recipes that use these to minimise shopping):
+${pantry.length ? `  ${pantry.slice(0, 30).join(', ')}` : '  (empty)'}
 ${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED:\n${planExtrasText}` : ''}
 ${dayNotesSection ? `\nPER-DAY NOTES:\n${dayNotesSection}` : ''}
 STRICT RULES:
@@ -165,7 +200,12 @@ STRICT RULES:
 5. Respect dietary preferences strictly.
 6. Every recipe must be a real, well-known dish.
 7. Never repeat the same lunch or side dish across the week.
-8. Optimise for ingredient reuse.
+8. Optimise for ingredient reuse AND reach for pantry items where it works naturally.
+9. Plan exactly ONE "cook once, eat twice" recipe per week — pick something
+   that reheats well, cook 2x portions, and have that day's "leftover_for"
+   point at the next day it covers (e.g. Monday's leftover_for = "Tuesday lunch").
+10. Let the RATINGS HISTORY genuinely shape suggestions — echo patterns from
+    LOVED, steer away from DISLIKED. Be subtle; don't just reuse the same dishes.
 
 Return ONLY a JSON object, no markdown:
 {
@@ -179,12 +219,15 @@ Return ONLY a JSON object, no markdown:
           "overview": "<one sentence description>",
           "cuisine_type": "<Italian / Asian / etc.>",
           "prep_time": <minutes or null>,
-          "cook_time": <minutes or null>
+          "cook_time": <minutes or null>,
+          "reason": "<one short sentence: why this dish, this day — reference ratings / pantry / starred when relevant>",
+          "leftover_for": "<e.g. 'Tuesday lunch', or null if this isn't the cook-once-eat-twice day>",
+          "uses_pantry": ["<pantry item this recipe uses>"]
         }
       ]
     }
   ],
-  "notes": "<2-3 sentences explaining the plan>"
+  "notes": "<2-3 sentences explaining the overall plan shape>"
 }
 
 Each week must have exactly 7 days: Monday through Sunday.${numWeeks === 2 ? ' Return exactly 2 week objects.' : ' Return exactly 1 week object.'}`;

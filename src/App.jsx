@@ -1239,6 +1239,7 @@ export default function App() {
             memberships={memberships}
             activeId={household?.id}
             onSwitch={switchHousehold}
+            onLeave={leaveHousehold}
             variant="chip"
           />
           {selectedIds.size > 0 && (
