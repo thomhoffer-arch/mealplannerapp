@@ -33,6 +33,9 @@
       "last 1 safari version"
     ]
   },
+  "engines": {
+    "node": ">=18"
+  },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.16",
