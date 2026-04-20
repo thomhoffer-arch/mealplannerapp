@@ -1654,8 +1654,9 @@ export default function App() {
             { id: "week",     icon: Calendar,     label: "Week",     badge: selectedIds.size },
             { id: "shopping", icon: ShoppingCart, label: "Shopping", badge: shoppingList.filter((i) => !i.inPantry).length - checkedCount > 0 ? shoppingList.filter((i) => !i.inPantry).length - checkedCount : null },
             { id: "pantry",   icon: Package,      label: "Pantry",   badge: pantryItems.length || null },
+            { id: "settings", icon: Settings,     label: "Settings" },
           ].map(({ id, icon: Icon, label, badge }) => (
-            <button key={id} onClick={() => setActiveTab(id)}
+            <button key={id} onClick={() => id === 'settings' ? setShowPreferences(true) : setActiveTab(id)}
               className={`flex-1 flex flex-col items-center justify-center py-3 gap-0.5 transition-all relative ${
                 activeTab === id ? "text-orange-600" : "text-gray-400 hover:text-orange-400"}`}>
               {activeTab === id && (

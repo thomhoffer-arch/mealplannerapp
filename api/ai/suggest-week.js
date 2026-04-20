@@ -133,6 +133,8 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks) {
 
 You plan weeknight dinners for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinner meals for this household.
 
+RECIPE SOURCES — draw exclusively from well-tested, quality home-cooking repertoire. Think HelloFresh, Marley Spoon, NYT Cooking, Ottolenghi, Jamie Oliver, and similar published sources. These are tested, reliable recipes with proper technique — not random internet recipes. You know many of these from your training data. Suggest real dishes you are confident about; adapt the seasoning, protein swaps, or technique to match the household preferences below.
+
 HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}
 
@@ -148,10 +150,10 @@ ${avoidList}
 STRICT RULES:
 1. Never plan the same main ingredient (e.g. pasta, chicken, salmon) two days in a row.
 2. Vary cuisine type every day (no Italian two consecutive days, etc.).
-3. Mix weekday-friendly quick meals (Mon–Thu) with more elaborate weekend meals (Fri–Sun).
+3. Mix weekday-friendly quick meals (Mon–Thu, under 40 min) with more elaborate weekend meals (Fri–Sun).
 4. Prioritise starred HIGH recipes — they should appear in week 1 if possible.
 5. Respect dietary preferences strictly. If members conflict (one vegetarian, one meat-eater), pick recipes that split gracefully and put the adaptation in the overview.
-6. If no starred recipes exist, invent appropriate recipes based on preferences.
+6. Every recipe must be a real, well-known dish you are confident about — not a vague or invented combination.
 
 Return ONLY a JSON object, no markdown:
 {
