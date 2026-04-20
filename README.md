@@ -19,8 +19,9 @@ A collaborative household meal planning PWA built with React, Tailwind CSS, Supa
 - **Save plan templates** — name and save a week's lineup to reuse later
 - **Adapt recipes with AI** — ask Gemini to substitute ingredients or adjust servings
 - **Weekly planning reminder** — choose a day of the week; the app shows a banner nudging you to plan if you haven't updated your plan in 6+ days
-- **Real-time notification bell** — the header bell icon shows when your partner adds or removes recipes from the plan or stars something; includes unread badge, mark-all-read, and per-item dismiss
+- **Real-time activity notifications** — the Profile tab shows partner activity (recipe adds, removes, stars) with an unread badge on the bottom nav icon, mark-all-read, and per-item dismiss
 - **Dinner invitations** — host picks a dinner, generates a shareable link with a dish, time, and optional note. If the recipient is a signed-in user who accepts, their own week plan and shopping list drop that night (they're eating elsewhere). Household members see "away" and guest chips on the plan at a glance
+- **Profile tab** — shows household info, dietary preferences (always visible), activity notifications, and UI/API settings behind a collapsible gear panel. Theme toggle and sign-out live in the user card row
 - **Landing page + plan selector** — unauthenticated visitors see a full marketing page (hero, an interactive week sandbox, plan comparison), before reaching the auth form. All visual decisions (palette, radii, typography, glyph style) live in [`DESIGN.md`](./DESIGN.md) as the single source of truth
 - **PWA installable** — works on iOS (Add to Home Screen) and Android/Chrome (native install prompt), no app store needed; install prompt only shows to authenticated users
 
@@ -34,6 +35,8 @@ React 18 + Tailwind CSS (Vite)
         └── Supabase (PostgreSQL + Auth + Realtime + Row Level Security)
               └── Gemini 2.5 Flash (AI: recipe import, adaptation, week planning)
 ```
+
+> **Note:** `package.json` sets `"type": "module"`, so all `/api/**/*.js` files use ES module syntax (`import`/`export default`). Do not use `require()` or `module.exports` in any API file.
 
 ### Key design decisions
 
@@ -60,11 +63,10 @@ React 18 + Tailwind CSS (Vite)
 | Component | Description |
 |---|---|
 | `AuthScreen` | Landing page, plan selector, and login/register form |
-| `PreferencesModal` | Dietary preferences, weekly reminder toggle, Gemini API key management |
+| `PreferencesModal` | Dietary preferences, weekly reminder toggle, Gemini API key management. Accepts a `section` prop (`'dietary'` or `'settings'`) to render only part of the form — used in the Profile tab to keep dietary preferences always visible and UI settings behind a gear toggle |
 | `CreateRecipeModal` | Full form for creating household-owned recipes |
 | `StarredPanel` | View starred recipes, cycle rotation priority, open AI week planner |
 | `WeekSuggestModal` | AI week planner UI: generate, preview per-day, select/deselect, load |
-| `NotificationBell` | Real-time activity notifications for household changes |
 | `WillingnessModal` | Willingness-to-pay survey (shown after 3 days of engagement) |
 | `InstallBanner` | PWA install prompt (Android native + iOS manual hint) |
 
@@ -328,7 +330,7 @@ For the complete set of visual rules — every colour step's semantic role, the 
 Every deploy gets a unique build ID (`<git-sha>.<timestamp>`) that's injected into:
 
 - The **service worker's cache name** (`vite.config.js` rewrites `__BUILD_ID__` in `public/service-worker.js` at build time), so the SW file bytes change on every deploy → browsers install the new worker and purge old caches.
-- **`import.meta.env.VITE_APP_VERSION`** — available anywhere in the frontend code; currently rendered as a tiny `v<id>` label under the bottom nav.
+- **`import.meta.env.VITE_APP_VERSION`** — available anywhere in the frontend code for debugging or display.
 
 Cache-Control headers in `vercel.json`:
 - `/index.html` and `/service-worker.js` → `max-age=0, must-revalidate` (always fetch fresh)
@@ -347,6 +349,5 @@ Once a name is chosen, update:
 | `public/manifest.json` | `name`, `short_name` |
 | `index.html` | `<title>`, meta description, `apple-mobile-web-app-title` |
 | `public/service-worker.js` | `meal-planner-` prefix in the `CACHE` constant (optional) |
-| `src/App.jsx` | `<h1>` header text |
-| `src/components/AuthScreen.jsx` | `<h1>` and `<span>` in nav + auth form |
+| `src/components/AuthScreen.jsx` | `<h1>` and `<span>` in auth form |
 | `README.md` | Title and description |
