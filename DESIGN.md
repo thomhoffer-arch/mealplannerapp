@@ -117,11 +117,26 @@ automatically re-theme.
 | `sage-500`      | "Alex just ticked X" toast; check tick fills                        |
 | `sage-600`      | Success/shared-state text                                           |
 
-**No blue.** No grey. No pure black. If you catch yourself reaching
-for a neutral, use `orange-300` / `orange-400` instead.
+**Three text colours, nothing else:**
+
+| Class              | Role                                                      |
+|--------------------|-----------------------------------------------------------|
+| `text-orange-900`  | All readable text — headings, body, labels, values        |
+| `text-orange-600`  | The one accent — active states, links, italic annotations |
+| `text-orange-400`  | Muted only — placeholders, disabled, secondary metadata   |
+
+Success/shared states use `text-sage-*` (400/500/600). Errors use
+`text-red-500`. White text appears only on coloured backgrounds.
+No grey. No green. No amber. No blue. No pure black.
 
 **Purple** is reserved for AI-owned surfaces (Puter, model prompts).
 Don't reach for it for anything else.
+
+**Background discipline:**
+- `body` is plain white — no gradient
+- `.bg-paper` (landing + auth only) carries the full warm gradient
+- App shell → `bg-white`; sticky header → `bg-white/90`
+- Cards/items → `bg-white`; active/selected state → `bg-orange-50`
 
 ### Typography
 

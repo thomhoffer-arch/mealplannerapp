@@ -60,7 +60,7 @@ export default function WillingnessModal({ household, onClose }) {
         {step === 'done' && (
           <div className="p-8 text-center">
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check size={22} className="text-green-600" />
+              <Check size={22} className="text-sage-600" />
             </div>
             <h2 className="text-base font-bold text-orange-900 mb-1">Thanks for the feedback!</h2>
             <p className="text-sm text-orange-600 mb-5">It helps us decide what to build next.</p>

@@ -99,7 +99,7 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
                 onClick={() => copyText(listText, true)}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-orange-200 bg-white text-orange-900 hover:bg-orange-50 transition text-sm font-medium"
               >
-                {copiedAll ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                {copiedAll ? <Check size={14} className="text-sage-600" /> : <Copy size={14} />}
                 {copiedAll ? 'Copied to clipboard' : 'Or just copy the whole list'}
               </button>
               <p className="text-[11px] text-orange-400 text-center mt-2 leading-relaxed">

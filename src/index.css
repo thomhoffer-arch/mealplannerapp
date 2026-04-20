@@ -82,12 +82,14 @@ body {
 /* Fixed gradient lives on a pseudo-element so it's composited into its own
    GPU layer. `background-attachment: fixed` on <body> with a radial-gradient
    was forcing a full-viewport repaint on every scroll frame — this avoids it. */
+/* Body is plain white — the warm gradient only applies to .bg-paper surfaces
+   (landing + auth). This keeps the authenticated app shell clean. */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: var(--body-bg);
+  background: white;
   pointer-events: none;
 }
 
@@ -98,11 +100,12 @@ html { scroll-behavior: smooth; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Subtle warm decorative backdrop — used on hero/auth backgrounds */
+/* Warm paper backdrop — landing page and auth screens only */
 .bg-paper {
   background-image:
     radial-gradient(circle at 18% 12%, rgb(var(--c-orange-200) / 0.10) 0%, transparent 45%),
-    radial-gradient(circle at 85% 85%, rgb(var(--c-sage-400) / 0.07) 0%, transparent 45%);
+    radial-gradient(circle at 85% 85%, rgb(var(--c-sage-400) / 0.07) 0%, transparent 45%),
+    radial-gradient(60% 50% at 50% 0%, rgb(var(--c-amber-50)) 0%, rgb(var(--c-orange-50)) 100%);
 }
 
 /* In dark mode, re-map bg-white surfaces (cards, modals, sticky chrome) to a
