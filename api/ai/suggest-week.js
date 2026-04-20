@@ -161,6 +161,7 @@ STRICT RULES:
 5. Respect dietary preferences strictly. If members conflict (one vegetarian, one meat-eater), pick recipes that split gracefully and put the adaptation in the overview.
 6. Every recipe must be a real, well-known dish you are confident about — not a vague or invented combination.
 7. Never repeat the same lunch or side dish across the week — keep all extras varied just like dinners.
+8. Optimise for ingredient reuse: if a recipe uses part of a perishable pack (fresh herbs, leafy greens, coconut milk, cream, canned beans, etc.), deliberately plan another meal that week which uses the remainder. Mention this in the notes field.
 
 Return ONLY a JSON object, no markdown:
 {

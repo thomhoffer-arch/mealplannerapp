@@ -473,7 +473,8 @@ export default function App() {
   const [showReminderBanner, setShowReminderBanner] = useState(false);
   const [preferences, setPreferences] = useState({});
   const [planExtrasText, setPlanExtrasText] = useState('');
-  const [sideDishPanel, setSideDishPanel] = useState(null); // { key, mainRecipe, rid, input, loading, suggestions, error }
+  const [sideDishPanel, setSideDishPanel] = useState(null);
+  const [wasteInsights, setWasteInsights] = useState(null); // null | { loading, insights, error } // { key, mainRecipe, rid, input, loading, suggestions, error }
 
   // ── Search state
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -857,6 +858,27 @@ export default function App() {
     }
   }
 
+  // ── Waste / shopping insights ─────────────────────────────────────────────
+  async function fetchWasteInsights() {
+    setWasteInsights({ loading: true, insights: [], error: '' });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/ai/shopping-insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({
+          items: shoppingList.filter((i) => !i.inPantry).map((i) => ({ name: i.name, amount: i.amount })),
+          recipes: selectedRecipeObjects.map((r) => ({ name: r.name, servings: r.servings })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not get insights');
+      setWasteInsights({ loading: false, insights: data.insights || [], error: '' });
+    } catch (err) {
+      setWasteInsights({ loading: false, insights: [], error: err.message });
+    }
+  }
+
   // ── Recipe search ─────────────────────────────────────────────────────────
   async function importFromUrl() {
     const url = importUrl.trim();
@@ -988,6 +1010,8 @@ export default function App() {
   const shoppingList = consolidateIngredients(selectedRecipeObjects, customIngredients)
     .map((item) => ({ ...item, inPantry: pantryNames.has(item.name.toLowerCase().trim()) }));
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => { setWasteInsights(null); }, [shoppingList.length]);
 
   // ── Loading / auth gate ───────────────────────────────────────────────────
   if (authLoading) {
@@ -1680,7 +1704,47 @@ export default function App() {
                       Send to AH, Jumbo or Picnic
                     </button>
                   )}
+                  {!wasteInsights ? (
+                    <button
+                      onClick={fetchWasteInsights}
+                      className="w-full mt-2 py-2 border border-dashed border-orange-200 text-orange-400 rounded-full text-sm hover:border-orange-400 hover:text-orange-600 transition flex items-center justify-center gap-1.5"
+                    >
+                      ♻ Reduce waste tips
+                    </button>
+                  ) : wasteInsights.loading ? (
+                    <div className="flex items-center justify-center gap-2 mt-2 py-2 text-xs text-orange-400">
+                      <div className="w-3.5 h-3.5 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
+                      Analysing your shopping list…
+                    </div>
+                  ) : null}
                 </div>
+
+                {/* Waste insights panel */}
+                {wasteInsights && !wasteInsights.loading && (
+                  <div className="bg-green-50 border border-green-100 rounded-2xl p-4 mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">♻ Waste reduction tips</p>
+                      <button onClick={() => setWasteInsights(null)} className="text-green-400 hover:text-green-600 transition"><X size={14} /></button>
+                    </div>
+                    {wasteInsights.error ? (
+                      <p className="text-xs text-red-500">{wasteInsights.error}</p>
+                    ) : wasteInsights.insights.length === 0 ? (
+                      <p className="text-xs text-green-600">Looks great — no obvious waste for this week's plan!</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {wasteInsights.insights.map((ins, i) => (
+                          <div key={i} className="flex gap-2.5">
+                            <span className="text-base leading-none mt-0.5">🌿</span>
+                            <div>
+                              <p className="text-sm font-semibold text-green-800 capitalize">{ins.ingredient}</p>
+                              <p className="text-xs text-green-700 mt-0.5 leading-relaxed">{ins.tip}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
                   {[...shoppingList]
