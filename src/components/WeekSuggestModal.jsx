@@ -3,9 +3,9 @@ import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle } from '
 import { supabase } from '../lib/supabase';
 
 const SOURCE_COLORS = {
-  'My Recipes':     'bg-amber-100 text-amber-700',
+  'My Recipes':     'bg-orange-100 text-orange-600',
   'AI Suggestion':  'bg-orange-100 text-orange-600',
-  'Web import':     'bg-orange-50 text-orange-500',
+  'Web import':     'bg-orange-50 text-orange-600',
 };
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -97,22 +97,22 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-orange-50">
           <div className="flex items-center gap-2">
-            <Sparkles size={17} className="text-orange-500" />
+            <Sparkles size={17} className="text-orange-600" />
             {/* TODO: replace "AI week planner" with app name */}
             <h2 className="font-display text-base font-bold text-orange-900">Week planner</h2>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-400 hover:bg-orange-50 transition">
             <X size={16} />
           </button>
         </div>
 
         {/* Controls */}
         <div className="px-5 pt-4 pb-3 flex items-center gap-3">
-          <span className="text-sm font-medium text-orange-800">Plan:</span>
+          <span className="text-sm font-medium text-orange-900">Plan:</span>
           {[1, 2].map((w) => (
             <button key={w} onClick={() => setNumWeeks(w)}
               className={`px-4 py-1.5 rounded-full text-sm font-semibold transition border-2 ${
-                numWeeks === w ? 'bg-orange-500 text-white border-orange-500' : 'border-orange-200 text-orange-700 hover:border-orange-400'
+                numWeeks === w ? 'bg-orange-500 text-white border-orange-500' : 'border-orange-200 text-orange-900 hover:border-orange-400'
               }`}>
               {w} week{w > 1 ? 's' : ''}
             </button>
@@ -133,23 +133,23 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           {loading && (
             <div className="flex flex-col items-center py-12 gap-3">
               <div className="w-8 h-8 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-              <p className="text-sm text-orange-500">Planning your week…</p>
-              <p className="text-xs text-orange-300">Checking preferences and starred recipes</p>
+              <p className="text-sm text-orange-600">Planning your week…</p>
+              <p className="text-xs text-orange-400">Checking preferences and starred recipes</p>
             </div>
           )}
 
           {!loading && !plan && !error && (
             <div className="text-center py-10">
-              <Sparkles size={40} className="mx-auto mb-3 text-orange-200" />
-              <p className="text-sm text-orange-500 font-medium">AI plans a varied week for you</p>
-              <p className="text-xs text-orange-300 mt-1 leading-relaxed">Based on your preferences and starred recipes — no pasta two days in a row.</p>
+              <Sparkles size={40} className="mx-auto mb-3 text-orange-400" />
+              <p className="text-sm text-orange-600 font-medium">AI plans a varied week for you</p>
+              <p className="text-xs text-orange-400 mt-1 leading-relaxed">Based on your preferences and starred recipes — no pasta two days in a row.</p>
             </div>
           )}
 
           {plan && !loading && plan.map((week) => (
             <div key={week.week} className="mb-4">
               {plan.length > 1 && (
-                <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Week {week.week}</p>
+                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Week {week.week}</p>
               )}
               <div className="space-y-2">
                 {week.days.map((day) => {
@@ -178,18 +178,18 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
 
                         <div className="flex-1 min-w-0" onClick={() => toggleDay(key)}>
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-bold text-orange-500 uppercase">{day.day.slice(0, 3)}</span>
-                            {isStarred && <span className="text-xs bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-semibold">⭐ Starred</span>}
+                            <span className="text-xs font-bold text-orange-600 uppercase">{day.day.slice(0, 3)}</span>
+                            {isStarred && <span className="text-xs bg-amber-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">⭐ Starred</span>}
                             {isAI && <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">✨ New</span>}
                             {recipe?.source && !isAI && (
-                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${SOURCE_COLORS[recipe.source] || 'bg-orange-50 text-orange-500'}`}>
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${SOURCE_COLORS[recipe.source] || 'bg-orange-50 text-orange-600'}`}>
                                 {recipe.source}
                               </span>
                             )}
                           </div>
                           <p className="text-sm font-semibold text-orange-900 mt-0.5 leading-snug">{recipe?.name || day.name}</p>
                           {(recipe?.overview || day.overview) && (
-                            <p className="text-xs text-orange-500 mt-0.5 line-clamp-1">{recipe?.overview || day.overview}</p>
+                            <p className="text-xs text-orange-600 mt-0.5 line-clamp-1">{recipe?.overview || day.overview}</p>
                           )}
                         </div>
 
@@ -197,12 +197,12 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         {isSelected && (
                           <button
                             onClick={() => setExpandedDay(isExpanded ? null : key)}
-                            className="flex-shrink-0 flex items-center gap-1 text-orange-300 hover:text-orange-500 transition ml-1 mt-0.5"
+                            className="flex-shrink-0 flex items-center gap-1 text-orange-400 hover:text-orange-600 transition ml-1 mt-0.5"
                             title="Day options"
                           >
                             <Users size={14} />
                             {servings[key] && servings[key] !== (recipe?.servings || 2) && (
-                              <span className="text-xs font-semibold text-orange-500">{servings[key]}</span>
+                              <span className="text-xs font-semibold text-orange-600">{servings[key]}</span>
                             )}
                           </button>
                         )}
@@ -214,16 +214,16 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2 flex-1">
                               <Users size={13} className="text-orange-400 flex-shrink-0" />
-                              <span className="text-xs text-orange-700">Portions</span>
+                              <span className="text-xs text-orange-900">Portions</span>
                               <div className="flex items-center gap-1.5 ml-auto">
                                 <button
                                   onClick={() => setDayServings(key, dayServings - 1)}
-                                  className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-500 hover:bg-orange-50 transition text-sm font-bold"
+                                  className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition text-sm font-bold"
                                 >−</button>
                                 <span className="text-sm font-semibold text-orange-900 w-4 text-center">{dayServings}</span>
                                 <button
                                   onClick={() => setDayServings(key, dayServings + 1)}
-                                  className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-500 hover:bg-orange-50 transition text-sm font-bold"
+                                  className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition text-sm font-bold"
                                 >+</button>
                               </div>
                             </div>
@@ -258,7 +258,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           {notes && plan && !loading && (
             <div className="mt-2">
               <button onClick={() => setShowNotes((v) => !v)}
-                className="flex items-center gap-1 text-xs text-orange-500 font-medium hover:text-orange-700 transition">
+                className="flex items-center gap-1 text-xs text-orange-600 font-medium hover:text-orange-900 transition">
                 {showNotes ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 Planner notes
               </button>

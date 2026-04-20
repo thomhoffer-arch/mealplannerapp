@@ -108,7 +108,7 @@ export default function NotificationBell({ household }) {
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="text-xs text-orange-500 hover:text-orange-700 font-medium flex items-center gap-1 transition"
+                className="text-xs text-orange-600 hover:text-orange-900 font-medium flex items-center gap-1 transition"
               >
                 <Check size={11} /> Mark all read
               </button>
@@ -117,7 +117,7 @@ export default function NotificationBell({ household }) {
 
           <div className="overflow-y-auto flex-1">
             {notifications.length === 0 ? (
-              <div className="text-center py-8 text-orange-300">
+              <div className="text-center py-8 text-orange-400">
                 <Bell size={28} className="mx-auto mb-2 opacity-40" />
                 <p className="text-sm">No activity yet</p>
                 <p className="text-xs mt-0.5">Changes your partner makes will appear here</p>
@@ -138,7 +138,7 @@ export default function NotificationBell({ household }) {
                     )}
                     <button
                       onClick={() => dismiss(n.id)}
-                      className="text-orange-300 hover:text-orange-500 transition"
+                      className="text-orange-400 hover:text-orange-600 transition"
                     >
                       <X size={13} />
                     </button>

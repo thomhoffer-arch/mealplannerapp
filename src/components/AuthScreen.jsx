@@ -82,7 +82,7 @@ function HeroNotebookPreview() {
     <div className="relative rotate-[1.5deg]">
       <div className="bg-white rounded-[22px] border border-orange-200 shadow-warm-lg p-5 sm:p-6">
         <div className="flex items-baseline justify-between mb-4">
-          <p className="font-display italic text-orange-500 text-xs tracking-wide">wk of 13 oct</p>
+          <p className="font-display italic text-orange-600 text-xs tracking-wide">wk of 13 oct</p>
           <p className="font-display italic text-orange-400 text-[10px]">— for two</p>
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -95,8 +95,8 @@ function HeroNotebookPreview() {
                   style={{ borderRadius: s.br }}
                   className={`aspect-square border-[1.5px] flex items-center justify-center text-center font-display text-[9px] sm:text-[10px] ${s.rotate} ${
                     day.away
-                      ? 'border-dashed border-sage-400/80 text-sage-700'
-                      : 'border-orange-300/80 text-orange-800'
+                      ? 'border-dashed border-sage-400/80 text-sage-600'
+                      : 'border-orange-300/80 text-orange-900'
                   }`}
                 >
                   {day.label}
@@ -110,7 +110,7 @@ function HeroNotebookPreview() {
             <path d="M3 8 C 16 3, 30 10, 46 5" />
             <path d="M46 5 L 41 3 M 46 5 L 43 9" />
           </svg>
-          <span className="font-display italic text-orange-500 text-xs">seven dinners.</span>
+          <span className="font-display italic text-orange-600 text-xs">seven dinners.</span>
         </div>
       </div>
     </div>
@@ -202,7 +202,7 @@ export default function AuthScreen() {
           </div>
           <h2 className="font-display text-2xl font-semibold text-orange-900 mb-2">Check your email</h2>
           <p className="text-sm text-orange-600 leading-relaxed">
-            We sent a confirmation link to <strong className="text-orange-800">{email}</strong>. Click it to activate your account.
+            We sent a confirmation link to <strong className="text-orange-900">{email}</strong>. Click it to activate your account.
           </p>
         </div>
       </div>
@@ -219,7 +219,7 @@ export default function AuthScreen() {
           <span className="font-display text-lg font-semibold text-orange-900 tracking-tight">Meal Planner</span>
           <button
             onClick={() => { setMode('login'); setView('auth'); }}
-            className="text-sm text-orange-700 font-medium hover:text-orange-900 transition"
+            className="text-sm text-orange-900 font-medium hover:text-orange-900 transition"
           >
             Sign in
           </button>
@@ -229,16 +229,16 @@ export default function AuthScreen() {
         <section className="max-w-5xl mx-auto px-6 pt-20 sm:pt-28 pb-28 sm:pb-32">
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
             <div className="lg:col-span-7">
-              <p className="font-display italic text-orange-500/80 text-sm mb-5 tracking-wide">— for one, two, or a full flat.</p>
+              <p className="font-display italic text-orange-400 text-sm mb-5 tracking-wide">— for one, two, or a full flat.</p>
               <h1 className="font-display text-[3.25rem] sm:text-[5.5rem] font-semibold text-orange-900 leading-[0.95] mb-4 tracking-tight">
                 Plan the<br />
                 week.
                 <span className="relative inline-block italic font-normal text-orange-600 ml-3 sm:ml-5">
                   Together.
-                  <Scribble className="absolute left-0 -bottom-3 sm:-bottom-4 w-full text-orange-500/70 pointer-events-none" aria-hidden="true" />
+                  <Scribble className="absolute left-0 -bottom-3 sm:-bottom-4 w-full text-orange-600/70 pointer-events-none" aria-hidden="true" />
                 </span>
               </h1>
-              <p className="mt-8 sm:mt-10 text-lg text-orange-800/85 leading-relaxed max-w-md">
+              <p className="mt-8 sm:mt-10 text-lg text-orange-900/85 leading-relaxed max-w-md">
                 Enough dinners for the week, sorted in the time it takes the kettle to boil.
               </p>
               <div className="mt-10 flex flex-col items-start gap-4">
@@ -270,10 +270,10 @@ export default function AuthScreen() {
                 >
                   Start planning — it's free
                 </Button>
-                <p className="text-xs text-orange-700/70">No card needed. Takes 30 seconds.</p>
+                <p className="text-xs text-orange-900/70">No card needed. Takes 30 seconds.</p>
                 <button
                   onClick={() => { setMode('login'); setView('auth'); }}
-                  className="text-sm text-orange-700 hover:text-orange-900 transition underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
+                  className="text-sm text-orange-900 hover:text-orange-900 transition underline underline-offset-4 decoration-orange-300 decoration-[1.5px]"
                 >
                   Sign in to your account →
                 </button>
@@ -296,7 +296,7 @@ export default function AuthScreen() {
         <section className="bg-white/60 backdrop-blur-sm border-y border-orange-100 py-20 sm:py-24 px-6">
           <div className="max-w-3xl mx-auto">
             <h2 className="font-display text-2xl sm:text-3xl font-semibold text-orange-900 mb-1">How a week goes</h2>
-            <p className="font-display italic text-orange-700/70 text-sm mb-12 max-w-lg">
+            <p className="font-display italic text-orange-900/70 text-sm mb-12 max-w-lg">
               roughly like this —
             </p>
 
@@ -304,8 +304,8 @@ export default function AuthScreen() {
                 reads as "this is the actual app", not just an illustration. */}
             <div className="rounded-[22px] border border-orange-200 shadow-warm-lg overflow-hidden">
               <div className="bg-orange-50/60 border-b border-orange-100 px-4 py-2.5 flex items-center gap-2">
-                <span className="font-display italic text-orange-500 text-xs">Meal Planner</span>
-                <span className="text-orange-300 text-xs">·</span>
+                <span className="font-display italic text-orange-600 text-xs">Meal Planner</span>
+                <span className="text-orange-400 text-xs">·</span>
                 <span className="font-display italic text-orange-400 text-xs">week of 13 oct</span>
               </div>
               <div className="bg-white px-4 py-5">
@@ -322,16 +322,16 @@ export default function AuthScreen() {
                 return (
                   <div key={c.title} className="flex gap-6 sm:gap-10 items-start">
                     {!glyphRight && (
-                      <div className="text-orange-500 flex-shrink-0">
+                      <div className="text-orange-600 flex-shrink-0">
                         <Glyph className="w-12 h-12 sm:w-14 sm:h-14" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="font-display text-xl sm:text-2xl font-semibold text-orange-900 mb-2 leading-tight">{c.title}</p>
-                      <p className="text-[15px] text-orange-800/80 leading-relaxed max-w-lg">{c.desc}</p>
+                      <p className="text-[15px] text-orange-900/80 leading-relaxed max-w-lg">{c.desc}</p>
                     </div>
                     {glyphRight && (
-                      <div className="text-orange-500 flex-shrink-0">
+                      <div className="text-orange-600 flex-shrink-0">
                         <Glyph className="w-12 h-12 sm:w-14 sm:h-14" />
                       </div>
                     )}
@@ -343,7 +343,7 @@ export default function AuthScreen() {
             {/* Aside — not numbered, italic, pinned slightly to the right
                 so it reads as a margin note. Breaks the rhythm on purpose.
                 No scribble here; the hero already has the one per screen. */}
-            <p className="mt-16 sm:mt-20 ml-auto max-w-md text-right font-display italic text-orange-700/80 text-base leading-relaxed">
+            <p className="mt-16 sm:mt-20 ml-auto max-w-md text-right font-display italic text-orange-900/80 text-base leading-relaxed">
               — a kitchen's better with company. Invite a partner, a flatmate,
               your mum — the plan stays in sync, so nobody's texting "did we
               already have pasta this week?"
@@ -353,7 +353,7 @@ export default function AuthScreen() {
 
         {/* Testimonials — scattered notebook notes, not a feature grid */}
         <section className="max-w-3xl mx-auto px-6 py-20 sm:py-24">
-          <p className="font-display italic text-orange-500/80 text-sm mb-10 tracking-wide">— people who cook at home</p>
+          <p className="font-display italic text-orange-600/80 text-sm mb-10 tracking-wide">— people who cook at home</p>
 
           {/* One large note + two smaller ones: deliberately non-identical layout */}
           <div className="space-y-5 sm:space-y-6">
@@ -361,7 +361,7 @@ export default function AuthScreen() {
               <p className="font-display text-xl sm:text-2xl font-semibold text-orange-900 leading-snug mb-4">
                 "{TESTIMONIALS[0].quote}"
               </p>
-              <p className="font-display italic text-orange-500 text-sm">
+              <p className="font-display italic text-orange-600 text-sm">
                 — {TESTIMONIALS[0].name}, {TESTIMONIALS[0].location} · {TESTIMONIALS[0].household}
               </p>
             </blockquote>
@@ -369,8 +369,8 @@ export default function AuthScreen() {
             <div className="grid sm:grid-cols-2 gap-5 sm:gap-6">
               {TESTIMONIALS.slice(1).map((t) => (
                 <blockquote key={t.name} className={`bg-white rounded-[18px] border border-orange-200 px-6 py-5 shadow-warm ${t.rotate}`}>
-                  <p className="text-orange-800/85 text-[15px] leading-relaxed mb-3">"{t.quote}"</p>
-                  <p className="font-display italic text-orange-500 text-xs">
+                  <p className="text-orange-900/85 text-[15px] leading-relaxed mb-3">"{t.quote}"</p>
+                  <p className="font-display italic text-orange-600 text-xs">
                     — {t.name}, {t.location} · {t.household}
                   </p>
                 </blockquote>
@@ -384,7 +384,7 @@ export default function AuthScreen() {
           <h2 className="font-display text-3xl sm:text-4xl font-semibold text-orange-900 mb-3 leading-tight">
             Give it a week.
           </h2>
-          <p className="text-sm text-orange-700/80 mb-8">Free to use. No card needed.</p>
+          <p className="text-sm text-orange-900/80 mb-8">Free to use. No card needed.</p>
           <Button
             onClick={() => setView('plan')}
             size="lg"
@@ -403,9 +403,9 @@ export default function AuthScreen() {
     return (
       <div className="min-h-screen bg-paper px-4 py-14">
         <div className="max-w-3xl mx-auto">
-          <button onClick={() => setView('landing')} className="text-xs text-orange-500 hover:text-orange-700 mb-8 transition">← Back</button>
+          <button onClick={() => setView('landing')} className="text-xs text-orange-600 hover:text-orange-900 mb-8 transition">← Back</button>
           <h2 className="font-display text-3xl font-semibold text-orange-900 mb-1.5">Choose your plan</h2>
-          <p className="text-sm text-orange-700/80 mb-8">All core features are included in every plan. AI is the only difference.</p>
+          <p className="text-sm text-orange-900/80 mb-8">All core features are included in every plan. AI is the only difference.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
 
@@ -427,7 +427,7 @@ export default function AuthScreen() {
                 </div>
               </div>
               <p className="font-display text-2xl font-semibold text-orange-900 mb-0.5">
-                €0 <span className="text-sm font-normal text-orange-500">/ forever</span>
+                €0 <span className="text-sm font-normal text-orange-600">/ forever</span>
               </p>
               <ul className="space-y-2 mt-5">
                 {[
@@ -439,14 +439,14 @@ export default function AuthScreen() {
                 ].map((f) => (
                   <li key={f.text} className="flex items-start gap-2">
                     {f.ok
-                      ? <Check size={12} className="text-sage-500 mt-0.5 flex-shrink-0" />
-                      : <span className="text-orange-200 text-xs mt-0.5 flex-shrink-0">✕</span>}
-                    <span className={`text-xs leading-snug ${f.ok ? 'text-orange-800' : 'text-orange-300'}`}>{f.text}</span>
+                      ? <Check size={12} className="text-sage-600 mt-0.5 flex-shrink-0" />
+                      : <span className="text-orange-400 text-xs mt-0.5 flex-shrink-0">✕</span>}
+                    <span className={`text-xs leading-snug ${f.ok ? 'text-orange-900' : 'text-orange-400'}`}>{f.text}</span>
                   </li>
                 ))}
               </ul>
               {selectedPlan === 'free' && (
-                <p className="text-xs text-orange-500 mt-4 pt-3 border-t border-orange-100 italic leading-relaxed">
+                <p className="text-xs text-orange-600 mt-4 pt-3 border-t border-orange-100 italic leading-relaxed">
                   Add your own Gemini key in Settings after signup — unlimited AI and up to 8 results per search.
                 </p>
               )}
@@ -470,9 +470,9 @@ export default function AuthScreen() {
                 </div>
               </div>
               <p className="font-display text-2xl font-semibold text-orange-900 mb-0.5">
-                Paid <span className="text-sm font-normal text-orange-500">— we provide the key</span>
+                Paid <span className="text-sm font-normal text-orange-600">— we provide the key</span>
               </p>
-              <p className="text-[11px] text-orange-500 mb-4">Pay via Puter, or directly once billing is live.</p>
+              <p className="text-[11px] text-orange-600 mb-4">Pay via Puter, or directly once billing is live.</p>
               <ul className="space-y-2">
                 {[
                   'Unlimited AI — no weekly cap',
@@ -481,13 +481,13 @@ export default function AuthScreen() {
                   'Shared plan, list & pantry',
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2">
-                    <Check size={12} className="text-sage-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-xs leading-snug text-orange-800">{t}</span>
+                    <Check size={12} className="text-sage-600 mt-0.5 flex-shrink-0" />
+                    <span className="text-xs leading-snug text-orange-900">{t}</span>
                   </li>
                 ))}
               </ul>
               {selectedPlan === 'puter' && (
-                <p className="text-xs text-orange-500 mt-4 pt-3 border-t border-orange-100 italic leading-relaxed">
+                <p className="text-xs text-orange-600 mt-4 pt-3 border-t border-orange-100 italic leading-relaxed">
                   Currently via Puter — connect after signup. Top up a couple of euros and it covers weeks of planning.
                 </p>
               )}
@@ -515,7 +515,7 @@ export default function AuthScreen() {
               </div>
               <div className="flex items-baseline gap-2 mb-0.5">
                 <p className="font-display text-2xl font-semibold text-orange-900">
-                  {displayPrice} <span className="text-sm font-normal text-orange-500">/ month</span>
+                  {displayPrice} <span className="text-sm font-normal text-orange-600">/ month</span>
                 </p>
                 {premiumOwnKey && (
                   <span className="text-xs font-medium text-sage-600 bg-sage-100 px-1.5 py-0.5 rounded-full">16% off</span>
@@ -529,8 +529,8 @@ export default function AuthScreen() {
                   'All core features',
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2">
-                    <Check size={12} className="text-sage-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-xs leading-snug text-orange-800">{t}</span>
+                    <Check size={12} className="text-sage-600 mt-0.5 flex-shrink-0" />
+                    <span className="text-xs leading-snug text-orange-900">{t}</span>
                   </li>
                 ))}
               </ul>
@@ -539,9 +539,9 @@ export default function AuthScreen() {
                   onClick={() => { setSelectedPlan('premium'); setPremiumOwnKey((v) => !v); }}
                   className="flex items-center justify-between w-full group"
                 >
-                  <span className="text-xs text-orange-800 leading-snug text-left">
+                  <span className="text-xs text-orange-900 leading-snug text-left">
                     I'll use my own Gemini key
-                    <span className="block text-orange-500 font-normal mt-0.5">Saves 16% — requires active key</span>
+                    <span className="block text-orange-600 font-normal mt-0.5">Saves 16% — requires active key</span>
                   </span>
                   <div className={`relative flex-shrink-0 ml-3 h-5 w-9 rounded-full transition-colors ${premiumOwnKey ? 'bg-sage-500' : 'bg-orange-200'}`}>
                     <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${premiumOwnKey ? 'translate-x-4' : ''}`} />
@@ -570,7 +570,7 @@ export default function AuthScreen() {
              : 'Start for free'}
             <ArrowRight size={15} />
           </button>
-          <p className="text-xs text-orange-500 text-center mt-4 leading-relaxed">
+          <p className="text-xs text-orange-600 text-center mt-4 leading-relaxed">
             You can switch plans or add your own key any time in Settings.
           </p>
         </div>
@@ -583,11 +583,11 @@ export default function AuthScreen() {
     <div className="min-h-screen bg-paper flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-warm-lg border border-orange-100 p-8 w-full max-w-sm">
         {!inviteToken && (
-          <button onClick={() => setView(mode === 'register' ? 'plan' : 'landing')} className="text-xs text-orange-500 hover:text-orange-700 mb-5 transition">← Back</button>
+          <button onClick={() => setView(mode === 'register' ? 'plan' : 'landing')} className="text-xs text-orange-600 hover:text-orange-900 mb-5 transition">← Back</button>
         )}
 
         <h1 className="font-display text-3xl font-semibold text-orange-900 leading-none mb-1.5">Welcome</h1>
-        <p className="text-xs text-orange-500 mb-6 leading-relaxed">
+        <p className="text-xs text-orange-600 mb-6 leading-relaxed">
           {mode === 'login' ? 'Good to see you again.' : 'Two fields and you\u2019re in.'}
         </p>
 
@@ -651,7 +651,7 @@ export default function AuthScreen() {
 
         <button
           onClick={() => { setMode((m) => (m === 'login' ? 'register' : 'login')); setError(''); }}
-          className="w-full text-center text-sm text-orange-600 hover:text-orange-800 mt-5 transition"
+          className="w-full text-center text-sm text-orange-600 hover:text-orange-900 mt-5 transition"
         >
           {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
         </button>

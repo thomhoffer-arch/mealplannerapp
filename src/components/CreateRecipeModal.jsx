@@ -80,7 +80,7 @@ export default function CreateRecipeModal({ household, onClose, onAddToPlan }) {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 pt-5 pb-3 sticky top-0 bg-white border-b border-orange-50 z-10">
           <h2 className="text-base font-bold text-orange-900">Create your own recipe</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-300 hover:bg-orange-50 transition">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-400 hover:bg-orange-50 transition">
             <X size={16} />
           </button>
         </div>
@@ -88,7 +88,7 @@ export default function CreateRecipeModal({ household, onClose, onAddToPlan }) {
         <div className="px-5 py-4 space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-xs font-semibold text-orange-700 uppercase tracking-wide mb-1">Recipe name *</label>
+            <label className="block text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">Recipe name *</label>
             <input
               type="text"
               placeholder="e.g. Grandma's tomato soup"
@@ -100,7 +100,7 @@ export default function CreateRecipeModal({ household, onClose, onAddToPlan }) {
 
           {/* Overview */}
           <div>
-            <label className="block text-xs font-semibold text-orange-700 uppercase tracking-wide mb-1">Description</label>
+            <label className="block text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">Description</label>
             <textarea
               rows={2}
               placeholder="A quick note about what makes this recipe special"
@@ -118,7 +118,7 @@ export default function CreateRecipeModal({ household, onClose, onAddToPlan }) {
               { label: 'Servings', value: servings, set: setServings },
             ].map(({ label, value, set }) => (
               <div key={label}>
-                <label className="block text-xs font-semibold text-orange-700 uppercase tracking-wide mb-1">{label}</label>
+                <label className="block text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">{label}</label>
                 <input
                   type="number"
                   min={1}
@@ -132,7 +132,7 @@ export default function CreateRecipeModal({ household, onClose, onAddToPlan }) {
 
           {/* Ingredients */}
           <div>
-            <label className="block text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Ingredients</label>
+            <label className="block text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Ingredients</label>
             <div className="space-y-2">
               {ingredients.map((ing) => (
                 <div key={ing.id} className="flex gap-2">
@@ -150,20 +150,20 @@ export default function CreateRecipeModal({ household, onClose, onAddToPlan }) {
                     onChange={(e) => updateIngredient(ing.id, 'name', e.target.value)}
                     className="flex-1 border border-orange-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
                   />
-                  <button onClick={() => removeIngredient(ing.id)} className="text-orange-200 hover:text-red-400 transition flex-shrink-0">
+                  <button onClick={() => removeIngredient(ing.id)} className="text-orange-400 hover:text-red-400 transition flex-shrink-0">
                     <X size={14} />
                   </button>
                 </div>
               ))}
             </div>
-            <button onClick={addIngredient} className="mt-2 flex items-center gap-1 text-xs text-orange-500 hover:text-orange-700 transition font-medium">
+            <button onClick={addIngredient} className="mt-2 flex items-center gap-1 text-xs text-orange-600 hover:text-orange-900 transition font-medium">
               <Plus size={13} /> Add ingredient
             </button>
           </div>
 
           {/* Steps */}
           <div>
-            <label className="block text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2">Steps</label>
+            <label className="block text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Steps</label>
             <div className="space-y-2">
               {steps.map((step, idx) => (
                 <div key={step.id} className="flex gap-2">
@@ -175,20 +175,20 @@ export default function CreateRecipeModal({ household, onClose, onAddToPlan }) {
                     onChange={(e) => updateStep(step.id, e.target.value)}
                     className="flex-1 border border-orange-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none"
                   />
-                  <button onClick={() => removeStep(step.id)} className="text-orange-200 hover:text-red-400 transition flex-shrink-0 mt-2">
+                  <button onClick={() => removeStep(step.id)} className="text-orange-400 hover:text-red-400 transition flex-shrink-0 mt-2">
                     <X size={14} />
                   </button>
                 </div>
               ))}
             </div>
-            <button onClick={addStep} className="mt-2 flex items-center gap-1 text-xs text-orange-500 hover:text-orange-700 transition font-medium">
+            <button onClick={addStep} className="mt-2 flex items-center gap-1 text-xs text-orange-600 hover:text-orange-900 transition font-medium">
               <Plus size={13} /> Add step
             </button>
           </div>
 
           {/* Add to plan toggle */}
           <button onClick={() => setAddToPlan((v) => !v)}
-            className={`flex items-center gap-2 text-sm font-medium transition ${addToPlan ? 'text-orange-700' : 'text-orange-400'}`}>
+            className={`flex items-center gap-2 text-sm font-medium transition ${addToPlan ? 'text-orange-900' : 'text-orange-400'}`}>
             <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition ${addToPlan ? 'bg-orange-500 border-orange-500' : 'border-orange-300'}`}>
               {addToPlan && <Check size={12} className="text-white" />}
             </div>

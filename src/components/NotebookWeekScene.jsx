@@ -130,7 +130,7 @@ export default function NotebookWeekScene() {
       <div className="relative bg-white/80 backdrop-blur-sm rounded-[22px] border border-orange-100 pt-7 pb-10 px-5 sm:px-9 shadow-warm">
         {/* Page header */}
         <div className="flex items-baseline justify-between mb-5">
-          <p className="font-display italic text-orange-500 text-sm tracking-wide">wk of 13 oct</p>
+          <p className="font-display italic text-orange-600 text-sm tracking-wide">wk of 13 oct</p>
           <p className="font-display italic text-orange-400 text-xs">— for two</p>
         </div>
 
@@ -165,14 +165,14 @@ export default function NotebookWeekScene() {
                         : 'border-orange-500 bg-orange-50 text-orange-900 shadow-warm'
                       : day.away
                         ? 'border-dashed border-sage-400/80 text-sage-700 hover:bg-sage-100/60'
-                        : 'border-orange-300/80 text-orange-800 hover:border-orange-400 hover:bg-orange-50/60'
+                        : 'border-orange-300/80 text-orange-900 hover:border-orange-400 hover:bg-orange-50/60'
                   }`}
                 >
                   <span className={day.strike ? 'line-through decoration-[1.5px] text-orange-400' : ''}>{day.label}</span>
                 </button>
 
                 {day.swap && (
-                  <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 font-display italic text-orange-500 text-[10px] sm:text-xs whitespace-nowrap pointer-events-none">
+                  <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 font-display italic text-orange-600 text-[10px] sm:text-xs whitespace-nowrap pointer-events-none">
                     → {day.swap}
                   </span>
                 )}
@@ -198,11 +198,11 @@ export default function NotebookWeekScene() {
               onClick={() => setActive(null)}
               aria-label="Close menu"
               className={`absolute top-2 right-3 text-lg leading-none transition ${
-                activeDay.away ? 'text-sage-500 hover:text-sage-700' : 'text-orange-400 hover:text-orange-700'
+                activeDay.away ? 'text-sage-500 hover:text-sage-700' : 'text-orange-400 hover:text-orange-900'
               }`}
             >×</button>
             <div className="flex items-center gap-2 mb-0.5">
-              <p className={`font-display italic text-xs tracking-wide ${activeDay.away ? 'text-sage-600' : 'text-orange-500'}`}>
+              <p className={`font-display italic text-xs tracking-wide ${activeDay.away ? 'text-sage-600' : 'text-orange-600'}`}>
                 {activeDay.d} night
               </p>
               {activeDay.away && (
@@ -214,10 +214,10 @@ export default function NotebookWeekScene() {
             <p className={`font-display text-xl font-semibold mt-0.5 leading-tight ${activeDay.away ? 'text-sage-800' : 'text-orange-900'}`}>
               {activeDay.dish}
             </p>
-            <p className="text-sm text-orange-800/85 leading-relaxed mt-2 max-w-md">{activeDay.overview}</p>
+            <p className="text-sm text-orange-900/85 leading-relaxed mt-2 max-w-md">{activeDay.overview}</p>
             <div className={`mt-3 flex items-center gap-2 text-xs font-display italic ${activeDay.away ? 'text-sage-600' : 'text-orange-600'}`}>
               <span>{activeDay.away ? `${activeDay.time} at ${activeDay.away}` : activeDay.time}</span>
-              <span className={activeDay.away ? 'text-sage-300' : 'text-orange-300'}>·</span>
+              <span className={activeDay.away ? 'text-sage-300' : 'text-orange-400'}>·</span>
               <span>{activeDay.cuisine}</span>
             </div>
           </div>
@@ -229,7 +229,7 @@ export default function NotebookWeekScene() {
               type="button"
               onClick={() => setActive(null)}
               aria-label="Close list"
-              className="absolute top-2 right-3 text-orange-400 hover:text-orange-700 text-lg leading-none"
+              className="absolute top-2 right-3 text-orange-400 hover:text-orange-900 text-lg leading-none"
             >×</button>
             <div className="flex items-baseline justify-between mb-3 pr-6">
               <p className="font-display text-lg font-semibold text-orange-900">Shopping list</p>
@@ -245,7 +245,7 @@ export default function NotebookWeekScene() {
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               {LIST.map(({ aisle, items }) => (
                 <div key={aisle}>
-                  <p className="font-display italic text-orange-500 text-xs tracking-wide mb-1.5">{aisle}</p>
+                  <p className="font-display italic text-orange-600 text-xs tracking-wide mb-1.5">{aisle}</p>
                   <ul className="space-y-1">
                     {items.map((name) => {
                       const by = ticked[name];
@@ -256,7 +256,7 @@ export default function NotebookWeekScene() {
                             type="button"
                             onClick={() => toggleTick(name)}
                             className={`flex items-center gap-2 text-sm transition text-left w-full ${
-                              on ? 'text-orange-400 line-through' : 'text-orange-800 hover:text-orange-900'
+                              on ? 'text-orange-400 line-through' : 'text-orange-900 hover:text-orange-900'
                             }`}
                           >
                             <span className={`w-3.5 h-3.5 rounded-[4px] border-[1.5px] flex-shrink-0 flex items-center justify-center ${
@@ -290,7 +290,7 @@ export default function NotebookWeekScene() {
               <path d="M4 4 C 20 6, 38 22, 58 30" />
               <path d="M58 30 L 52 26 M 58 30 L 56 22" />
             </svg>
-            <p className="font-display italic text-orange-700/80 text-sm leading-snug pt-1">
+            <p className="font-display italic text-orange-900/80 text-sm leading-snug pt-1">
               tap a day to see the dish — or the basket for the list.
             </p>
           </div>
@@ -307,11 +307,11 @@ export default function NotebookWeekScene() {
           active?.type === 'list' ? 'scale-105' : 'hover:scale-105'
         }`}
       >
-        <span className="font-display italic text-orange-500 text-xs group-hover:text-orange-700 transition">list →</span>
+        <span className="font-display italic text-orange-600 text-xs group-hover:text-orange-900 transition">list →</span>
         <div className={`border rounded-[14px] p-2 transition shadow-warm ${
           active?.type === 'list'
             ? 'bg-orange-500 border-orange-500 text-white'
-            : 'bg-orange-100/70 border-orange-200 text-orange-700 group-hover:bg-orange-200/80'
+            : 'bg-orange-100/70 border-orange-200 text-orange-900 group-hover:bg-orange-200/80'
         }`}>
           <GlyphBasket className="w-6 h-6" />
         </div>
