@@ -118,7 +118,18 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
         if (selected[key] && day.recipe) {
           const override = servings[key];
           const base = override ? { ...day.recipe, servings: override } : day.recipe;
-          recipes.push({ ...base, _plannedDay: day.day, _plannedWeek: week.week });
+          recipes.push({
+            ...base,
+            _plannedDay: day.day,
+            _plannedWeek: week.week,
+            // Persist planner context so the week view can show WHY this
+            // dish was picked + the pantry/leftover pairings even after
+            // the user saves the plan and reopens the app.
+            _plannerReason: day.reason || null,
+            _plannerLeftoverFor: day.leftover_for || null,
+            _plannerUsesPantry: Array.isArray(day.uses_pantry) ? day.uses_pantry : [],
+            _plannerPhoto: day.photo || null,
+          });
         }
       });
     });
