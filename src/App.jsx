@@ -15,6 +15,7 @@ import StarredPanel from "./components/StarredPanel";
 import HouseholdSwitcher from "./components/HouseholdSwitcher";
 import SharedRecipeView from "./components/SharedRecipeView";
 import AccountActions from "./components/AccountActions";
+import { extractAvoids, checkRecipe, summarizeConflicts } from "./lib/dietary";
 import WeekSuggestModal from "./components/WeekSuggestModal";
 import SurpriseBagModal from "./components/SurpriseBagModal";
 import PuterWelcomeModal from "./components/PuterWelcomeModal";
@@ -1094,13 +1095,29 @@ export default function App() {
     const existing = mealPlanItems.find((i) => i.recipe_id === rid);
     if (existing) {
       await supabase.from("meal_plan_items").delete().eq("id", existing.id);
-    } else {
-      await supabase.from("meal_plan_items").insert({
-        household_id: household.id,
-        recipe_id: rid,
-        recipe_data: recipe,
-      });
+      return;
     }
+    // Hard dietary guardrail — runs deterministically on top of the LLM's
+    // soft respect for preferences. Only nags on ADD, not REMOVE, and only
+    // when the recipe has actual ingredients (stubs are checked later when
+    // they get filled in).
+    if ((recipe.ingredients || []).length > 0) {
+      const avoids = extractAvoids(preferences?.preferences_text || '', householdMembers);
+      const conflicts = checkRecipe(recipe, avoids);
+      if (conflicts.length) {
+        const ok = window.confirm(
+          `Heads up — this recipe contains ingredients the household said they avoid:\n\n` +
+          summarizeConflicts(conflicts) +
+          `\n\nAdd it anyway?`
+        );
+        if (!ok) return;
+      }
+    }
+    await supabase.from("meal_plan_items").insert({
+      household_id: household.id,
+      recipe_id: rid,
+      recipe_data: recipe,
+    });
   }
 
   async function toggleCookedRecipe(rid) {
