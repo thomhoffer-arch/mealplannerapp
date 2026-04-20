@@ -1473,7 +1473,7 @@ export default function App() {
                                 </p>
                               </div>
                               <div className="flex items-center gap-1.5 flex-shrink-0">
-                                {isCooked && <Check size={14} className="text-green-500" />}
+                                {isCooked && <Check size={14} className="text-sage-500" />}
                                 {expandedRecipes[rid]
                                   ? <ChevronUp size={16} className="text-orange-400" />
                                   : <ChevronDown size={16} className="text-orange-400" />}
@@ -1739,7 +1739,7 @@ export default function App() {
                       style={{ width: `${shoppingList.length ? (checkedCount / shoppingList.length) * 100 : 0}%` }} />
                   </div>
                   {checkedCount === shoppingList.length && shoppingList.length > 0 && (
-                    <p className="text-center text-sm text-green-600 font-semibold mt-2">All done! Happy cooking!</p>
+                    <p className="text-center text-sm text-sage-600 font-semibold mt-2">All done! Happy cooking!</p>
                   )}
                   {shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length > 0 && (
                     <button
@@ -1769,21 +1769,21 @@ export default function App() {
                 {wasteInsights && !wasteInsights.loading && (
                   <div className="bg-green-50 border border-green-100 rounded-2xl p-4 mb-4">
                     <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Waste reduction</p>
-                      <button onClick={() => setWasteInsights(null)} className="text-green-400 hover:text-green-600 transition"><X size={14} /></button>
+                      <p className="text-xs font-semibold text-sage-600 uppercase tracking-wide">Waste reduction</p>
+                      <button onClick={() => setWasteInsights(null)} className="text-sage-400 hover:text-sage-600 transition"><X size={14} /></button>
                     </div>
                     {wasteInsights.error ? (
                       <p className="text-xs text-red-500">{wasteInsights.error}</p>
                     ) : wasteInsights.insights.length === 0 ? (
-                      <p className="text-xs text-green-600">Looks great — no obvious waste for this week's plan!</p>
+                      <p className="text-xs text-sage-600">Looks great — no obvious waste for this week's plan!</p>
                     ) : (
                       <div className="space-y-3">
                         {wasteInsights.insights.map((ins, i) => (
                           <div key={i} className="flex gap-2.5">
-                            <span className="text-green-400 font-bold text-base leading-none mt-0.5 flex-shrink-0">–</span>
+                            <span className="text-sage-400 font-bold text-base leading-none mt-0.5 flex-shrink-0">–</span>
                             <div>
-                              <p className="text-sm font-semibold text-green-800 capitalize">{ins.ingredient}</p>
-                              <p className="text-xs text-green-700 mt-0.5 leading-relaxed">{ins.tip}</p>
+                              <p className="text-sm font-semibold text-sage-600 capitalize">{ins.ingredient}</p>
+                              <p className="text-xs text-sage-600 mt-0.5 leading-relaxed">{ins.tip}</p>
                             </div>
                           </div>
                         ))}

@@ -231,7 +231,7 @@ export default function PreferencesModal({ household, onClose, inline = false })
 
             {keyHint ? (
               <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
-                <span className="text-sm text-green-800">
+                <span className="text-sm text-sage-600">
                   Active key ending in <span className="font-mono font-semibold">···{keyHint}</span>
                 </span>
                 <button onClick={handleRemoveKey} disabled={savingKey}
@@ -274,7 +274,7 @@ export default function PreferencesModal({ household, onClose, inline = false })
 
             {puterHint ? (
               <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
-                <span className="text-sm text-green-800">
+                <span className="text-sm text-sage-600">
                   Connected — token ending in <span className="font-mono font-semibold">···{puterHint}</span>
                 </span>
                 <button onClick={handleRemovePuter} disabled={savingPuter}
@@ -288,7 +288,7 @@ export default function PreferencesModal({ household, onClose, inline = false })
                   label="Connect with Puter"
                   onConnected={(hint) => { setPuterHint(hint || null); setSavedPuter(true); setTimeout(() => setSavedPuter(false), 2000); }}
                 />
-                {savedPuter && <p className="text-xs text-green-600 flex items-center gap-1"><Check size={12} /> Connected.</p>}
+                {savedPuter && <p className="text-xs text-sage-600 flex items-center gap-1"><Check size={12} /> Connected.</p>}
 
                 <details className="text-xs text-orange-400">
                   <summary className="cursor-pointer hover:text-orange-600 transition">Paste a token manually instead</summary>
