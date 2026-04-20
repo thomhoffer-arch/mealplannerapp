@@ -517,6 +517,7 @@ export default function App() {
   const [userRecipes, setUserRecipes] = useState([]);       // household-created recipes
   const [recipeRatings, setRecipeRatings] = useState({});  // { recipe_id: 1-5 }
   const [ratingPrompt, setRatingPrompt] = useState(null);  // recipe_id awaiting rating
+  const [shareOffer, setShareOffer] = useState(null);       // { recipe, stars } after a 4-5★ cook
   const [pantryItems, setPantryItems] = useState([]);      // [{ id, name, amount }]
   const [pantryInput, setPantryInput] = useState("");
   const [templates, setTemplates] = useState([]);          // [{ id, name, recipes }]
@@ -1136,6 +1137,12 @@ export default function App() {
     await supabase.from("cooked_recipes")
       .update({ rating: stars })
       .eq("household_id", household.id).eq("recipe_id", rid);
+    // If they loved it, offer to share — explicit, opt-in "share this win"
+    // rather than an ambient activity feed.
+    if (stars >= 4) {
+      const item = mealPlanItems.find((i) => i.recipe_id === rid);
+      if (item?.recipe_data) setShareOffer({ recipe: item.recipe_data, stars });
+    }
   }
 
   // ── Custom ingredient handlers ────────────────────────────────────────────
@@ -1447,6 +1454,36 @@ export default function App() {
             <button onClick={() => setRatingPrompt(null)}
               className="text-xs text-orange-400 hover:text-orange-600 transition">
               Skip
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Share-this-win offer after a 4-5★ cook */}
+      {shareOffer && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 text-center">
+            <p className="text-2xl mb-2">{'⭐'.repeat(shareOffer.stars)}</p>
+            <h3 className="text-base font-bold text-orange-900 mb-1">A winner — share it?</h3>
+            <p className="text-xs text-orange-400 mb-4">Create a public link to <span className="font-semibold text-orange-600">{shareOffer.recipe.name}</span>. Good for sending to friends.</p>
+            <button
+              onClick={async () => {
+                try {
+                  const url = await shareRecipe(shareOffer.recipe);
+                  await navigator.clipboard?.writeText(url);
+                  setShareOffer(null);
+                  window.alert('Link copied to clipboard');
+                } catch (err) {
+                  window.alert(err.message || 'Could not create share link');
+                }
+              }}
+              className="w-full py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition mb-2"
+            >
+              Create share link
+            </button>
+            <button onClick={() => setShareOffer(null)}
+              className="text-xs text-orange-400 hover:text-orange-600 transition">
+              Not this time
             </button>
           </div>
         </div>
