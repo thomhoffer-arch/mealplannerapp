@@ -1,16 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
-import { getUserAndHousehold } from '../_lib/auth.js';
-import { VOICE_GUIDE } from '../_lib/voice.js';
-import { resolveAiProvider, callAi } from '../_lib/ai-call.js';
-import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../_lib/usage.js';
+import { getUserAndHousehold } from '../auth.js';
+import { VOICE_GUIDE } from '../voice.js';
+import { resolveAiProvider, callAi } from '../ai-call.js';
+import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../usage.js';
 
-export default async function handler(req, res) {
+export default async function handleSuggest(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { recipe, preferences, starredRecipes } = req.body || {};
   if (!recipe) return res.status(400).json({ error: 'recipe is required' });
 
-  const ctx = await getUserAndHousehold(req).catch(() => null);
+  // Optional auth: if the user isn't signed in we still serve the suggestion
+  // using the shared Gemini key, just without household-scoped usage tracking.
+  const authResult = await getUserAndHousehold(req).catch(() => ({ error: { status: 401 } }));
+  const ctx = authResult.ctx || null;
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const { provider, token, usingSharedKey } = ctx

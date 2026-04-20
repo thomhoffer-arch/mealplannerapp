@@ -1,12 +1,36 @@
 import { createClient } from '@supabase/supabase-js';
-import { getUserAndHousehold } from '../_lib/auth.js';
+import { requireAuth } from '../_lib/auth.js';
 import { encrypt } from '../_lib/crypto.js';
 
+// Household actions endpoint. Despite the legacy filename, it now serves
+// both reads and writes:
+//   GET  → list the caller's households (uses allowAmbiguous so users with
+//          multiple memberships can call it without selecting one first).
+//   POST → save/remove the household's Gemini key or Puter token.
+//
+// Folded together to stay under the Vercel Hobby 12-function cap.
 export default async function handler(req, res) {
+  if (req.method === 'GET') {
+    const ctx = await requireAuth(req, res, { allowAmbiguous: true });
+    if (!ctx) return;
+
+    if (ctx.memberships.length === 0) {
+      return res.json({ households: [], active_id: null });
+    }
+
+    const { data, error } = await ctx.supabase
+      .from('households')
+      .select('id, name')
+      .in('id', ctx.memberships);
+
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ households: data || [], active_id: ctx.householdId });
+  }
+
   if (req.method !== 'POST') return res.status(405).end();
 
-  const ctx = await getUserAndHousehold(req);
-  if (!ctx) return res.status(401).json({ error: 'Unauthorized' });
+  const ctx = await requireAuth(req, res);
+  if (!ctx) return;
 
   const supabase = createClient(
     process.env.SUPABASE_URL,

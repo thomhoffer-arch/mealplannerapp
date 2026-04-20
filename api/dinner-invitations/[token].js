@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { getUserAndHousehold } from '../_lib/auth.js';
+import { requireAuth } from '../_lib/auth.js';
 
 export default async function handler(req, res) {
   const token = (req.query?.token || '').trim();
@@ -43,8 +43,8 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const ctx = await getUserAndHousehold(req);
-    if (!ctx) return res.status(401).json({ error: 'Unauthorized' });
+    const ctx = await requireAuth(req, res);
+    if (!ctx) return;
 
     const { action } = req.body || {};
     if (action !== 'accept' && action !== 'decline') {
@@ -72,8 +72,8 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'DELETE') {
-    const ctx = await getUserAndHousehold(req);
-    if (!ctx) return res.status(401).json({ error: 'Unauthorized' });
+    const ctx = await requireAuth(req, res);
+    if (!ctx) return;
 
     const { data: inv } = await supabase
       .from('dinner_invitations').select('host_household_id').eq('token', token).single();

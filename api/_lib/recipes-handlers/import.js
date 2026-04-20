@@ -1,10 +1,8 @@
-import { getUserAndHousehold } from '../_lib/auth.js';
-import { decrypt } from '../_lib/crypto.js';
+import { getUserAndHousehold } from '../auth.js';
+import { decrypt } from '../crypto.js';
 import { createClient } from '@supabase/supabase-js';
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end();
-
+export default async function handleImport(req, res) {
   const { url } = req.body || {};
   if (!url || !/^https?:\/\//i.test(url)) {
     return res.status(400).json({ error: 'A valid URL is required' });
@@ -89,7 +87,7 @@ If the page does not contain a recipe, return: { "error": "No recipe found on th
 
 async function resolveApiKey(req) {
   try {
-    const ctx = await getUserAndHousehold(req);
+    const { ctx } = await getUserAndHousehold(req);
     if (ctx) {
       const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
       const { data } = await supabase

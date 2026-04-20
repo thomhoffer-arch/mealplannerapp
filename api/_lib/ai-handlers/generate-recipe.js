@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import { getUserAndHousehold } from '../_lib/auth.js';
-import { VOICE_GUIDE } from '../_lib/voice.js';
-import { resolveAiProvider, callAi } from '../_lib/ai-call.js';
-import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../_lib/usage.js';
+import { requireAuth } from '../auth.js';
+import { VOICE_GUIDE } from '../voice.js';
+import { resolveAiProvider, callAi } from '../ai-call.js';
+import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../usage.js';
 
-export default async function handler(req, res) {
+export default async function handleGenerateRecipe(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { recipe, request } = req.body || {};
@@ -12,8 +12,8 @@ export default async function handler(req, res) {
 
   const isAdjust = typeof request === 'string' && request.trim().length > 0;
 
-  const ctx = await getUserAndHousehold(req).catch(() => null);
-  if (!ctx) return res.status(401).json({ error: 'Unauthorized' });
+  const ctx = await requireAuth(req, res);
+  if (!ctx) return;
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 

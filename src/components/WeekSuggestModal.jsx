@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api';
 
 const SOURCE_COLORS = {
   'My Recipes':     'bg-orange-100 text-orange-600',
@@ -31,29 +31,10 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     setDayNotes({});
     setExpandedDay(null);
     try {
-      // getUser() validates with the server and triggers a token refresh if needed.
-      // Then getSession() returns the up-to-date access_token.
-      const { error: userError } = await supabase.auth.getUser();
-      if (userError) throw new Error('Session expired — please sign out and back in.');
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) throw new Error('Not signed in — please refresh and try again.');
-      const res = await fetch('/api/ai/suggest-week', {
+      const data = await apiFetch('/api/ai/suggest-week', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ weeks: numWeeks, plan_extras_text: planExtrasText || '', day_notes: dayNotes }),
+        body: { weeks: numWeeks, plan_extras_text: planExtrasText || '', day_notes: dayNotes },
       });
-      const raw = await res.text();
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        throw new Error(`Server error ${res.status}: ${raw.slice(0, 300) || '(empty response)'}`);
-      }
-      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
       setPlan(data.weeks);
       setNotes(data.notes || '');
       const sel = {};

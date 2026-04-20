@@ -4,6 +4,7 @@ import {
   Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, Settings,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
+import { apiFetch, setActiveHouseholdId, getActiveHouseholdId } from "./lib/api";
 import AuthScreen from "./components/AuthScreen";
 import OnboardingScreen from "./components/OnboardingScreen";
 import PreferencesModal from "./components/PreferencesModal";
@@ -11,6 +12,7 @@ import WillingnessModal from "./components/WillingnessModal";
 import InstallBanner from "./components/InstallBanner";
 import CreateRecipeModal from "./components/CreateRecipeModal";
 import StarredPanel from "./components/StarredPanel";
+import HouseholdSwitcher from "./components/HouseholdSwitcher";
 import WeekSuggestModal from "./components/WeekSuggestModal";
 import SurpriseBagModal from "./components/SurpriseBagModal";
 import PuterWelcomeModal from "./components/PuterWelcomeModal";
@@ -153,17 +155,10 @@ function SelectedRecipeCard({
     setAdjusting(true);
     setAdjustError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/ai/generate-recipe', {
+      const data = await apiFetch('/api/ai/generate-recipe', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ recipe, request }),
+        body: { recipe, request },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not adjust recipe');
       onGenerateRecipe(rid, data);
       setAdjustInput('');
     } catch (err) {
@@ -179,17 +174,10 @@ function SelectedRecipeCard({
     setGenerating(true);
     setGenerateError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/ai/generate-recipe', {
+      const data = await apiFetch('/api/ai/generate-recipe', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ recipe }),
+        body: { recipe },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not generate recipe');
       onGenerateRecipe(rid, data);
     } catch (err) {
       setGenerateError(err.message || 'Something went wrong. Try again.');
@@ -203,20 +191,11 @@ function SelectedRecipeCard({
     setAiError(null);
     setAiResult(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/ai/suggest', {
+      const data = await apiFetch('/api/ai/suggest', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ recipe, preferences, starredRecipes }),
+        body: { recipe, preferences, starredRecipes },
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'AI request failed');
-      }
-      setAiResult(await res.json());
+      setAiResult(data);
     } catch (err) {
       setAiError(err.message || 'Could not get suggestions. Try again.');
     } finally {
@@ -452,6 +431,9 @@ export default function App() {
   // ── Auth / household state
   const [user, setUser] = useState(null);
   const [household, setHousehold] = useState(null);
+  // All households this user belongs to. Each entry mirrors a row from
+  // household_members joined onto households so we can switch without re-fetching.
+  const [memberships, setMemberships] = useState([]);
   // The current user's row in household_members, with display_name / prefs /
   // onboarded_at. When onboarded_at is null we render OnboardingScreen
   // instead of the main app.
@@ -529,6 +511,8 @@ export default function App() {
         document.documentElement.classList.remove('dark');
         setAuthLoading(false);
         setHousehold(null);
+        setMemberships([]);
+        setActiveHouseholdId(null);
         setMemberProfile(null);
         setMealPlanItems([]);
         setCustomIngredients({});
@@ -558,15 +542,15 @@ export default function App() {
       "are missing. Run supabase/migration_add_rls_select_policies.sql in the " +
       "Supabase SQL editor, then sign in again.";
 
-    // limit(1) + maybeSingle so a duplicate-membership data bug can't
-    // crash the query with PGRST116 — we just take the first one.
-    const { data: member, error: memberErr } = await supabase
-      .from("household_members")
-      .select("household_id, display_name, personal_prefs, onboarded_at, households(*)")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
+    async function readMemberships() {
+      const { data, error } = await supabase
+        .from("household_members")
+        .select("household_id, display_name, personal_prefs, onboarded_at, households(*)")
+        .eq("user_id", user.id);
+      return { rows: (data || []).filter((r) => r.households), error };
+    }
 
+    let { rows, error: memberErr } = await readMemberships();
     if (memberErr) {
       console.error("[auth] household_members read failed:", memberErr, "\n" + RLS_HINT);
       await supabase.auth.signOut();
@@ -574,36 +558,67 @@ export default function App() {
       return;
     }
 
-    if (member?.households) {
-      setHousehold(member.households);
-      setMemberProfile({
-        display_name:   member.display_name,
-        personal_prefs: member.personal_prefs,
-        onboarded_at:   member.onboarded_at,
-      });
-      setAuthLoading(false);
-      return;
+    // Self-heal: no memberships → create a personal household. The RPC is
+    // idempotent (see supabase/migration_idempotent_create_household.sql), so
+    // a concurrent retry won't create stray households.
+    if (rows.length === 0) {
+      const { error: rpcError } = await supabase.rpc("create_household_for_user", { uid: user.id });
+      if (rpcError) {
+        console.error("[auth] create_household_for_user failed:", rpcError);
+        await supabase.auth.signOut();
+        setAuthLoading(false);
+        return;
+      }
+      ({ rows, error: memberErr } = await readMemberships());
+      if (memberErr || rows.length === 0) {
+        console.error("[auth] still no memberships after self-heal:", memberErr);
+        await supabase.auth.signOut();
+        setAuthLoading(false);
+        return;
+      }
     }
 
-    const { data: hid, error: rpcError } = await supabase.rpc("create_household_for_user", { uid: user.id });
-    if (rpcError || !hid) {
-      console.error("[auth] create_household_for_user failed:", rpcError);
-      await supabase.auth.signOut();
-      setAuthLoading(false);
-      return;
-    }
+    // Deduplicate by household_id (defensive against historical duplicate-row bug).
+    const seen = new Set();
+    const uniqueRows = rows.filter((r) => {
+      if (seen.has(r.household_id)) return false;
+      seen.add(r.household_id);
+      return true;
+    });
 
-    const { data: h, error: hErr } = await supabase.from("households").select("*").eq("id", hid).single();
-    if (hErr || !h) {
-      console.error("[auth] households read after create failed:", hErr, "\n" + RLS_HINT);
-      await supabase.auth.signOut();
-      setAuthLoading(false);
-      return;
-    }
-    setHousehold(h);
-    // Brand-new membership — onboarded_at is null so the onboarding screen shows.
-    setMemberProfile({ display_name: null, personal_prefs: null, onboarded_at: null });
+    const persisted = getActiveHouseholdId();
+    const active = uniqueRows.find((r) => r.household_id === persisted) || uniqueRows[0];
+
+    setMemberships(uniqueRows);
+    setActiveHouseholdId(active.household_id);
+    setHousehold(active.households);
+    setMemberProfile({
+      display_name:   active.display_name,
+      personal_prefs: active.personal_prefs,
+      onboarded_at:   active.onboarded_at,
+    });
     setAuthLoading(false);
+  }
+
+  // Switch the active household without a full reload. The useEffect on
+  // [household] picks up the change and re-fetches all household-scoped data.
+  function switchHousehold(id) {
+    if (!id || id === household?.id) return;
+    const target = memberships.find((m) => m.household_id === id);
+    if (!target) return;
+    setActiveHouseholdId(id);
+    setHousehold(target.households);
+    setMemberProfile({
+      display_name:   target.display_name,
+      personal_prefs: target.personal_prefs,
+      onboarded_at:   target.onboarded_at,
+    });
+    // Reset household-scoped UI state so we don't briefly show the wrong data.
+    setMealPlanItems([]);
+    setCustomIngredients({});
+    setCookedRecipes({});
+    setCheckedItems({});
+    setStarredItems([]);
   }
 
   // ── Load + subscribe when household is ready ──────────────────────────────
@@ -888,14 +903,10 @@ export default function App() {
     setSideDishPanel((p) => ({ ...p, loading: true, error: '', suggestions: [] }));
     const pref = preference !== undefined ? preference : sideDishPanel?.input || '';
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/ai/suggest-side', {
+      const data = await apiFetch('/api/ai/suggest-side', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ recipe: { name: mainRecipe.name, cuisine_type: mainRecipe.cuisineType, ingredients: mainRecipe.ingredients }, preference: pref }),
+        body: { recipe: { name: mainRecipe.name, cuisine_type: mainRecipe.cuisineType, ingredients: mainRecipe.ingredients }, preference: pref },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not get suggestions');
       setSideDishPanel((p) => ({ ...p, loading: false, suggestions: data.suggestions || [] }));
     } catch (err) {
       setSideDishPanel((p) => ({ ...p, loading: false, error: err.message }));
@@ -906,17 +917,13 @@ export default function App() {
   async function fetchWasteInsights() {
     setWasteInsights({ loading: true, insights: [], error: '' });
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/ai/shopping-insights', {
+      const data = await apiFetch('/api/ai/shopping-insights', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({
+        body: {
           items: shoppingList.filter((i) => !i.inPantry).map((i) => ({ name: i.name, amount: i.amount })),
           recipes: selectedRecipeObjects.map((r) => ({ name: r.name, servings: r.servings })),
-        }),
+        },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not get insights');
       setWasteInsights({ loading: false, insights: data.insights || [], error: '' });
     } catch (err) {
       setWasteInsights({ loading: false, insights: [], error: err.message });
@@ -930,15 +937,10 @@ export default function App() {
     setImportLoading(true);
     setImportError("");
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/recipes/import', {
+      const data = await apiFetch('/api/recipes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ url }),
+        body: { url },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Import failed');
-      // Add directly to meal plan
       await toggleSelectedRecipe(data);
       setImportUrl("");
       setActiveTab("week");
@@ -954,7 +956,7 @@ export default function App() {
     setSearchLoading(true);
     try {
       const params = new URLSearchParams({ q: query });
-      const res = await fetch(`/api/recipes/search?${params}`);
+      const res = await fetch(`/api/recipes?${params}`);
       if (!res.ok) throw new Error("Search failed");
       setRecipes(await res.json());
     } catch {
@@ -1098,12 +1100,20 @@ export default function App() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-white font-outfit">
-      {/* Selection indicator — only visible when meals are selected */}
-      {selectedIds.size > 0 && (
-        <div className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-2 flex justify-end max-w-2xl mx-auto">
-          <span className="bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-            {selectedIds.size} meals selected
-          </span>
+      {/* Top bar — household switcher (when 2+ households) and selection count */}
+      {(memberships.length >= 2 || selectedIds.size > 0) && (
+        <div className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-2 flex items-center gap-2 max-w-2xl mx-auto">
+          <HouseholdSwitcher
+            memberships={memberships}
+            activeId={household?.id}
+            onSwitch={switchHousehold}
+            variant="chip"
+          />
+          {selectedIds.size > 0 && (
+            <span className="ml-auto bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+              {selectedIds.size} meals selected
+            </span>
+          )}
         </div>
       )}
 
@@ -1943,6 +1953,13 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {/* Household switcher — only renders when user has 2+ households */}
+            <HouseholdSwitcher
+              memberships={memberships}
+              activeId={household?.id}
+              onSwitch={switchHousehold}
+            />
 
             {/* Settings panel — expands below user card */}
             {showSettings && (

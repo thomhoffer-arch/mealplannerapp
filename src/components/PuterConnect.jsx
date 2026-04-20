@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api';
 
 // One-click Puter connect. Opens the Puter auth popup, grabs the session
 // token, and stores it on the household via /api/household/save-puter-token.
@@ -26,19 +26,10 @@ export default function PuterConnect({ onConnected, label = 'Connect with Puter'
       const token = window.puter.authToken;
       if (!token) throw new Error('Puter did not return a token.');
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error('You need to be signed in to this app first.');
-
-      const res = await fetch('/api/household/save-key', {
+      const data = await apiFetch('/api/household/save-key', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ token }),
+        body: { token },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not save Puter token.');
 
       onConnected?.(data.hint);
     } catch (err) {
