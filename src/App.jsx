@@ -1376,10 +1376,15 @@ export default function App() {
               </div>
             ) : recipes.length > 0 ? (
               (() => {
-                const isPremium = !!(preferences?.gemini_api_key_hint || preferences?.puter_token_hint);
-                const FREE_LIMIT = 4;
-                const visible = isPremium ? recipes : recipes.slice(0, FREE_LIMIT);
-                const lockedCount = isPremium ? 0 : Math.max(0, recipes.length - FREE_LIMIT);
+                const isPaid  = !!(preferences?.puter_token_hint);
+                const isBYOK  = !isPaid && !!(preferences?.gemini_api_key_hint);
+                const limit   = isPaid ? Infinity : isBYOK ? 8 : 4;
+                const visible = recipes.slice(0, limit);
+                const lockedCount = Math.max(0, recipes.length - limit);
+                const lockMsg = isBYOK
+                  ? `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — connect Puter to see the full library.`
+                  : `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — add your Gemini key for more, or connect Puter for the full library.`;
+                const lockLabel = isBYOK ? 'Connect Puter' : 'Add a key to unlock';
                 return (
                   <div className="space-y-3">
                     <p className="text-sm text-orange-600 font-medium">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} found</p>
@@ -1404,14 +1409,12 @@ export default function App() {
                             </div>
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/75">
                               <svg className="w-4 h-4 text-orange-400 mb-1.5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7a4.5 4.5 0 00-9 0v3.5M5 10.5h14a1 1 0 011 1V20a1 1 0 01-1 1H5a1 1 0 01-1-1v-8.5a1 1 0 011-1z" /></svg>
-                              <p className="text-xs font-medium text-orange-700">Add a key to unlock</p>
+                              <p className="text-xs font-medium text-orange-700">{lockLabel}</p>
                             </div>
                           </div>
                         ))}
                         <div className="text-center py-3">
-                          <p className="text-xs text-orange-500 mb-2">
-                            {lockedCount} more recipe{lockedCount !== 1 ? "s" : ""} — add your Gemini key or connect Puter in Settings.
-                          </p>
+                          <p className="text-xs text-orange-500 mb-2">{lockMsg}</p>
                           <button
                             onClick={() => setShowPreferences(true)}
                             className="text-xs px-4 py-1.5 bg-orange-500 text-white rounded-full font-semibold hover:bg-orange-600 transition"

@@ -427,10 +427,10 @@ export default function AuthScreen() {
               <ul className="space-y-2 mt-5">
                 {[
                   { ok: true,  text: '15 AI suggestions per week' },
-                  { ok: true,  text: 'Bring your own Gemini key — unlimited AI' },
-                  { ok: true,  text: 'Verified quality recipes' },
                   { ok: true,  text: 'Shared plan, list & pantry' },
-                  { ok: false, text: 'Extended recipe database' },
+                  { ok: true,  text: 'Up to 4 recipe results per search' },
+                  { ok: false, text: 'Full recipe library' },
+                  { ok: false, text: 'All features' },
                 ].map((f) => (
                   <li key={f.text} className="flex items-start gap-2">
                     {f.ok
@@ -442,7 +442,7 @@ export default function AuthScreen() {
               </ul>
               {selectedPlan === 'free' && (
                 <p className="text-xs text-orange-500 mt-4 pt-3 border-t border-orange-100 italic leading-relaxed">
-                  Add your free Gemini key in Settings after signup for unlimited AI.
+                  Add your own Gemini key in Settings after signup — unlimited AI and up to 8 results per search.
                 </p>
               )}
             </button>
@@ -473,10 +473,10 @@ export default function AuthScreen() {
               <p className="text-[11px] text-orange-500 mb-4">You pay Puter only for what you use.</p>
               <ul className="space-y-2">
                 {[
-                  'Unlimited AI — no daily cap',
+                  'Unlimited AI — no weekly cap',
                   'Claude, GPT and Gemini to pick from',
-                  'One-click connect, no keys to copy',
-                  'Verified quality recipes',
+                  'Full recipe library, all results',
+                  'All features unlocked',
                   'Shared plan, list & pantry',
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2">
