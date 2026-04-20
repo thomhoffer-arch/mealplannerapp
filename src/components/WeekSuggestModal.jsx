@@ -21,6 +21,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [dayNotes, setDayNotes] = useState({});   // { "1-Monday": "skip lunch" }
   const [swapInput, setSwapInput] = useState({}); // { "1-Monday": "too heavy" }
   const [swappingKey, setSwappingKey] = useState(null);
+  const [thisWeekWishes, setThisWeekWishes] = useState('');
   const [showNotes, setShowNotes] = useState(false);
   const [expandedDay, setExpandedDay] = useState(null); // key of day with controls open
 
@@ -35,7 +36,12 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     try {
       const data = await apiFetch('/api/ai/suggest-week', {
         method: 'POST',
-        body: { weeks: numWeeks, plan_extras_text: planExtrasText || '', day_notes: dayNotes },
+        body: {
+          weeks: numWeeks,
+          plan_extras_text: planExtrasText || '',
+          day_notes: dayNotes,
+          this_week_wishes: thisWeekWishes || '',
+        },
       });
       setPlan(data.weeks);
       setNotes(data.notes || '');
@@ -156,21 +162,30 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
         </div>
 
         {/* Controls */}
-        <div className="px-5 pt-4 pb-3 flex items-center gap-3">
-          <span className="text-sm font-medium text-orange-900">Plan:</span>
-          {[1, 2].map((w) => (
-            <button key={w} onClick={() => setNumWeeks(w)}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition border-2 ${
-                numWeeks === w ? 'bg-orange-500 text-white border-orange-500' : 'border-orange-200 text-orange-900 hover:border-orange-400'
-              }`}>
-              {w} week{w > 1 ? 's' : ''}
+        <div className="px-5 pt-4 pb-3 space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-orange-900">Plan:</span>
+            {[1, 2].map((w) => (
+              <button key={w} onClick={() => setNumWeeks(w)}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition border-2 ${
+                  numWeeks === w ? 'bg-orange-500 text-white border-orange-500' : 'border-orange-200 text-orange-900 hover:border-orange-400'
+                }`}>
+                {w} week{w > 1 ? 's' : ''}
+              </button>
+            ))}
+            <button onClick={generate} disabled={loading}
+              className="ml-auto px-4 py-1.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
+              <Sparkles size={12} />
+              {loading ? 'Planning…' : plan ? 'Regenerate' : 'Generate'}
             </button>
-          ))}
-          <button onClick={generate} disabled={loading}
-            className="ml-auto px-4 py-1.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
-            <Sparkles size={12} />
-            {loading ? 'Planning…' : plan ? 'Regenerate' : 'Generate'}
-          </button>
+          </div>
+          <textarea
+            rows={2}
+            placeholder='This week specifically — "not home Wed", "feel like chicken", "keep it light"…'
+            value={thisWeekWishes}
+            onChange={(e) => setThisWeekWishes(e.target.value)}
+            className="w-full text-xs border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
+          />
         </div>
 
         {/* Content */}
@@ -196,11 +211,35 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           )}
 
           {plan && !loading && plan.map((week) => (
-            <div key={week.week} className="mb-4">
+            <div key={week.week} className="mb-4 -mx-5">
               {plan.length > 1 && (
-                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Week {week.week}</p>
+                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2 px-5">Week {week.week}</p>
               )}
-              <div className="space-y-2">
+
+              {/* Day chip nav — tap to jump, shows include/exclude state at a glance */}
+              <div className="flex gap-1.5 px-5 mb-3 overflow-x-auto scrollbar-hide">
+                {week.days.map((day) => {
+                  const key = `${week.week}-${day.day}`;
+                  const isSelected = !!selected[key];
+                  return (
+                    <button
+                      key={day.day}
+                      onClick={() => {
+                        const el = document.getElementById(`plan-day-${week.week}-${day.day}`);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                      }}
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition ${
+                        isSelected ? 'bg-orange-500 text-white' : 'bg-orange-100 text-orange-400'
+                      }`}
+                    >
+                      {day.day.slice(0, 3)}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Horizontal carousel — one day per swipe */}
+              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory px-5 pb-3 scrollbar-hide">
                 {week.days.map((day) => {
                   const key = `${week.week}-${day.day}`;
                   const isSelected = !!selected[key];
@@ -208,159 +247,151 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                   const isAI = recipe?._aiSuggestion;
                   const isStarred = recipe?._fromStarred;
                   const dayServings = servings[key] || recipe?.servings || 2;
-                  const isExpanded = expandedDay === key;
+                  const totalTime = (recipe?.prepTime || day.prep_time || 0) + (recipe?.cookTime || day.cook_time || 0);
 
                   return (
-                    <div key={day.day} className={`rounded-2xl border-2 transition-all overflow-hidden ${
-                      isSelected ? 'border-orange-400 bg-orange-50' : 'border-orange-100 bg-white opacity-60'
-                    }`}>
+                    <div
+                      key={day.day}
+                      id={`plan-day-${week.week}-${day.day}`}
+                      className={`flex-shrink-0 w-full snap-start rounded-2xl border-2 overflow-hidden bg-white transition ${
+                        isSelected ? 'border-orange-400' : 'border-orange-100 opacity-75'
+                      }`}
+                    >
                       {/* Hero photo (Pexels) */}
-                      {day.photo?.url && (
-                        <div className="relative h-28 w-full bg-orange-100">
+                      {day.photo?.url ? (
+                        <div className="relative h-40 w-full bg-orange-100">
                           <img
                             src={day.photo.url}
                             alt={day.photo.alt || recipe?.name || day.name}
                             loading="lazy"
                             className="absolute inset-0 w-full h-full object-cover"
                           />
+                          <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap">
+                            <span className="text-[10px] font-bold uppercase bg-white/90 text-orange-600 px-2 py-0.5 rounded-full tracking-wider">{day.day}</span>
+                            {totalTime > 0 && (
+                              <span className="text-[10px] font-semibold bg-black/40 text-white px-2 py-0.5 rounded-full">⏱ {totalTime} min</span>
+                            )}
+                          </div>
                           {day.photo.photographer && (
                             <a
                               href={day.photo.photographer_url || 'https://www.pexels.com'}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="absolute bottom-1 right-1 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
-                              onClick={(e) => e.stopPropagation()}
+                              className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
                             >
                               📷 {day.photo.photographer}
                             </a>
                           )}
                         </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 px-4 pt-4">
+                          <span className="text-[10px] font-bold uppercase bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full tracking-wider">{day.day}</span>
+                          {totalTime > 0 && (
+                            <span className="text-[10px] font-semibold bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">⏱ {totalTime} min</span>
+                          )}
+                        </div>
                       )}
-                      {/* Main row */}
-                      <div className="flex items-start gap-2 px-3 py-3">
-                        <button
-                          onClick={() => toggleDay(key)}
-                          className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all ${
-                            isSelected ? 'bg-orange-500 border-orange-500' : 'border-orange-300'
-                          }`}
-                        >
-                          {isSelected && <Check size={11} className="text-white" />}
-                        </button>
 
-                        <div className="flex-1 min-w-0" onClick={() => toggleDay(key)}>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-bold text-orange-600 uppercase">{day.day.slice(0, 3)}</span>
-                            {(() => {
-                              const total = (recipe?.prepTime || day.prep_time || 0) + (recipe?.cookTime || day.cook_time || 0);
-                              return total > 0 ? (
-                                <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">
-                                  ⏱ {total} min
+                      {/* Body */}
+                      <div className="px-4 pt-3 pb-4 space-y-3">
+                        {/* Title row with selection toggle */}
+                        <div className="flex items-start gap-2">
+                          <button
+                            onClick={() => toggleDay(key)}
+                            className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 transition ${
+                              isSelected ? 'bg-orange-500 border-orange-500' : 'border-orange-300'
+                            }`}
+                            title={isSelected ? 'Remove day' : 'Include day'}
+                          >
+                            {isSelected && <Check size={13} className="text-white" />}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                              {isStarred && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">⭐ Starred</span>}
+                              {isAI && <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">✨ New</span>}
+                              {recipe?.source && !isAI && !isStarred && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${SOURCE_COLORS[recipe.source] || 'bg-orange-50 text-orange-600'}`}>
+                                  {recipe.source}
                                 </span>
-                              ) : null;
-                            })()}
-                            {isStarred && <span className="text-xs bg-amber-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">⭐ Starred</span>}
-                            {isAI && <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">✨ New</span>}
-                            {recipe?.source && !isAI && (
-                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${SOURCE_COLORS[recipe.source] || 'bg-orange-50 text-orange-600'}`}>
-                                {recipe.source}
-                              </span>
-                            )}
+                              )}
+                            </div>
+                            <p className="font-display text-base font-bold text-orange-900 leading-snug">{recipe?.name || day.name}</p>
                           </div>
-                          <p className="text-sm font-semibold text-orange-900 mt-0.5 leading-snug">{recipe?.name || day.name}</p>
-                          {(recipe?.overview || day.overview) && (
-                            <p className="text-xs text-orange-600 mt-0.5 line-clamp-1">{recipe?.overview || day.overview}</p>
-                          )}
-                          {day.reason && (
-                            <p className="text-[11px] text-orange-400 mt-1 italic leading-snug">✨ {day.reason}</p>
-                          )}
-                          <div className="flex flex-wrap gap-1 mt-1">
+                        </div>
+
+                        {(recipe?.overview || day.overview) && (
+                          <p className="text-xs text-orange-700 leading-relaxed">{recipe?.overview || day.overview}</p>
+                        )}
+
+                        {day.reason && (
+                          <p className="text-xs text-orange-500 italic leading-snug bg-orange-50/60 rounded-xl px-3 py-2">✨ {day.reason}</p>
+                        )}
+
+                        {((day.uses_pantry || []).length > 0 || day.leftover_for) && (
+                          <div className="flex flex-wrap gap-1.5">
                             {day.leftover_for && (
-                              <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">
+                              <span className="text-[10px] bg-amber-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
                                 → {day.leftover_for}
                               </span>
                             )}
-                            {(day.uses_pantry || []).slice(0, 3).map((item) => (
-                              <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full">
+                            {(day.uses_pantry || []).map((item) => (
+                              <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full border border-orange-100">
                                 🥫 {item}
                               </span>
                             ))}
                           </div>
-                        </div>
-
-                        {/* Per-day options toggle — only when selected */}
-                        {isSelected && (
-                          <button
-                            onClick={() => setExpandedDay(isExpanded ? null : key)}
-                            className="flex-shrink-0 flex items-center gap-1 text-orange-400 hover:text-orange-600 transition ml-1 mt-0.5"
-                            title="Day options"
-                          >
-                            <Users size={14} />
-                            {servings[key] && servings[key] !== (recipe?.servings || 2) && (
-                              <span className="text-xs font-semibold text-orange-600">{servings[key]}</span>
-                            )}
-                          </button>
                         )}
-                      </div>
 
-                      {/* Expanded day options */}
-                      {isSelected && isExpanded && (
-                        <div className="border-t border-orange-100 px-3 py-2.5 space-y-2 bg-white rounded-b-2xl">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2 flex-1">
-                              <Users size={13} className="text-orange-400 flex-shrink-0" />
-                              <span className="text-xs text-orange-900">Portions</span>
-                              <div className="flex items-center gap-1.5 ml-auto">
-                                <button
-                                  onClick={() => setDayServings(key, dayServings - 1)}
-                                  className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition text-sm font-bold"
-                                >−</button>
-                                <span className="text-sm font-semibold text-orange-900 w-4 text-center">{dayServings}</span>
-                                <button
-                                  onClick={() => setDayServings(key, dayServings + 1)}
-                                  className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition text-sm font-bold"
-                                >+</button>
+                        {/* Options — always visible now, not behind an expand */}
+                        {isSelected && (
+                          <div className="pt-2 border-t border-orange-50 space-y-2">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2 flex-1">
+                                <Users size={13} className="text-orange-400 flex-shrink-0" />
+                                <span className="text-xs text-orange-900">Portions</span>
+                                <div className="flex items-center gap-1.5 ml-auto">
+                                  <button
+                                    onClick={() => setDayServings(key, dayServings - 1)}
+                                    className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition text-sm font-bold"
+                                  >−</button>
+                                  <span className="text-sm font-semibold text-orange-900 w-4 text-center">{dayServings}</span>
+                                  <button
+                                    onClick={() => setDayServings(key, dayServings + 1)}
+                                    className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition text-sm font-bold"
+                                  >+</button>
+                                </div>
                               </div>
+                              <div className="w-px h-4 bg-orange-100" />
+                              <button
+                                onClick={() => toggleDay(key)}
+                                className="flex items-center gap-1 text-xs text-orange-400 hover:text-red-500 transition"
+                              >
+                                <MinusCircle size={13} />
+                                Skip
+                              </button>
                             </div>
-                            <div className="w-px h-4 bg-orange-100" />
-                            <button
-                              onClick={() => { toggleDay(key); setExpandedDay(null); }}
-                              className="flex items-center gap-1 text-xs text-orange-400 hover:text-red-500 transition"
-                            >
-                              <MinusCircle size={13} />
-                              Skip day
-                            </button>
-                          </div>
-                          <div className="pt-1 border-t border-orange-50 space-y-2">
-                            <input
-                              type="text"
-                              placeholder="Any notes for this day? (e.g. include lunch, skip breakfast, leftovers ok)"
-                              value={dayNotes[key] || ''}
-                              onChange={(e) => setDayNotes((p) => ({ ...p, [key]: e.target.value }))}
-                              className="w-full text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300"
-                            />
                             <div className="flex gap-1.5">
                               <input
                                 type="text"
-                                placeholder='Ask for changes — "lighter", "no fish", "more veggies"…'
+                                placeholder='Ask for changes — "lighter", "no fish"…'
                                 value={swapInput[key] || ''}
                                 onChange={(e) => setSwapInput((p) => ({ ...p, [key]: e.target.value }))}
                                 onKeyDown={(e) => e.key === 'Enter' && swapDay(week.week, day)}
                                 disabled={swappingKey === key}
-                                className="flex-1 text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 disabled:opacity-50"
+                                className="flex-1 text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 disabled:opacity-50 min-w-0"
                               />
                               <button
                                 onClick={() => swapDay(week.week, day)}
                                 disabled={!(swapInput[key] || '').trim() || swappingKey === key}
-                                className="flex-shrink-0 px-2.5 py-1.5 bg-orange-500 text-white rounded-xl text-xs font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1"
-                                title="Swap this dish"
+                                className="flex-shrink-0 px-3 py-1.5 bg-orange-500 text-white rounded-xl text-xs font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1"
                               >
                                 <Wand2 size={11} />
                                 {swappingKey === key ? '…' : 'Swap'}
                               </button>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   );
                 })}

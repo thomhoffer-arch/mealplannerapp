@@ -6,6 +6,18 @@ import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '..
 import { searchPhoto } from '../pexels.js';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_SHORT_TO_LONG = {
+  'mon': 'Monday', 'tue': 'Tuesday', 'tues': 'Tuesday', 'wed': 'Wednesday',
+  'thu': 'Thursday', 'thur': 'Thursday', 'thurs': 'Thursday',
+  'fri': 'Friday', 'sat': 'Saturday', 'sun': 'Sunday',
+};
+function normalizeDay(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim().toLowerCase();
+  const long = DAYS.find((d) => d.toLowerCase() === s);
+  if (long) return long;
+  return DAY_SHORT_TO_LONG[s] || null;
+}
 const PRIORITY_LABELS = { 1: 'HIGH — include every week', 2: 'MEDIUM — include every 2 weeks', 3: 'OCCASIONAL — include if it fits' };
 
 export default async function handleSuggestWeek(req, res) {
@@ -20,7 +32,7 @@ export default async function handleSuggestWeek(req, res) {
 async function _handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { weeks = 1, plan_extras_text = '', day_notes = {} } = req.body || {};
+  const { weeks = 1, plan_extras_text = '', day_notes = {}, this_week_wishes = '' } = req.body || {};
   const numWeeks = Math.min(Math.max(Number(weeks) || 1, 1), 2);
 
   const ctx = await requireAuth(req, res);
@@ -83,7 +95,7 @@ async function _handler(req, res) {
   const recentNames = (recentPlanData || []).slice(0, 10).map((i) => i.recipe_data?.name).filter(Boolean);
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
 
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes);
 
   let rawText;
   try {
@@ -129,7 +141,9 @@ async function _handler(req, res) {
       // Surface per-day reasoning + leftover chaining directly on the day so the UI
       // can show "why this?" and the cook-once-eat-twice pairing.
       return {
-        day: day.day,
+        // Normalize so LLM quirks like "mon" / "Monday " / "monday" don't
+        // break the week-view's strict equality match on _plannedDay.
+        day: normalizeDay(day.day) || day.day,
         recipe,
         reason: day.reason || '',
         leftover_for: day.leftover_for || null,
@@ -152,7 +166,7 @@ async function _handler(req, res) {
   res.json({ weeks: enrichedWeeks, notes: plan.notes || '' });
 }
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = []) {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '') {
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -202,7 +216,8 @@ ${disliked.length ? `  DISLIKED (1-2★): ${disliked.slice(0, 15).join(', ')} �
 
 PANTRY (already on the shelf — prefer recipes that use these to minimise shopping):
 ${pantry.length ? `  ${pantry.slice(0, 30).join(', ')}` : '  (empty)'}
-${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED:\n${planExtrasText}` : ''}
+${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED (standing instructions):\n${planExtrasText}` : ''}
+${thisWeekWishes?.trim() ? `\nTHIS WEEK SPECIFICALLY (one-off wishes — weight these heavily):\n${thisWeekWishes.trim()}` : ''}
 ${dayNotesSection ? `\nPER-DAY NOTES:\n${dayNotesSection}` : ''}
 STRICT RULES:
 1. Never plan the same main ingredient two days in a row.
