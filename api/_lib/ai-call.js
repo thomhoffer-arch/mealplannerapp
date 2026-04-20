@@ -59,7 +59,13 @@ async function callAi(provider, token, prompt) {
       throw new Error(`Puter AI error (${res.status}): ${detail.slice(0, 200)}`);
     }
     const data = await res.json();
-    return data.choices?.[0]?.message?.content || '';
+    const content = data.choices?.[0]?.message?.content;
+    // Puter may return content as an already-parsed object rather than a string
+    if (content && typeof content === 'object') return JSON.stringify(content);
+    const text = (content || '').trim();
+    // Strip markdown code fences that some model/proxy combos add
+    const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+    return fenced ? fenced[1] : text;
   }
 
   // Gemini (default)
