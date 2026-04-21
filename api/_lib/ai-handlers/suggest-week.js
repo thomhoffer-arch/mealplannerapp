@@ -340,17 +340,26 @@ P6. VARIETY AND BALANCE.
     Reflect the RATINGS HISTORY: lean toward loved patterns, avoid disliked ones.
 
 P7. PRACTICAL MEAL PLANNING.
-    One "cook once, eat twice" per week (leftover_for points at the meal it
-    covers, e.g. "Tuesday lunch"). Only set leftover_for if that target meal
-    is actually planned — either as a dinner on that day, or as an entry in
-    that day's extras array. Do not suggest leftovers for meals that have not
-    been planned. Favour ingredient reuse across the week. Draw from pantry
-    items where it fits naturally.
+    One "cook once, eat twice" per week where natural. Set leftover_for only
+    if the target meal was already going to be planned anyway (a dinner or an
+    explicitly requested extra). NEVER create an extra meal entry just to give
+    leftover_for somewhere to point — if you want to suggest leftovers, point
+    at a dinner (e.g. "Wednesday dinner") or leave leftover_for null.
+    Favour ingredient reuse across the week. Draw from pantry items where it
+    fits naturally.
+
+!! EXTRAS ONLY WHEN EXPLICITLY REQUESTED !!
+    "extras" must be an empty array [] on every day UNLESS the user has
+    explicitly asked for a non-dinner meal on that day via planExtrasText,
+    thisWeekWishes, or dayNotes. Do NOT add breakfast, lunch, or snack entries
+    on your own initiative, even if they would be convenient for leftovers or
+    meal-prep logic. If no extra meal was explicitly requested for a day, its
+    "extras" array must be []. This overrides P7 leftover suggestions.
 
 P8. REAL DISHES ONLY.
     Every suggestion must be a recognisable, real-world dish.
 
-SELF-CHECK BEFORE OUTPUT: For every day, verify (a) any requested extras appear in "extras" with a name/meal_type, NOT only in "notes"; (b) skipped days have skip=true and name=null; (c) the week has exactly 7 day entries.
+SELF-CHECK BEFORE OUTPUT: For every day, verify (a) any requested extras appear in "extras" with a name/meal_type, NOT only in "notes"; (b) skipped days have skip=true and name=null; (c) the week has exactly 7 day entries; (d) every day's "extras" array is [] unless an extra meal was explicitly asked for by the user.
 
 Return ONLY a JSON object, no markdown:
 {
