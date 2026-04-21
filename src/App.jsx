@@ -569,6 +569,19 @@ export default function App() {
     loadHousehold();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Already-signed-in user pastes an invite URL → apply the invite. The
+  // [user] effect above only fires when user first signs in; once a
+  // household is loaded a fresh visit to /?invite=TOKEN wouldn't otherwise
+  // trigger anything. loadHousehold itself clears the URL after applying,
+  // so this doesn't loop.
+  useEffect(() => {
+    if (!user || !household) return;
+    const token = new URLSearchParams(window.location.search).get('invite');
+    if (!token) return;
+    loadingForUser.current = null; // allow loadHousehold to run again
+    loadHousehold();
+  }, [user, household?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Keep the membership list fresh across devices — when a new row appears
   // (invite accepted elsewhere) or disappears (kicked / left), re-run
   // loadHousehold so the switcher and active household reflect reality.
@@ -589,6 +602,24 @@ export default function App() {
       "If this is a 403, the RLS SELECT policies on household_members / households " +
       "are missing. Run supabase/migration_add_rls_select_policies.sql in the " +
       "Supabase SQL editor, then sign in again.";
+
+    // Apply any pending invite BEFORE we look at memberships — fixes the
+    // signup race where loadHousehold was otherwise beating
+    // join_household_by_token to the membership check and auto-creating
+    // a stray solo household. Also covers already-signed-in users who
+    // paste an invite URL. Idempotent on the DB side (ON CONFLICT DO
+    // NOTHING), so harmless if AuthScreen already ran it.
+    const inviteToken = new URLSearchParams(window.location.search).get('invite');
+    if (inviteToken) {
+      const { error: joinErr } = await supabase.rpc('join_household_by_token', {
+        p_token: inviteToken, p_user_id: user.id,
+      });
+      if (joinErr) {
+        console.error('[auth] join_household_by_token failed:', joinErr.message);
+      } else {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
 
     async function readMemberships() {
       const { data, error } = await supabase
@@ -980,9 +1011,15 @@ export default function App() {
     const item = mealPlanItems.find((i) => i.recipe_id === rid);
     if (!item) return;
     const updatedRecipe = { ...item.recipe_data, ...fullData };
-    await supabase.from("meal_plan_items")
+    const { error } = await supabase.from("meal_plan_items")
       .update({ recipe_data: updatedRecipe })
       .eq("id", item.id);
+    if (error) { console.error('[generateAndSaveRecipe] update failed:', error); return; }
+    // Update local state directly so the expanded card rerenders with the
+    // full ingredients/steps immediately — don't wait for realtime.
+    setMealPlanItems((prev) => prev.map((i) =>
+      i.id === item.id ? { ...i, recipe_data: updatedRecipe } : i
+    ));
   }
 
   // ── Side dish helpers ─────────────────────────────────────────────────────
@@ -2196,7 +2233,17 @@ export default function App() {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
+                    {preferences?.is_gifted && (
+                      <span
+                        className="text-[10px] font-semibold uppercase tracking-wider bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full"
+                        title="Gifted account — unlimited AI planning, no weekly cap"
+                      >
+                        ✨ Gifted
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-orange-400 truncate">{user?.email}</p>
                 </div>
                 <button onClick={() => setShowSettings((v) => !v)}

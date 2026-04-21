@@ -9,6 +9,13 @@ function currentWeekKey() {
 }
 
 export async function checkAndIncrementUsage(supabase, householdId, limit = WEEKLY_FREE_LIMIT) {
+  // Temporary test escape hatch: set DISABLE_AI_LIMIT=1 on Vercel to
+  // bypass the free-tier cap without touching the household_preferences
+  // is_gifted column (useful while the Supabase console is misbehaving
+  // or during a demo / dev pass). Remove when proper access tiers are
+  // back in play.
+  if (process.env.DISABLE_AI_LIMIT === '1' || process.env.DISABLE_AI_LIMIT === 'true') return false;
+
   const weekKey = currentWeekKey();
 
   const { data } = await supabase
@@ -28,6 +35,11 @@ export async function checkAndIncrementUsage(supabase, householdId, limit = WEEK
 }
 
 export async function isGiftedHousehold(supabase, householdId) {
+  // Same escape hatch — pretend every household is gifted while the
+  // flag is on so downstream checks that short-circuit on isGifted
+  // also bypass the limit cleanly.
+  if (process.env.DISABLE_AI_LIMIT === '1' || process.env.DISABLE_AI_LIMIT === 'true') return true;
+
   const { data } = await supabase
     .from('household_preferences')
     .select('is_gifted')

@@ -26,7 +26,7 @@ export default function OnboardingScreen({ user, household, memberProfile, onDon
       return;
     }
     setSaving(true);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('household_members')
       .update({
         display_name:   name.trim(),
@@ -34,9 +34,18 @@ export default function OnboardingScreen({ user, household, memberProfile, onDon
         onboarded_at:   new Date().toISOString(),
       })
       .eq('user_id', user.id)
-      .eq('household_id', household.id);
+      .eq('household_id', household.id)
+      .select();
     if (error) {
       setErr(error.message);
+      setSaving(false);
+      return;
+    }
+    // RLS silently drops rows the caller can't update. If the update
+    // didn't match anything, surface a clear error instead of bouncing
+    // the user back to this screen on every refresh.
+    if (!data || data.length === 0) {
+      setErr('Could not save — run supabase/migration_add_member_update_policy.sql in your Supabase project, then try again.');
       setSaving(false);
       return;
     }

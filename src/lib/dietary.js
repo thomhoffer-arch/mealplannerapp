@@ -65,14 +65,39 @@ export function extractAvoids(householdPrefsText = '', memberPrefs = []) {
   return avoids;
 }
 
+// When an ingredient explicitly labels itself as the safe version of an
+// avoided keyword ("gluten-free pasta" rather than "pasta", "oat milk"
+// rather than "milk"), it's fine — don't flag it. Map from the avoid
+// keyword to phrases that indicate the safe variant.
+const SAFE_MARKERS = {
+  wheat:   ['gluten-free', 'gluten free'],
+  flour:   ['gluten-free', 'gluten free', 'almond flour', 'rice flour', 'chickpea flour', 'oat flour', 'buckwheat flour'],
+  bread:   ['gluten-free', 'gluten free'],
+  pasta:   ['gluten-free', 'gluten free'],
+  noodle:  ['gluten-free', 'gluten free', 'rice noodle', 'glass noodle', 'shirataki'],
+  couscous:['gluten-free', 'gluten free'],
+  milk:    ['oat milk', 'almond milk', 'soy milk', 'coconut milk', 'rice milk', 'cashew milk', 'dairy-free', 'dairy free', 'plant-based', 'plant based'],
+  cheese:  ['vegan', 'dairy-free', 'dairy free', 'plant-based'],
+  butter:  ['vegan', 'dairy-free', 'dairy free', 'plant-based', 'peanut butter', 'almond butter'],
+  cream:   ['coconut cream', 'cashew cream', 'vegan', 'dairy-free', 'dairy free'],
+  yogurt:  ['vegan', 'dairy-free', 'coconut'],
+  yoghurt: ['vegan', 'dairy-free', 'coconut'],
+};
+
 // Given a recipe and an avoids map, return an array of conflicts:
 // [{ ingredient: "bacon", reasons: ["Thom said 'halal'"] }, ...]
 // Matches on substring of the ingredient name, case-insensitive.
+// Ignores hits when the ingredient explicitly labels itself as the
+// safe variant (see SAFE_MARKERS).
 export function checkRecipe(recipe, avoids) {
   const conflicts = [];
   const ingredients = (recipe?.ingredients || []).map((i) => (i.name || '').toLowerCase());
   for (const [avoid, reasons] of Object.entries(avoids)) {
-    const hit = ingredients.find((ing) => ing.includes(avoid));
+    const safeMarkers = SAFE_MARKERS[avoid] || [];
+    const hit = ingredients.find((ing) => {
+      if (!ing.includes(avoid)) return false;
+      return !safeMarkers.some((safe) => ing.includes(safe));
+    });
     if (hit) conflicts.push({ ingredient: hit, avoid, reasons });
   }
   return conflicts;

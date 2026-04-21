@@ -62,6 +62,12 @@ Write a complete dinner recipe for "${name}".${overviewHint}
 ${cuisineHint}${timeHint}
 Portions for 2 people.
 
+If the dish name already implies a dietary adaptation (e.g. "with
+gluten-free pasta", "vegetarian lasagne"), reflect that in the
+ingredient list — label GF pasta as "gluten-free pasta", label
+non-dairy alternatives explicitly. Don't silently swap to the
+regular version.
+
 Return ONLY a JSON object, no markdown:
 {
   "ingredients": [{ "name": "chicken thighs, bone-in skin-on", "amount": "2" }],
