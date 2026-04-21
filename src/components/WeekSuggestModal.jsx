@@ -391,15 +391,10 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           />
                           <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap">
                             <span className="text-[10px] font-bold uppercase bg-white/90 text-orange-600 px-2 py-0.5 rounded-full tracking-wider">{day.day}</span>
-<<<<<<< HEAD
-                            {totalTime > 0 && (
-                              <span className="text-[10px] font-semibold bg-black/40 text-white px-2 py-0.5 rounded-full">{totalTime} min</span>
-=======
                             {extras.length > 0 && (
                               <span className="text-[10px] bg-white/90 text-orange-500 px-2 py-0.5 rounded-full font-semibold">
                                 +{extras.length} extra meal{extras.length !== 1 ? 's' : ''}
                               </span>
->>>>>>> 72120bd (Fix extra meal generation + redesign week planner carousel UI)
                             )}
                           </div>
                           {day.photo.photographer && (
@@ -415,15 +410,10 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                       ) : (
                         <div className="flex items-center gap-1.5 px-4 pt-4 pb-1 flex-shrink-0">
                           <span className="text-[10px] font-bold uppercase bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full tracking-wider">{day.day}</span>
-<<<<<<< HEAD
-                          {totalTime > 0 && (
-                            <span className="text-[10px] font-semibold bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">{totalTime} min</span>
-=======
                           {extras.length > 0 && (
                             <span className="text-[10px] bg-orange-100 text-orange-500 px-2 py-0.5 rounded-full font-semibold">
                               +{extras.length} extra meal{extras.length !== 1 ? 's' : ''}
                             </span>
->>>>>>> 72120bd (Fix extra meal generation + redesign week planner carousel UI)
                           )}
                         </div>
                       )}
@@ -510,61 +500,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           />
                         </div>
 
-<<<<<<< HEAD
-                        {day.reason && (
-                          <p className="font-display italic text-orange-600 text-xs leading-snug bg-orange-50/60 rounded-xl px-3 py-2">— {day.reason}</p>
-                        )}
-
-                        {((day.uses_pantry || []).length > 0 || day.leftover_for) && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {day.leftover_for && (
-                              <span className="text-[10px] bg-amber-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
-                                → {day.leftover_for}
-                              </span>
-                            )}
-                            {(day.uses_pantry || []).map((item) => (
-                              <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full border border-orange-100">
-                                <span className="font-display italic">from pantry</span> · {item}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Side dish if planned for this day */}
-                        {recipe?._sideDish?.name && (
-                          <div className="border-t border-orange-50 pt-2">
-                            <div className="flex items-center gap-2 bg-orange-50/60 rounded-xl px-3 py-2">
-                              <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-14 flex-shrink-0">Side</span>
-                              <p className="text-xs font-semibold text-orange-900 truncate">{recipe._sideDish.name}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Extra meals (breakfast/lunch requested for this day) */}
-                        {(day.extras || []).length > 0 && (
-                          <div className="space-y-1.5 border-t border-orange-50 pt-2">
-                            {day.extras.map((extra, i) => {
-                              const xTime = (extra.prepTime || 0) + (extra.cookTime || 0);
-                              return (
-                                <div key={i} className="flex items-center gap-2 bg-orange-50/60 rounded-xl px-3 py-2">
-                                  <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-14 flex-shrink-0">{extra._mealType || 'Extra'}</span>
-                                  {extra.photo?.thumbnail && (
-                                    <img src={extra.photo.thumbnail} alt={extra.name} className="w-8 h-8 rounded-[10px] object-cover flex-shrink-0" />
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold text-orange-900 truncate">{extra.name}</p>
-                                    {xTime > 0 && <p className="text-[10px] text-orange-400">{xTime} min</p>}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {/* Options — always visible now, not behind an expand */}
-=======
                         {/* Options bar — only when day is selected */}
->>>>>>> 72120bd (Fix extra meal generation + redesign week planner carousel UI)
                         {isSelected && (
                           <div className="px-4 py-3 border-t border-orange-50 space-y-2">
                             <div className="flex items-center gap-3">
