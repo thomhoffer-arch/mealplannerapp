@@ -165,46 +165,120 @@ function ingredientKey(rawName) {
   return parts.join(' ');
 }
 
+// ─── Unit-aware amount consolidation ─────────────────────────────────────────
+
 const _FRACS = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1/3, '⅔': 2/3, '⅛': 0.125 };
-const _NUM_RE = /^([\d½¼¾⅓⅔⅛][^a-zA-Z]*?)\s*([a-zA-Z]+\.?)?$/;
-function mergeAmounts(rawAmounts) {
-  const amounts = rawAmounts.map((a) => (a || '').trim()).filter(Boolean);
-  if (!amounts.length) return '';
-  // Deduplicate identical strings (handles "to taste × N" → "to taste")
-  const deduped = amounts.filter(
-    (a, i) => amounts.findIndex((b) => b.toLowerCase() === a.toLowerCase()) === i
-  );
-  if (deduped.length === 1) return deduped[0];
-  // Try to sum numeric amounts sharing a unit
-  const byUnit = new Map();
-  const misc = [];
-  for (const a of deduped) {
-    const m = a.trim().match(_NUM_RE);
-    if (m) {
-      const numStr = m[1].trim();
-      const unit = (m[2] || '').toLowerCase().replace(/\.$/, '');
-      let qty = 0;
-      for (const part of numStr.replace(/,/g, '.').split(/\s+/)) {
-        if (_FRACS[part]) { qty += _FRACS[part]; continue; }
-        if (part.includes('/')) { const [n, d] = part.split('/').map(Number); if (d) qty += n / d; continue; }
-        const n = parseFloat(part); if (!isNaN(n)) qty += n;
-      }
-      if (qty > 0) {
-        const key = unit || '__bare__';
-        byUnit.set(key, { total: (byUnit.get(key)?.total || 0) + qty, unit: m[2] || '' });
-        continue;
-      }
-    }
-    misc.push(a);
+
+// Volume units → base ml
+const _VOL = {
+  ml: 1, milliliter: 1, millilitre: 1, milliliters: 1, millilitres: 1,
+  l: 1000, litre: 1000, liter: 1000, litres: 1000, liters: 1000,
+  tsp: 5, teaspoon: 5, teaspoons: 5,
+  tbsp: 15, tablespoon: 15, tablespoons: 15, tbs: 15, tbsps: 15,
+  cup: 240, cups: 240,
+  pt: 473, pint: 473, pints: 473,
+  qt: 946, quart: 946, quarts: 946,
+  floz: 29.57,
+};
+// Weight units → base g
+const _WEIGHT = {
+  g: 1, gram: 1, grams: 1, gr: 1,
+  kg: 1000, kilogram: 1000, kilograms: 1000,
+  oz: 28.35, ounce: 28.35, ounces: 28.35,
+  lb: 453.59, pound: 453.59, pounds: 453.59, lbs: 453.59,
+};
+const _VAGUE = /^(to taste|a pinch|pinch|a dash|dash|as needed|season|to season|handful|a handful|some|a few|few|a little|little|as required|optional|for serving|for garnish|for topping|garnish|sprinkle|a sprinkle|n\/a)$/i;
+
+function _parseFrac(numStr) {
+  let qty = 0;
+  for (const part of numStr.replace(/,/g, '.').split(/\s+/)) {
+    if (_FRACS[part]) { qty += _FRACS[part]; continue; }
+    if (part.includes('/')) { const [n, d] = part.split('/').map(Number); if (d) qty += n / d; continue; }
+    const n = parseFloat(part); if (!isNaN(n)) qty += n;
   }
-  const numParts = [...byUnit.values()].map(({ total, unit }) => {
-    const fmt = Number.isInteger(total) ? String(total) : parseFloat(total.toFixed(2)).toString().replace(/\.?0+$/, '');
-    return unit ? `${fmt} ${unit}` : fmt;
-  });
-  return [...numParts, ...misc].join(' + ');
+  return qty;
 }
 
-function consolidateIngredients(selectedRecipes, customIngredients) {
+function _formatFrac(n) {
+  const int = Math.floor(n);
+  const frac = n - int;
+  const SYM = [[1/4, '¼'], [1/3, '⅓'], [1/2, '½'], [2/3, '⅔'], [3/4, '¾']];
+  for (const [val, sym] of SYM) {
+    if (Math.abs(frac - val) < 0.04) return int > 0 ? `${int}${sym}` : sym;
+  }
+  return parseFloat(n.toFixed(2)).toString().replace(/\.?0+$/, '');
+}
+
+function _fmtVol(ml, sys) {
+  if (sys === 'imperial') {
+    if (ml < 15)  return `${_formatFrac(ml / 5)} tsp`;
+    if (ml < 240) return `${_formatFrac(ml / 15)} tbsp`;
+    const cups = ml / 240;
+    if (ml < 946) return `${_formatFrac(cups)} cup${Math.abs(cups - 1) < 0.05 ? '' : 's'}`;
+    return `${_formatFrac(ml / 473)} pt`;
+  }
+  if (ml < 1000) return `${parseFloat(ml.toFixed(ml < 10 ? 1 : 0))} ml`;
+  return `${parseFloat((ml / 1000).toFixed(2)).toString().replace(/\.?0+$/, '')} L`;
+}
+
+function _fmtWeight(g, sys) {
+  if (sys === 'imperial') {
+    const oz = g / 28.35;
+    if (oz < 16) return `${parseFloat(oz.toFixed(1)).toString().replace(/\.0$/, '')} oz`;
+    return `${parseFloat((g / 453.59).toFixed(2)).toString().replace(/\.?0+$/, '')} lb`;
+  }
+  if (g >= 1000) return `${parseFloat((g / 1000).toFixed(2)).toString().replace(/\.?0+$/, '')} kg`;
+  return `${Math.round(g)} g`;
+}
+
+function parseAmount(raw) {
+  const s = (raw || '').trim();
+  if (!s || _VAGUE.test(s)) return { kind: 'vague' };
+  const m = s.match(/^([\d½¼¾⅓⅔⅛][\d½¼¾⅓⅔⅛\s\/.,]*)\s*([a-zA-Z][a-zA-Z\s]*)?$/);
+  if (m) {
+    const qty = _parseFrac(m[1].trim());
+    const unitRaw = (m[2] || '').trim().toLowerCase().replace(/\.$/, '');
+    if (qty > 0) {
+      if (_VOL[unitRaw]    !== undefined) return { kind: 'volume', qty, unit: unitRaw, base: qty * _VOL[unitRaw] };
+      if (_WEIGHT[unitRaw] !== undefined) return { kind: 'weight', qty, unit: unitRaw, base: qty * _WEIGHT[unitRaw] };
+      return { kind: 'count', qty, unit: unitRaw };
+    }
+  }
+  return { kind: 'misc', text: s };
+}
+
+function mergeAmounts(rawAmounts, system = 'metric') {
+  const amounts = rawAmounts.map((a) => (a || '').trim()).filter(Boolean);
+  if (!amounts.length) return '';
+  const parsed = amounts.map(parseAmount);
+  const specific = parsed.filter((p) => p.kind !== 'vague');
+  if (!specific.length) return '';
+
+  const parts = [];
+
+  const vols = specific.filter((p) => p.kind === 'volume');
+  if (vols.length) parts.push(_fmtVol(vols.reduce((s, p) => s + p.base, 0), system));
+
+  const weights = specific.filter((p) => p.kind === 'weight');
+  if (weights.length) parts.push(_fmtWeight(weights.reduce((s, p) => s + p.base, 0), system));
+
+  const counts = specific.filter((p) => p.kind === 'count');
+  if (counts.length) {
+    const byUnit = new Map();
+    for (const p of counts) byUnit.set(p.unit, (byUnit.get(p.unit) || 0) + p.qty);
+    for (const [u, total] of byUnit) parts.push(u ? `${_formatFrac(total)} ${u}` : _formatFrac(total));
+  }
+
+  const seen = new Set();
+  for (const p of specific.filter((p) => p.kind === 'misc')) {
+    const k = p.text.toLowerCase();
+    if (!seen.has(k)) { seen.add(k); parts.push(p.text); }
+  }
+
+  return parts.join(' + ');
+}
+
+function consolidateIngredients(selectedRecipes, customIngredients, measurementSystem = 'metric') {
   const items = {};
 
   const add = (rawName, amount, extra = {}) => {
@@ -213,8 +287,7 @@ function consolidateIngredients(selectedRecipes, customIngredients) {
     if (items[key]) {
       items[key].amounts.push(amount);
     } else {
-      // Display name: first alternative, normalized
-      const displayName = normalizeIngredientName(rawName.split(/ or /i)[0].trim());
+      const displayName = normalizeIngredientName(rawName.split(/ or /i)[0].trim()).toLowerCase();
       items[key] = { name: displayName, amounts: [amount], ...extra };
     }
   };
@@ -228,7 +301,7 @@ function consolidateIngredients(selectedRecipes, customIngredients) {
 
   return Object.values(items).map((item) => ({
     name: item.name,
-    amount: mergeAmounts(item.amounts),
+    amount: mergeAmounts(item.amounts, measurementSystem),
     isCustom: item.isCustom || false,
   }));
 }
@@ -2105,7 +2178,7 @@ export default function App() {
       return !notAtHomeDaySet.has(String(pd).toLowerCase().slice(0, 3));
     })
     .map((i) => i.recipe_data);
-  const shoppingList = consolidateIngredients(viewRecipeObjects, customIngredients)
+  const shoppingList = consolidateIngredients(viewRecipeObjects, customIngredients, preferences.measurement_system || 'metric')
     .map((item) => ({ ...item, inPantry: pantryItems.some((p) => pantryMatchesItem(p.name, item.name)) }));
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
   // eslint-disable-next-line react-hooks/exhaustive-deps

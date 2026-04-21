@@ -30,6 +30,8 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
   const [savingMacros, setSavingMacros] = useState(false);
   const [mealPrepMode, setMealPrepMode] = useState(false);
   const [savingMealPrep, setSavingMealPrep] = useState(false);
+  const [measurementSystem, setMeasurementSystem] = useState('metric');
+  const [savingMeasurement, setSavingMeasurement] = useState(false);
   const [extrasText, setExtrasText] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [keyError, setKeyError] = useState('');
@@ -66,6 +68,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
     setNotificationsEnabled(initialPrefs.notifications_enabled !== false);
     setShowWeeklyMacros(initialPrefs.show_weekly_macros !== false);
     setMealPrepMode(initialPrefs.meal_prep_mode || false);
+    setMeasurementSystem(initialPrefs.measurement_system || 'metric');
     setKeyHint(initialPrefs.gemini_api_key_hint || null);
     setPuterHint(initialPrefs.puter_token_hint || null);
   }, [initialPrefs]);
@@ -246,6 +249,36 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
                 >
                   <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${mealPrepMode ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
+              </div>
+
+              {/* Measurement system */}
+              <div className="flex items-start justify-between gap-3 bg-orange-50 rounded-xl px-3 py-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-orange-900">Measurement system</p>
+                  <p className="text-xs text-orange-400 mt-0.5">Affects shopping list amounts and recipe suggestions.</p>
+                </div>
+                <div className="flex gap-1 flex-shrink-0 mt-0.5">
+                  {['metric', 'imperial'].map((sys) => (
+                    <button
+                      key={sys}
+                      disabled={savingMeasurement}
+                      onClick={async () => {
+                        if (sys === measurementSystem) return;
+                        setMeasurementSystem(sys);
+                        setSavingMeasurement(true);
+                        const { error } = await supabase.from('household_preferences').upsert(
+                          { household_id: household.id, measurement_system: sys },
+                          { onConflict: 'household_id' }
+                        );
+                        setSavingMeasurement(false);
+                        if (!error) onPrefsChange?.({ measurement_system: sys });
+                      }}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition disabled:opacity-50 ${sys === measurementSystem ? 'bg-orange-500 text-white' : 'bg-white border border-orange-200 text-orange-700 hover:bg-orange-100'}`}
+                    >
+                      {sys === 'metric' ? 'Metric' : 'Imperial'}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <textarea
