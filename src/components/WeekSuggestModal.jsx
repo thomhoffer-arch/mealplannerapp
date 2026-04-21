@@ -78,6 +78,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [swapInput, setSwapInput]       = useState({});
   const [swappingKey, setSwappingKey]   = useState(null);
   const [thisWeekWishes, setThisWeekWishes] = useState('');
+  const [weeklyBudget, setWeeklyBudget]   = useState('');   // optional €/week
+  const [simpleNight, setSimpleNight]     = useState(false); // include one easy night
   const [showNotes, setShowNotes]       = useState(false);
   // expandedMeals: { [weekNum-dayName]: { dinner: bool, "breakfast-0": bool, ... } }
   const [expandedMeals, setExpandedMeals] = useState({});
@@ -108,6 +110,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           plan_extras_text: planExtrasText || '',
           day_notes: dayNotes,
           this_week_wishes: thisWeekWishes || '',
+          weekly_budget: weeklyBudget ? Number(weeklyBudget) : null,
+          simple_night: simpleNight,
         },
       });
       setPlan(data.weeks);
@@ -270,6 +274,31 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             onChange={(e) => setThisWeekWishes(e.target.value)}
             className="w-full text-xs border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
           />
+          {/* Budget + simple night row */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-orange-600">€</span>
+              <input
+                type="number"
+                min="0"
+                placeholder="Budget/week"
+                value={weeklyBudget}
+                onChange={(e) => setWeeklyBudget(e.target.value)}
+                className="w-28 text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setSimpleNight((v) => !v)}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition ${
+                simpleNight
+                  ? 'bg-orange-500 text-white border-orange-500'
+                  : 'border-orange-200 text-orange-600 hover:border-orange-400'
+              }`}
+            >
+              {simpleNight ? '✓ ' : ''}Easy night
+            </button>
+          </div>
         </div>
 
         {/* Content area */}

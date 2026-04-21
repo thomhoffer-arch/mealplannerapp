@@ -32,7 +32,7 @@ export default async function handleSuggestWeek(req, res) {
 async function _handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { weeks = 1, plan_extras_text = '', day_notes = {}, this_week_wishes = '' } = req.body || {};
+  const { weeks = 1, plan_extras_text = '', day_notes = {}, this_week_wishes = '', weekly_budget = null, simple_night = false, deals = [] } = req.body || {};
   const numWeeks = Math.min(Math.max(Number(weeks) || 1, 1), 2);
 
   const ctx = await requireAuth(req, res);
@@ -95,7 +95,7 @@ async function _handler(req, res) {
   const recentNames = (recentPlanData || []).slice(0, 10).map((i) => i.recipe_data?.name).filter(Boolean);
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
 
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals);
 
   let rawText;
   try {
@@ -212,7 +212,7 @@ async function _handler(req, res) {
   res.json({ weeks: enrichedWeeks, notes: plan.notes || '' });
 }
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '') {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = []) {
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -262,6 +262,9 @@ ${disliked.length ? `  DISLIKED (1-2★): ${disliked.slice(0, 15).join(', ')} �
 
 PANTRY (already on the shelf — prefer recipes that use these to minimise shopping):
 ${pantry.length ? `  ${pantry.slice(0, 30).join(', ')}` : '  (empty)'}
+${deals.length ? `\nDEALS THIS WEEK (items on offer at local supermarkets — prioritise these ingredients where they fit):\n  ${deals.map((d) => `${d.item}${d.store ? ` (${d.store})` : ''}${d.price ? ` ${d.price}` : ''}`).join(', ')}` : ''}
+${weeklyBudget ? `\nWEEKLY BUDGET: €${weeklyBudget} — keep the shopping list affordable; favour seasonal produce, cheaper cuts, and pulses where possible.` : ''}
+${simpleNight ? `\nEASY NIGHT: include one night this week where dinner is genuinely minimal effort — a good supermarket pizza, assembled wraps, beans on toast, or similar. Mark the reason as "easy night" for that day.` : ''}
 ${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED (standing instructions, apply every week):\n${planExtrasText}` : ''}
 ${thisWeekWishes?.trim() ? `\nTHIS WEEK SPECIFICALLY (one-off wishes — weight these above everything else):\n${thisWeekWishes.trim()}` : ''}
 ${dayNotesSection ? `\nPER-DAY NOTES:\n${dayNotesSection}` : ''}
