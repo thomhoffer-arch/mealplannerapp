@@ -68,6 +68,17 @@ async function searchAi(q, dietary, time, cuisine, ctx) {
   const { provider, token } = await resolveAiProvider(ctx.supabase, ctx.householdId);
   if (!token) return [];
 
+  // Load household preferences so suggestions respect dietary wishes
+  const [{ data: prefData }, { data: membersData }] = await Promise.all([
+    ctx.supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
+    ctx.supabase.from('household_members').select('display_name, personal_prefs').eq('household_id', ctx.householdId),
+  ]);
+  const preferences = prefData?.preferences_text || '';
+  const memberPrefs = (membersData || [])
+    .map((m) => (m.personal_prefs || '').trim())
+    .filter(Boolean)
+    .join('; ');
+
   const constraints = [
     time === '<20min' && 'under 20 minutes total',
     time === '20-40min' && '20-40 minutes total',
@@ -80,8 +91,15 @@ async function searchAi(q, dietary, time, cuisine, ctx) {
     (dietary || '').split(',').includes('high-protein') && 'high-protein (30g+ per serving)',
   ].filter(Boolean).join(', ');
 
+  const householdContext = [
+    preferences && `Household preferences: ${preferences}`,
+    memberPrefs && `Individual preferences: ${memberPrefs}`,
+  ].filter(Boolean).join('\n');
+
   const prompt = `You are a dinner-search assistant. Suggest 8 real, well-known dishes matching this query: "${q || '(no query, use constraints below)'}".${constraints ? ` Must be: ${constraints}.` : ''}
 
+Adapt every dish to honour the household's dietary wishes below — keep the dish concept but reformulate ingredients as needed (e.g. a gluten-free pasta uses rice pasta; a dairy-free risotto uses olive oil). Do NOT exclude a dish just because of a dietary constraint — adapt it instead. Name the adaptation in the dish title when the change is significant.
+${householdContext ? `\n${householdContext}\n` : ''}
 Favour variety — mix cuisines and techniques instead of returning eight near-duplicates. Ground every dish in a recipe a home cook actually makes.
 
 Return ONLY JSON, no markdown:
