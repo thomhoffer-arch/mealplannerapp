@@ -753,6 +753,7 @@ export default function App() {
   const [pantryNudge, setPantryNudge] = useState(null);   // { original, amount, suggestions, loading }
   const [quickEntryDay, setQuickEntryDay] = useState(null);
   const [quickEntryValue, setQuickEntryValue] = useState('');
+  const [searchTargetDay, setSearchTargetDay] = useState(null); // day name when search triggered from a day slot
   const [templates, setTemplates] = useState([]);          // [{ id, name, recipes }]
   const [templateName, setTemplateName] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -1494,6 +1495,18 @@ export default function App() {
     }
   }
 
+  // When search was launched from a specific day slot, assign the recipe to that day
+  async function handleSearchSelect(recipe) {
+    const withDay = searchTargetDay
+      ? { ...recipe, _plannedDay: searchTargetDay }
+      : recipe;
+    await toggleSelectedRecipe(withDay);
+    if (searchTargetDay) {
+      setSearchTargetDay(null);
+      setSearchQuery('');
+    }
+  }
+
   async function addExtraMeal(day, mealType, request) {
     const key = `${day}-${mealType}`;
     setGeneratingExtra(key);
@@ -2044,7 +2057,7 @@ export default function App() {
                   className="w-full pl-11 pr-10 py-3 rounded-2xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 text-sm"
                 />
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 hover:text-orange-600 transition">
+                  <button onClick={() => { setSearchQuery(''); setSearchTargetDay(null); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 hover:text-orange-600 transition">
                     <X size={16} />
                   </button>
                 )}
@@ -2063,6 +2076,13 @@ export default function App() {
 
             {searchQuery ? (
               <div>
+                {/* Day-assignment banner — shown when search was opened from a day slot */}
+                {searchTargetDay && (
+                  <div className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 mb-3">
+                    <span className="text-xs text-orange-700">Adding to <strong>{searchTargetDay}</strong></span>
+                    <button onClick={() => setSearchTargetDay(null)} className="text-xs text-orange-400 hover:text-orange-600 transition font-medium">Cancel</button>
+                  </div>
+                )}
                 {/* URL import + manual create */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
                   <div className="flex items-center justify-between mb-2.5">
@@ -2098,7 +2118,7 @@ export default function App() {
                         <RecipeCard key={recipe.id} recipe={recipe}
                           isSelected={selectedIds.has(String(recipe.id))}
                           isStarred={starredIds.has(String(recipe.id))}
-                          onToggleSelect={toggleSelectedRecipe}
+                          onToggleSelect={handleSearchSelect}
                           onToggleStar={toggleStar} />
                       ))}
                     </div>
@@ -2128,7 +2148,7 @@ export default function App() {
                           <RecipeCard key={recipe.id} recipe={recipe}
                             isSelected={selectedIds.has(String(recipe.id))}
                             isStarred={starredIds.has(String(recipe.id))}
-                            onToggleSelect={toggleSelectedRecipe}
+                            onToggleSelect={handleSearchSelect}
                             onToggleStar={toggleStar} />
                         ))}
                         {lockedCount > 0 && (
@@ -2389,7 +2409,7 @@ export default function App() {
                                     className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Write it in</button>
                                   <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
                                     className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Leftovers</button>
-                                  <button onClick={(e) => { e.stopPropagation(); setTimeout(() => searchInputRef.current?.focus(), 0); }}
+                                  <button onClick={(e) => { e.stopPropagation(); setSearchTargetDay(day); setTimeout(() => searchInputRef.current?.focus(), 0); }}
                                     className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">+ Search</button>
                                   <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
                                     className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Away</button>
