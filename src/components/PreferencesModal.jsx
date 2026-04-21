@@ -257,7 +257,7 @@ export default function PreferencesModal({ household, onClose, inline = false, s
             </div>
 
             {keyHint ? (
-              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
+              <div className="flex items-center justify-between bg-sage-100/50 border border-sage-200 rounded-xl px-3 py-2.5">
                 <span className="text-sm text-sage-600">
                   Active key ending in <span className="font-mono font-semibold">···{keyHint}</span>
                 </span>
@@ -300,7 +300,7 @@ export default function PreferencesModal({ household, onClose, inline = false, s
             </div>
 
             {puterHint ? (
-              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
+              <div className="flex items-center justify-between bg-sage-100/50 border border-sage-200 rounded-xl px-3 py-2.5">
                 <span className="text-sm text-sage-600">
                   Connected — token ending in <span className="font-mono font-semibold">···{puterHint}</span>
                 </span>

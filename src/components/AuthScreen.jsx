@@ -473,7 +473,7 @@ export default function AuthScreen() {
                 {[
                   'Unlimited AI — no weekly cap',
                   'Full recipe library, all results',
-                  'All features unlocked',
+                  'Everything included',
                   'Shared plan, list & pantry',
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2">

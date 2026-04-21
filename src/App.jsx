@@ -268,12 +268,12 @@ function SelectedRecipeCard({
         <div className="flex items-center gap-2 pt-1">
           <button
             onClick={() => onToggleCooked(rid)}
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border-2 transition ${isCooked ? 'border-green-400 bg-green-50 text-green-700' : 'border-stone-200 text-stone-500 hover:border-green-300 hover:text-green-600'}`}
+            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border-2 transition ${isCooked ? 'border-sage-400 bg-sage-100 text-sage-600' : 'border-orange-200 text-orange-400 hover:border-sage-300 hover:text-sage-600'}`}
           >
             <Check size={12} />
             {isCooked ? 'Cooked!' : 'Mark cooked'}
           </button>
-          {rating && <p className="text-xs ml-1">{"⭐".repeat(rating)}</p>}
+          {rating && <p className="text-xs ml-1 text-orange-400">{'★'.repeat(rating)}</p>}
           <button
             onClick={async () => {
               if (sharing) return;
@@ -289,7 +289,7 @@ function SelectedRecipeCard({
                 setSharing(false);
               }
             }}
-            className="ml-auto flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:bg-stone-50 transition"
+            className="ml-auto flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
             title={shareCopied ? 'Link copied!' : 'Share recipe'}
           >
             {shareCopied ? <Check size={15} className="text-orange-600" /> : <Link2 size={15} />}
@@ -298,7 +298,7 @@ function SelectedRecipeCard({
         {isStub ? (
           <div className="text-center py-4">
             <p className="text-sm text-orange-900 mb-1 font-display italic">Full recipe not written yet.</p>
-            <p className="text-xs text-stone-500 mb-4">The AI will write ingredients and steps now — takes about 10 seconds.</p>
+            <p className="text-xs text-orange-400 mb-4">The AI will write ingredients and steps now — takes about 10 seconds.</p>
             {generateError && <p className="text-xs text-red-500 mb-3">{generateError}</p>}
             <button onClick={generateFullRecipe} disabled={generating}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50">
@@ -319,7 +319,7 @@ function SelectedRecipeCard({
                 ].map(({ label, value, unit }) => (
                   <div key={label} className="bg-orange-50 rounded-lg p-2 text-center">
                     <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>
-                    <p className="text-xs text-stone-500">{label}</p>
+                    <p className="text-xs text-orange-400">{label}</p>
                   </div>
                 ))}
               </div>
@@ -327,7 +327,7 @@ function SelectedRecipeCard({
             {/* Steps */}
             {(recipe.steps || []).length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Instructions</p>
+                <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2">Instructions</p>
                 <ol className="space-y-2">
                   {recipe.steps.map((step, i) => (
                     <li key={i} className="flex gap-2 text-sm text-orange-900">
@@ -341,7 +341,7 @@ function SelectedRecipeCard({
             {/* Side dish (if one has been attached to this dinner) */}
             {recipe._sideDish && (
               <div className="bg-orange-50/60 rounded-xl p-3 space-y-1.5">
-                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Side dish</p>
+                <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide">Side dish</p>
                 <p className="text-sm font-semibold text-orange-900">{recipe._sideDish.name}</p>
                 {recipe._sideDish.description && (
                   <p className="text-xs text-orange-700 leading-snug">{recipe._sideDish.description}</p>
@@ -359,13 +359,13 @@ function SelectedRecipeCard({
             )}
             {/* Custom ingredients */}
             <div>
-              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Add Extra Ingredients</p>
+              <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2">Add Extra Ingredients</p>
               <div className="flex gap-2">
                 <input type="text" placeholder="e.g. 100g breadcrumbs"
                   value={newIngredientInput[rid] || ""}
                   onChange={(e) => onInputChange(rid, e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && onAddCustom(rid)}
-                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400"
+                  className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400"
                 />
                 <button onClick={() => onAddCustom(rid)}
                   className="px-4 py-2 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition text-sm font-medium">Add</button>
@@ -383,12 +383,12 @@ function SelectedRecipeCard({
             </div>
             {/* Tweak */}
             <div>
-              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Tweak this recipe</p>
+              <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2">Tweak this recipe</p>
               <div className="flex gap-2">
                 <input type="text" placeholder='e.g. use chicken breast, make it spicier…'
                   value={adjustInput} onChange={(e) => setAdjustInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && adjustRecipe()}
-                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-stone-300"
+                  className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
                 />
                 <button onClick={adjustRecipe} disabled={adjusting || !adjustInput.trim()}
                   className="flex-shrink-0 px-4 py-2 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-1.5">
@@ -401,21 +401,21 @@ function SelectedRecipeCard({
           </>
         )}
         <button onClick={() => onRemove(recipe)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-red-200 text-red-500 hover:bg-red-50 transition text-sm font-medium">
-          <Trash2 size={15} />
-          Remove from meal plan
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-full border border-dashed border-orange-200 text-orange-400 hover:border-orange-400 hover:text-orange-600 transition text-sm">
+          <Trash2 size={13} />
+          Remove from plan
         </button>
       </div>
     );
   }
 
   return (
-    <div className={`rounded-2xl border-2 transition-all ${isCooked ? "border-green-300 bg-green-50 opacity-80" : "border-orange-100 bg-white"}`}>
+    <div className={`rounded-2xl border-2 transition-all ${isCooked ? "border-sage-200 bg-sage-100/40 opacity-80" : "border-orange-100 bg-white"}`}>
       <div className="p-4">
         <div className="flex items-start gap-3">
           <button
             onClick={() => onToggleCooked(rid)}
-            className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all ${isCooked ? "bg-green-500 border-green-500 text-white" : "border-gray-300"}`}
+            className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all ${isCooked ? "bg-sage-500 border-sage-500 text-white" : "border-orange-300"}`}
           >
             {isCooked && <Check size={12} />}
           </button>
@@ -430,7 +430,7 @@ function SelectedRecipeCard({
               {recipe.name}
             </h3>
             {rating && (
-              <p className="text-xs mt-0.5">{"⭐".repeat(rating)}</p>
+              <p className="text-xs mt-0.5 text-orange-400">{'★'.repeat(rating)}</p>
             )}
           </div>
           <button
@@ -668,6 +668,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [showInviteSharePanel, setShowInviteSharePanel] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
@@ -1339,6 +1340,7 @@ export default function App() {
     const existing = mealPlanItems.find((i) => i.recipe_id === rid);
     if (existing) {
       setMealPlanItems((prev) => prev.filter((i) => i.recipe_id !== rid));
+      setExpandedRecipes((p) => { const n = { ...p }; delete n[rid]; return n; });
       await supabase.from("meal_plan_items").delete().eq("id", existing.id);
       return;
     }
@@ -1360,11 +1362,26 @@ export default function App() {
     }
     const recipeData = { ...recipe, _weekStart: recipe._weekStart || viewWeek };
     setMealPlanItems((prev) => [...prev, { id: `optimistic-${rid}`, recipe_id: rid, recipe_data: recipeData }]);
-    await supabase.from("meal_plan_items").insert({
+    const { data: inserted } = await supabase.from("meal_plan_items").insert({
       household_id: household.id,
       recipe_id: rid,
       recipe_data: recipeData,
-    });
+    }).select('id').single();
+    // Background Pexels photo fetch for manually-added recipes (no planner photo yet)
+    if (!recipeData._plannerPhoto && recipeData.name) {
+      apiFetch(`/api/photo?name=${encodeURIComponent(recipeData.name)}`)
+        .then(({ photo }) => {
+          if (!photo) return;
+          const withPhoto = { ...recipeData, _plannerPhoto: photo };
+          setMealPlanItems((prev) => prev.map((i) =>
+            i.recipe_id === rid ? { ...i, recipe_data: withPhoto } : i
+          ));
+          if (inserted?.id) {
+            supabase.from('meal_plan_items').update({ recipe_data: withPhoto }).eq('id', inserted.id);
+          }
+        })
+        .catch(() => {});
+    }
   }
 
   async function addExtraMeal(day, mealType, request) {
@@ -1408,6 +1425,28 @@ export default function App() {
       setCookedRecipes((prev) => ({ ...prev, [rid]: true }));
       setRatingPrompt(rid);
       await supabase.from("cooked_recipes").insert({ household_id: household.id, recipe_id: rid });
+    }
+  }
+
+  async function toggleNotAtHome(day) {
+    const existing = mealPlanItems.find(
+      (i) => i.recipe_data?._notAtHome &&
+        String(i.recipe_data._plannedDay).toLowerCase().startsWith(day.toLowerCase().slice(0, 3)) &&
+        i.recipe_data._weekStart === viewWeek
+    );
+    if (existing) {
+      setMealPlanItems((prev) => prev.filter((i) => i.id !== existing.id));
+      await supabase.from('meal_plan_items').delete().eq('id', existing.id);
+      return;
+    }
+    const markerData = { id: `not-at-home-${day}`, _notAtHome: true, _plannedDay: day, _weekStart: viewWeek, name: 'Not at home' };
+    const tempId = `optimistic-not-at-home-${day}`;
+    setMealPlanItems((prev) => [...prev, { id: tempId, recipe_id: 'not-at-home', recipe_data: markerData, household_id: household.id }]);
+    const { data: inserted } = await supabase.from('meal_plan_items').insert({
+      household_id: household.id, recipe_id: 'not-at-home', recipe_data: markerData,
+    }).select('id').single();
+    if (inserted?.id) {
+      setMealPlanItems((prev) => prev.map((i) => i.id === tempId ? { ...i, id: inserted.id } : i));
     }
   }
 
@@ -1473,9 +1512,25 @@ export default function App() {
     ? `${window.location.origin}?invite=${household.invite_token}`
     : "";
 
+  async function shareInviteLink() {
+    const shareData = {
+      title: 'Join our kitchen',
+      text: "Come plan meals with me — one shared list, no more \"what's for dinner?\" texts.",
+      url: inviteUrl,
+    };
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try { await navigator.share(shareData); } catch (err) {
+        if (err.name !== 'AbortError') setShowInviteSharePanel(true);
+      }
+    } else {
+      setShowInviteSharePanel((v) => !v);
+    }
+  }
+
   async function copyInviteLink() {
     await navigator.clipboard.writeText(inviteUrl);
     setInviteCopied(true);
+    setShowInviteSharePanel(false);
     setTimeout(() => setInviteCopied(false), 2000);
   }
 
@@ -1742,7 +1797,7 @@ export default function App() {
               {[1, 2, 3, 4, 5].map((s) => (
                 <button key={s} onClick={() => saveRating(ratingPrompt, s)}
                   className="text-3xl hover:scale-110 transition-transform">
-                  ⭐
+                  ★
                 </button>
               ))}
             </div>
@@ -1758,7 +1813,7 @@ export default function App() {
       {shareOffer && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 text-center">
-            <p className="text-2xl mb-2">{'⭐'.repeat(shareOffer.stars)}</p>
+            <p className="text-2xl mb-2 text-orange-400">{'★'.repeat(shareOffer.stars)}</p>
             <h3 className="text-base font-bold text-orange-900 mb-1">A winner — share it?</h3>
             <p className="text-xs text-orange-400 mb-4">Create a public link to <span className="font-semibold text-orange-600">{shareOffer.recipe.name}</span>. Good for sending to friends.</p>
             <button
@@ -1908,7 +1963,7 @@ export default function App() {
                     const lockMsg = isBYOK
                       ? `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} in the full library — upgrade for all results.`
                       : `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — add your Gemini key for more, or upgrade for the full library.`;
-                    const lockLabel = isBYOK ? 'Upgrade for full access' : 'Add a key to unlock';
+                    const lockLabel = isBYOK ? 'Upgrade for full access' : 'Add a key for more results';
                     return (
                       <div className="space-y-3">
                         <p className="text-sm text-orange-600 font-medium">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} found</p>
@@ -1992,331 +2047,238 @@ export default function App() {
                       const pd = i.recipe_data?._plannedDay;
                       return pd && String(pd).toLowerCase().startsWith(day.toLowerCase().slice(0, 3));
                     });
-                    const dinnerItem = allDayItems.find((i) => !i.recipe_data?._mealType || i.recipe_data?._mealType === 'dinner');
-                    const extraItems = allDayItems.filter((i) => i.recipe_data?._mealType && i.recipe_data?._mealType !== 'dinner');
+                    const isNotAtHome = allDayItems.some((i) => i.recipe_data?._notAtHome);
+                    const dinnerItem = allDayItems.find((i) => (!i.recipe_data?._mealType && !i.recipe_data?._notAtHome) || i.recipe_data?._mealType === 'dinner');
+                    // Sort extras by time of day so they appear in chronological order
+                    const MEAL_TIME_ORDER = { breakfast: 0, lunch: 1 };
+                    const extraItems = allDayItems
+                      .filter((i) => i.recipe_data?._mealType && i.recipe_data?._mealType !== 'dinner' && !i.recipe_data?._notAtHome)
+                      .sort((a, b) => (MEAL_TIME_ORDER[a.recipe_data._mealType] ?? 2) - (MEAL_TIME_ORDER[b.recipe_data._mealType] ?? 2));
                     const recipe = dinnerItem?.recipe_data;
                     const rid = recipe ? String(recipe.id) : null;
                     const isToday = viewWeek === currentWeekStart && todayName === day;
                     const isCooked = rid ? !!cookedRecipes[rid] : false;
                     const hasBreakfast = extraItems.some((i) => i.recipe_data?._mealType === 'breakfast');
                     const hasLunch = extraItems.some((i) => i.recipe_data?._mealType === 'lunch');
+                    // Accordion: expanding any meal in this day closes all others
+                    const allDayRids = allDayItems.map((i) => String(i.recipe_data.id));
+                    const toggleDayMeal = (targetRid) => setExpandedRecipes((p) => {
+                      const next = { ...p };
+                      allDayRids.forEach((r) => { next[r] = r === targetRid ? !p[r] : false; });
+                      return next;
+                    });
+
+                    // Helper: render an extra meal row (breakfast/lunch/other)
+                    const renderExtraRow = (item) => {
+                      const xr = item.recipe_data;
+                      const xrid = String(xr.id);
+                      const typeLabel = xr._mealType === 'breakfast' ? 'Breakfast' : xr._mealType === 'lunch' ? 'Lunch' : (xr._mealType || 'Extra');
+                      const xTime = (xr.prepTime || 0) + (xr.cookTime || 0);
+                      const xIsCooked = !!cookedRecipes[xrid];
+                      const xExpanded = !!expandedRecipes[xrid];
+                      return (
+                        <div key={xrid} className={`border-b border-orange-50 transition-all ${xIsCooked ? 'bg-sage-100/20' : ''}`}>
+                          <div
+                            className="flex items-center gap-3 px-4 py-2.5 cursor-pointer"
+                            onClick={() => toggleDayMeal(xrid)}
+                          >
+                            <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-16 flex-shrink-0">{typeLabel}</span>
+                            {xr._plannerPhoto?.url && (
+                              <img src={xr._plannerPhoto.thumbnail || xr._plannerPhoto.url} alt={xr._plannerPhoto.alt || xr.name}
+                                loading="lazy" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-semibold leading-snug truncate ${xIsCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>{xr.name}</p>
+                              <p className="text-xs text-orange-400 mt-0.5">{[xTime > 0 ? `${xTime} min` : null, xr._aiSuggestion && (!xr.ingredients || !xr.ingredients.length) ? '· tap to generate' : null].filter(Boolean).join(' ')}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {xIsCooked && <Check size={14} className="text-sage-500" />}
+                              <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(xr); }} className="text-orange-300 hover:text-red-400 transition p-1"><X size={13} /></button>
+                              {xExpanded ? <ChevronUp size={16} className="text-orange-400" /> : <ChevronDown size={16} className="text-orange-400" />}
+                            </div>
+                          </div>
+                          {xExpanded && (
+                            <div className="border-t border-orange-50">
+                              {(xr._plannerPhoto?.url || xr._plannerReason || xr._plannerLeftoverFor || (xr._plannerUsesPantry || []).length > 0) && (
+                                <div className="bg-orange-50/50 border-b border-orange-100">
+                                  {xr._plannerPhoto?.url && (
+                                    <div className="relative h-40 w-full bg-orange-100 overflow-hidden">
+                                      <img src={xr._plannerPhoto.url} alt={xr._plannerPhoto.alt || xr.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                                      {xr._plannerPhoto.photographer && (
+                                        <a href={xr._plannerPhoto.photographer_url || 'https://www.pexels.com'} target="_blank" rel="noopener noreferrer"
+                                          className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
+                                          onClick={(e) => e.stopPropagation()}>📷 {xr._plannerPhoto.photographer}</a>
+                                      )}
+                                    </div>
+                                  )}
+                                  <div className="px-4 py-3 space-y-2">
+                                    {xr._plannerReason && <p className="text-xs text-orange-700 italic leading-snug">✨ {xr._plannerReason}</p>}
+                                    {((xr._plannerUsesPantry || []).length > 0 || xr._plannerLeftoverFor) && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {xr._plannerLeftoverFor && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">→ {xr._plannerLeftoverFor}</span>}
+                                        {(xr._plannerUsesPantry || []).map((pi) => <span key={pi} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100">🥫 {pi}</span>)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                              <SelectedRecipeCard recipe={xr} expanded={true} onToggleExpand={() => {}} onToggleCooked={toggleCookedRecipe} isCooked={xIsCooked}
+                                customIngredients={customIngredients} onAddCustom={addCustomIngredient} onRemoveCustom={removeCustomIngredient} onRemove={toggleSelectedRecipe}
+                                newIngredientInput={newIngredientInput} onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
+                                preferences={preferences} starredRecipes={starredRecipes} onAcceptSubstitution={acceptSubstitution}
+                                onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[xrid] || null} inlineExpanded />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    };
 
                     return (
-                      <div key={day} className={`rounded-2xl border-2 transition-all ${
-                        isCooked ? 'border-green-200 bg-green-50/40' :
+                      <div key={day} className={`rounded-2xl border-2 overflow-hidden transition-all ${
+                        isNotAtHome ? 'border-dashed border-orange-100 bg-orange-50/30' :
+                        isCooked ? 'border-sage-200 bg-sage-100/40' :
                         recipe ? 'border-orange-100 bg-white' :
                         'border-dashed border-orange-100 bg-white/50'
                       }`}>
-                        {/* Compact day header — always visible */}
-                        <div
-                          className="flex items-center gap-3 px-4 py-3.5 cursor-pointer"
-                          onClick={() => recipe && setExpandedRecipes((p) => ({ ...p, [rid]: !p[rid] }))}
-                        >
-                          {/* Day name */}
-                          <div className="w-16 flex-shrink-0">
-                            <p className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-orange-600' : 'text-orange-400'}`}>
-                              {day.slice(0, 3)}
-                            </p>
-                            {isToday && <p className="text-[10px] text-orange-400 font-medium">today</p>}
-                          </div>
 
-                          {recipe ? (
-                            <>
-                              {recipe._plannerPhoto?.url && (
-                                <img
-                                  src={recipe._plannerPhoto.thumbnail || recipe._plannerPhoto.url}
-                                  alt={recipe._plannerPhoto.alt || recipe.name}
-                                  loading="lazy"
-                                  className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
-                                />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className={`font-semibold text-sm leading-snug ${isCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>
-                                  {recipe.name}
-                                </p>
-                                <p className="text-xs text-orange-400 mt-0.5">
-                                  {[
-                                    (recipe.prepTime || 0) + (recipe.cookTime || 0) > 0 ? `${(recipe.prepTime||0)+(recipe.cookTime||0)} min` : null,
-                                    recipe.servings ? `${recipe.servings} servings` : null,
-                                    recipe._aiSuggestion && (!recipe.ingredients || !recipe.ingredients.length) ? '· tap to generate' : null,
-                                  ].filter(Boolean).join(' · ')}
-                                </p>
-                                {recipe._plannerLeftoverFor && (
-                                  <span className="inline-block mt-1 text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">
-                                    → {recipe._plannerLeftoverFor}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1.5 flex-shrink-0">
-                                {isCooked && <Check size={14} className="text-sage-500" />}
-                                {expandedRecipes[rid]
-                                  ? <ChevronUp size={16} className="text-orange-400" />
-                                  : <ChevronDown size={16} className="text-orange-400" />}
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <p className="flex-1 text-sm text-orange-400 italic">Free evening</p>
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
-                                  className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition"
-                                  title="Mark as leftover day"
-                                >
-                                  Leftovers
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setTimeout(() => searchInputRef.current?.focus(), 0); }}
-                                  className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition"
-                                >
-                                  + Add
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Side dish row */}
-                        {recipe && (
-                          <div className="px-4 pb-2 -mt-1">
-                            {recipe._sideDish ? (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">
-                                  + {recipe._sideDish.name}
-                                </span>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); saveSideDish(rid, null); }}
-                                  className="text-orange-400 hover:text-orange-600 transition text-xs"
-                                  title="Remove side dish"
-                                >×</button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); const p = { key: `${day}-side`, mainRecipe: recipe, rid, input: '', loading: true, suggestions: [], error: '' }; setSideDishPanel(p); fetchSideSuggestions(p.key, recipe, ''); }}
-                                className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400"
-                              >
-                                + Add a side
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Extra meal rows (breakfast / lunch) — fully expandable */}
-                        {extraItems.map((item) => {
-                          const xr = item.recipe_data;
-                          const xrid = String(xr.id);
-                          const typeLabel = xr._mealType === 'breakfast' ? 'Breakfast' : xr._mealType === 'lunch' ? 'Lunch' : (xr._mealType || 'Extra');
-                          const xTime = (xr.prepTime || 0) + (xr.cookTime || 0);
-                          const xIsCooked = !!cookedRecipes[xrid];
-                          const xExpanded = !!expandedRecipes[xrid];
-                          return (
-                            <div key={xrid} className={`border-t-2 transition-all ${xIsCooked ? 'border-green-100' : 'border-orange-50'}`}>
-                              {/* Extra meal header — clickable to expand */}
-                              <div
-                                className="flex items-center gap-3 px-4 py-2.5 cursor-pointer"
-                                onClick={() => setExpandedRecipes((p) => ({ ...p, [xrid]: !p[xrid] }))}
-                              >
-                                <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-16 flex-shrink-0">{typeLabel}</span>
-                                {xr._plannerPhoto?.url && (
-                                  <img
-                                    src={xr._plannerPhoto.thumbnail || xr._plannerPhoto.url}
-                                    alt={xr._plannerPhoto.alt || xr.name}
-                                    loading="lazy"
-                                    className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
-                                  />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <p className={`text-sm font-semibold leading-snug truncate ${xIsCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>
-                                    {xr.name}
-                                  </p>
-                                  <p className="text-xs text-orange-400 mt-0.5">
-                                    {[
-                                      xTime > 0 ? `${xTime} min` : null,
-                                      xr._aiSuggestion && (!xr.ingredients || !xr.ingredients.length) ? '· tap to generate' : null,
-                                    ].filter(Boolean).join(' ')}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-1.5 flex-shrink-0">
-                                  {xIsCooked && <Check size={14} className="text-sage-500" />}
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(xr); }}
-                                    className="text-orange-300 hover:text-red-400 transition p-1"
-                                  >
-                                    <X size={13} />
-                                  </button>
-                                  {xExpanded
-                                    ? <ChevronUp size={16} className="text-orange-400" />
-                                    : <ChevronDown size={16} className="text-orange-400" />}
-                                </div>
-                              </div>
-
-                              {/* Expanded full recipe view for extra meal */}
-                              {xExpanded && (
-                                <div className="border-t border-orange-50">
-                                  {(xr._plannerPhoto?.url || xr._plannerReason || xr._plannerLeftoverFor || (xr._plannerUsesPantry || []).length > 0) && (
-                                    <div className="bg-orange-50/50 border-b border-orange-100">
-                                      {xr._plannerPhoto?.url && (
-                                        <div className="relative h-40 w-full bg-orange-100 overflow-hidden">
-                                          <img
-                                            src={xr._plannerPhoto.url}
-                                            alt={xr._plannerPhoto.alt || xr.name}
-                                            loading="lazy"
-                                            className="absolute inset-0 w-full h-full object-cover"
-                                          />
-                                          {xr._plannerPhoto.photographer && (
-                                            <a
-                                              href={xr._plannerPhoto.photographer_url || 'https://www.pexels.com'}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
-                                              onClick={(e) => e.stopPropagation()}
-                                            >
-                                              📷 {xr._plannerPhoto.photographer}
-                                            </a>
-                                          )}
-                                        </div>
-                                      )}
-                                      <div className="px-4 py-3 space-y-2">
-                                        {xr._plannerReason && (
-                                          <p className="text-xs text-orange-700 italic leading-snug">✨ {xr._plannerReason}</p>
-                                        )}
-                                        {((xr._plannerUsesPantry || []).length > 0 || xr._plannerLeftoverFor) && (
-                                          <div className="flex flex-wrap gap-1">
-                                            {xr._plannerLeftoverFor && (
-                                              <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">
-                                                → {xr._plannerLeftoverFor}
-                                              </span>
-                                            )}
-                                            {(xr._plannerUsesPantry || []).map((pi) => (
-                                              <span key={pi} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100">
-                                                🥫 {pi}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-                                  <SelectedRecipeCard
-                                    recipe={xr}
-                                    expanded={true}
-                                    onToggleExpand={() => {}}
-                                    onToggleCooked={toggleCookedRecipe}
-                                    isCooked={xIsCooked}
-                                    customIngredients={customIngredients}
-                                    onAddCustom={addCustomIngredient}
-                                    onRemoveCustom={removeCustomIngredient}
-                                    onRemove={toggleSelectedRecipe}
-                                    newIngredientInput={newIngredientInput}
-                                    onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
-                                    preferences={preferences}
-                                    starredRecipes={starredRecipes}
-                                    onAcceptSubstitution={acceptSubstitution}
-                                    onGenerateRecipe={generateAndSaveRecipe}
-                                    onShareRecipe={shareRecipe}
-                                    rating={recipeRatings[xrid] || null}
-                                    inlineExpanded
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-
-                        {/* Add extra meal buttons — shown when day has a dinner */}
-                        {recipe && (!hasBreakfast || !hasLunch) && (
-                          <div className="px-4 pb-3 flex flex-wrap gap-1.5">
-                            {!hasBreakfast && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'breakfast', ''); }}
+                        {/* ── Breakfast slot ───────────────────────── */}
+                        {!isNotAtHome && (hasBreakfast
+                          ? extraItems.filter((i) => i.recipe_data._mealType === 'breakfast').map(renderExtraRow)
+                          : recipe && (
+                            <div className="px-4 py-2 border-b border-orange-50">
+                              <button onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'breakfast', ''); }}
                                 disabled={generatingExtra === `${day}-breakfast`}
-                                className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50"
-                              >
+                                className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50">
                                 {generatingExtra === `${day}-breakfast` ? 'Adding…' : '+ Breakfast'}
                               </button>
-                            )}
-                            {!hasLunch && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'lunch', ''); }}
-                                disabled={generatingExtra === `${day}-lunch`}
-                                className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50"
-                              >
-                                {generatingExtra === `${day}-lunch` ? 'Adding…' : '+ Lunch'}
-                              </button>
-                            )}
-                          </div>
+                            </div>
+                          )
                         )}
 
-                        {/* Expanded full recipe view */}
-                        {recipe && expandedRecipes[rid] && (
-                          <div className="border-t border-orange-100">
-                            {/* Planner context — only when the day came from the week planner */}
-                            {(recipe._plannerPhoto?.url || recipe._plannerReason || recipe._plannerLeftoverFor || (recipe._plannerUsesPantry || []).length > 0) && (
-                              <div className="bg-orange-50/50 border-b border-orange-100">
+                        {/* ── Lunch slot ───────────────────────────── */}
+                        {!isNotAtHome && (hasLunch
+                          ? extraItems.filter((i) => i.recipe_data._mealType === 'lunch').map(renderExtraRow)
+                          : recipe && (
+                            <div className="px-4 py-2 border-b border-orange-50">
+                              <button onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'lunch', ''); }}
+                                disabled={generatingExtra === `${day}-lunch`}
+                                className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50">
+                                {generatingExtra === `${day}-lunch` ? 'Adding…' : '+ Lunch'}
+                              </button>
+                            </div>
+                          )
+                        )}
+
+                        {/* ── Other extras (snacks etc.) ───────────── */}
+                        {!isNotAtHome && extraItems.filter((i) => !['breakfast','lunch'].includes(i.recipe_data._mealType)).map(renderExtraRow)}
+
+                        {/* ── Dinner slot (primary) ─────────────────── */}
+                        <div>
+                          <div className="flex items-center gap-3 px-4 py-3.5 cursor-pointer"
+                            onClick={() => !isNotAtHome && recipe && toggleDayMeal(rid)}>
+                            <div className="w-16 flex-shrink-0">
+                              <p className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-orange-600' : 'text-orange-400'}`}>{day.slice(0, 3)}</p>
+                              {isToday && <p className="text-[10px] text-orange-400 font-medium">today</p>}
+                            </div>
+                            {isNotAtHome ? (
+                              <>
+                                <p className="flex-1 text-sm text-orange-300 italic">Not at home</p>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
+                                  className="text-xs text-orange-400 hover:text-orange-600 transition px-2 py-1 rounded-full border border-dashed border-orange-200 hover:border-orange-400">
+                                  Undo
+                                </button>
+                              </>
+                            ) : recipe ? (
+                              <>
                                 {recipe._plannerPhoto?.url && (
-                                  <div className="relative h-40 w-full bg-orange-100 overflow-hidden">
-                                    <img
-                                      src={recipe._plannerPhoto.url}
-                                      alt={recipe._plannerPhoto.alt || recipe.name}
-                                      loading="lazy"
-                                      className="absolute inset-0 w-full h-full object-cover"
-                                    />
-                                    {recipe._plannerPhoto.photographer && (
-                                      <a
-                                        href={recipe._plannerPhoto.photographer_url || 'https://www.pexels.com'}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        📷 {recipe._plannerPhoto.photographer}
-                                      </a>
-                                    )}
-                                  </div>
+                                  <img src={recipe._plannerPhoto.thumbnail || recipe._plannerPhoto.url} alt={recipe._plannerPhoto.alt || recipe.name}
+                                    loading="lazy" className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
                                 )}
-                                <div className="px-4 py-3 space-y-2">
-                                  {recipe._plannerReason && (
-                                    <p className="text-xs text-orange-700 italic leading-snug">✨ {recipe._plannerReason}</p>
-                                  )}
-                                  {((recipe._plannerUsesPantry || []).length > 0 || recipe._plannerLeftoverFor) && (
-                                    <div className="flex flex-wrap gap-1">
-                                      {recipe._plannerLeftoverFor && (
-                                        <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">
-                                          → {recipe._plannerLeftoverFor}
-                                        </span>
-                                      )}
-                                      {(recipe._plannerUsesPantry || []).map((item) => (
-                                        <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100">
-                                          🥫 {item}
-                                        </span>
-                                      ))}
-                                    </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`font-semibold text-sm leading-snug ${isCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>{recipe.name}</p>
+                                  <p className="text-xs text-orange-400 mt-0.5">
+                                    {[(recipe.prepTime||0)+(recipe.cookTime||0) > 0 ? `${(recipe.prepTime||0)+(recipe.cookTime||0)} min` : null,
+                                      recipe.servings ? `${recipe.servings} servings` : null,
+                                      recipe._aiSuggestion && (!recipe.ingredients || !recipe.ingredients.length) ? '· tap to generate' : null,
+                                    ].filter(Boolean).join(' · ')}
+                                  </p>
+                                  {recipe._plannerLeftoverFor && (
+                                    <span className="inline-block mt-1 text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">→ {recipe._plannerLeftoverFor}</span>
                                   )}
                                 </div>
-                              </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {isCooked && <Check size={14} className="text-sage-500" />}
+                                  {expandedRecipes[rid] ? <ChevronUp size={16} className="text-orange-400" /> : <ChevronDown size={16} className="text-orange-400" />}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <p className="flex-1 text-sm text-orange-400 italic">Free evening</p>
+                                <div className="flex items-center gap-1.5">
+                                  <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
+                                    className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Leftovers</button>
+                                  <button onClick={(e) => { e.stopPropagation(); setTimeout(() => searchInputRef.current?.focus(), 0); }}
+                                    className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">+ Add</button>
+                                  <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
+                                    className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Away</button>
+                                </div>
+                              </>
                             )}
-                            <SelectedRecipeCard
-                              recipe={recipe}
-                              expanded={true}
-                              onToggleExpand={() => {}}
-                              onToggleCooked={toggleCookedRecipe}
-                              isCooked={isCooked}
-                              customIngredients={customIngredients}
-                              onAddCustom={addCustomIngredient}
-                              onRemoveCustom={removeCustomIngredient}
-                              onRemove={toggleSelectedRecipe}
-                              newIngredientInput={newIngredientInput}
-                              onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
-                              preferences={preferences}
-                              starredRecipes={starredRecipes}
-                              onAcceptSubstitution={acceptSubstitution}
-                              onGenerateRecipe={generateAndSaveRecipe}
-                              onShareRecipe={shareRecipe}
-                              rating={recipeRatings[rid] || null}
-                              inlineExpanded
-                            />
                           </div>
-                        )}
+
+                          {/* Side dish + away toggle */}
+                          {!isNotAtHome && recipe && (
+                            <div className="px-4 pb-2 -mt-1 flex items-center gap-2">
+                              {recipe._sideDish ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">+ {recipe._sideDish.name}</span>
+                                  <button onClick={(e) => { e.stopPropagation(); saveSideDish(rid, null); }}
+                                    className="text-orange-400 hover:text-orange-600 transition text-xs" title="Remove side dish">×</button>
+                                </div>
+                              ) : (
+                                <button onClick={(e) => { e.stopPropagation(); const p = { key: `${day}-side`, mainRecipe: recipe, rid, input: '', loading: true, suggestions: [], error: '' }; setSideDishPanel(p); fetchSideSuggestions(p.key, recipe, ''); }}
+                                  className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400">+ Add a side</button>
+                              )}
+                              <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
+                                className="text-xs text-orange-300 hover:text-orange-500 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">Away</button>
+                            </div>
+                          )}
+
+                          {/* Expanded dinner recipe */}
+                          {!isNotAtHome && recipe && expandedRecipes[rid] && (
+                            <div className="border-t border-orange-100">
+                              {(recipe._plannerPhoto?.url || recipe._plannerReason || recipe._plannerLeftoverFor || (recipe._plannerUsesPantry || []).length > 0) && (
+                                <div className="bg-orange-50/50 border-b border-orange-100">
+                                  {recipe._plannerPhoto?.url && (
+                                    <div className="relative h-40 w-full bg-orange-100 overflow-hidden">
+                                      <img src={recipe._plannerPhoto.url} alt={recipe._plannerPhoto.alt || recipe.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                                      {recipe._plannerPhoto.photographer && (
+                                        <a href={recipe._plannerPhoto.photographer_url || 'https://www.pexels.com'} target="_blank" rel="noopener noreferrer"
+                                          className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
+                                          onClick={(e) => e.stopPropagation()}>📷 {recipe._plannerPhoto.photographer}</a>
+                                      )}
+                                    </div>
+                                  )}
+                                  <div className="px-4 py-3 space-y-2">
+                                    {recipe._plannerReason && <p className="text-xs text-orange-700 italic leading-snug">✨ {recipe._plannerReason}</p>}
+                                    {((recipe._plannerUsesPantry || []).length > 0 || recipe._plannerLeftoverFor) && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {recipe._plannerLeftoverFor && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">→ {recipe._plannerLeftoverFor}</span>}
+                                        {(recipe._plannerUsesPantry || []).map((item) => <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100">🥫 {item}</span>)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                              <SelectedRecipeCard recipe={recipe} expanded={true} onToggleExpand={() => {}} onToggleCooked={toggleCookedRecipe} isCooked={isCooked}
+                                customIngredients={customIngredients} onAddCustom={addCustomIngredient} onRemoveCustom={removeCustomIngredient} onRemove={toggleSelectedRecipe}
+                                newIngredientInput={newIngredientInput} onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
+                                preferences={preferences} starredRecipes={starredRecipes} onAcceptSubstitution={acceptSubstitution}
+                                onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[rid] || null} inlineExpanded />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -2562,7 +2524,7 @@ export default function App() {
 
                 {/* Waste insights panel */}
                 {wasteInsights && !wasteInsights.loading && (
-                  <div className="bg-green-50 border border-green-100 rounded-2xl p-4 mb-4">
+                  <div className="bg-sage-100/50 border border-sage-200 rounded-2xl p-4 mb-4">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-semibold text-sage-600 uppercase tracking-wide">Waste reduction</p>
                       <button onClick={() => setWasteInsights(null)} className="text-sage-400 hover:text-sage-600 transition"><X size={14} /></button>
@@ -2600,7 +2562,7 @@ export default function App() {
                         <button key={item.name} onClick={() => !item.inPantry && toggleItem(item.name)}
                           className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
                           <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                            item.inPantry ? "bg-gray-100 border-gray-200" : checked ? "bg-green-500 border-green-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
+                            item.inPantry ? "bg-orange-100 border-orange-200" : checked ? "bg-sage-500 border-sage-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
                             {(checked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-orange-400" : ""} />}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -2699,17 +2661,17 @@ export default function App() {
                     const hasGemini = !!preferences?.gemini_api_key_hint;
                     let label, labelClass, upgradeText;
                     if (isGifted) {
-                      label = '✨ Gifted — unlimited AI';
+                      label = 'Gifted — unlimited AI';
                       labelClass = 'text-orange-700 bg-amber-50';
                     } else if (hasPuter) {
-                      label = '⚡ Puter AI — unlimited';
+                      label = 'Puter AI — unlimited';
                       labelClass = 'text-orange-600 bg-orange-50';
                     } else if (hasGemini) {
-                      label = '🔑 Gemini key connected';
+                      label = 'Gemini key connected';
                       labelClass = 'text-orange-500 bg-orange-50';
                       upgradeText = 'Connect Puter for unlimited';
                     } else {
-                      label = '🆓 Free plan';
+                      label = 'Free plan';
                       labelClass = 'text-orange-400 bg-orange-50';
                       upgradeText = 'Add an AI key for more';
                     }
@@ -2763,7 +2725,7 @@ export default function App() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
-                        <p className="text-xs text-stone-400 truncate">{user?.email}</p>
+                        <p className="text-xs text-orange-400 truncate">{user?.email}</p>
                       </div>
                       <button onClick={() => setShowSettings(false)}
                         className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-orange-100 text-orange-600 hover:bg-orange-200 transition"
@@ -2871,14 +2833,45 @@ export default function App() {
                   )}
                 </div>
               )}
-              <div className="flex gap-2 border-t border-orange-50 pt-3">
-                <input readOnly value={inviteUrl}
-                  className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-900 truncate" />
-                <button onClick={copyInviteLink}
-                  className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center gap-1">
-                  {inviteCopied ? <Check size={12} /> : <Link2 size={12} />}
-                  {inviteCopied ? "Copied" : "Invite"}
-                </button>
+              <div className="border-t border-orange-50 pt-3 space-y-2">
+                <div className="flex gap-2">
+                  <input readOnly value={inviteUrl}
+                    className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-900 truncate" />
+                  <button onClick={shareInviteLink}
+                    className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center gap-1.5">
+                    <Link2 size={12} />
+                    Invite
+                  </button>
+                </div>
+                {/* Desktop share panel — shown when Web Share API isn't available */}
+                {showInviteSharePanel && (
+                  <div className="bg-orange-50 rounded-2xl p-3 space-y-2">
+                    <p className="text-[11px] text-orange-400 font-medium uppercase tracking-wide">Share via</p>
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts. ' + inviteUrl)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                      >
+                        WhatsApp
+                      </a>
+                      <a
+                        href={`https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts.')}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                      >
+                        Telegram
+                      </a>
+                      <button
+                        onClick={copyInviteLink}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                      >
+                        {inviteCopied ? <Check size={11} className="text-sage-500" /> : <Link2 size={11} />}
+                        {inviteCopied ? 'Copied!' : 'Copy link'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
