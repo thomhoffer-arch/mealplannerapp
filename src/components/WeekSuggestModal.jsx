@@ -181,7 +181,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           </div>
           <textarea
             rows={2}
-            placeholder='This week specifically — "not home Wed", "feel like chicken", "keep it light"…'
+            placeholder='Anything on your mind for this week — the AI reads this first…'
             value={thisWeekWishes}
             onChange={(e) => setThisWeekWishes(e.target.value)}
             className="w-full text-xs border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
@@ -383,7 +383,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                             <div className="flex gap-1.5">
                               <input
                                 type="text"
-                                placeholder='Ask for changes — "lighter", "no fish", "gluten-free"…'
+                                placeholder='Describe what you want instead…'
                                 value={swapInput[key] || ''}
                                 onChange={(e) => setSwapInput((p) => ({ ...p, [key]: e.target.value }))}
                                 onKeyDown={(e) => e.key === 'Enter' && swapDay(week.week, day)}
