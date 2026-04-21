@@ -10,15 +10,14 @@
 :root {
   /* background / soft surfaces */
   --c-orange-50:  250 248 244;   /* clean cream — nearly white */
-  --c-orange-100: 246 236 222;   /* warm sand — touch brighter */
-  --c-orange-200: 240 214 180;   /* peach with life */
-  --c-orange-300: 228 180 132;   /* warm clay */
-  --c-orange-400: 218 150  92;   /* punchy amber clay */
-  /* primary accents — saturation lifted from muted terracotta to warm burnt
-     orange so it reads modern/younger without losing the warmth. */
-  --c-orange-500: 224 105  55;   /* burnt orange (brand primary) */
-  --c-orange-600: 198  82  40;   /* deep rust */
-  --c-orange-700: 158  62  28;   /* rich rust — reserved for heavy accents */
+  --c-orange-100: 246 236 222;   /* warm sand */
+  --c-orange-200: 240 214 180;   /* peach */
+  --c-orange-300: 220 190 165;   /* muted warm clay — softer than before */
+  --c-orange-400: 168 152 138;   /* warm stone — neutral secondary text */
+  /* Primary accent = the "Together" rust from the landing page hero */
+  --c-orange-500: 198  82  40;   /* deep rust — brand primary (was orange-600) */
+  --c-orange-600: 168  64  28;   /* richer rust — hover / pressed states */
+  --c-orange-700: 130  46  18;   /* dark rust — heavy accents */
   --c-orange-800:  58  46  36;   /* dark warm brown (body text) */
   --c-orange-900:  22  18  14;   /* near-black with warmth (headings) */
 
@@ -40,10 +39,10 @@
   --c-orange-50:   26  21  17;
   --c-orange-100:  36  30  24;
   --c-orange-200:  54  45  36;
-  --c-orange-300:  94  80  66;
-  --c-orange-400: 140 121 102;
-  --c-orange-500: 224 120  86;   /* terracotta stays as accent */
-  --c-orange-600: 232 144 113;
+  --c-orange-300:  80  68  58;
+  --c-orange-400: 130 116 104;   /* neutral warm — secondary text in dark mode */
+  --c-orange-500: 210 100  62;   /* rust accent stays readable in dark */
+  --c-orange-600: 226 130  96;   /* lighter for hover in dark mode */
   --c-orange-700: 215 179 152;
   --c-orange-800: 229 211 189;
   --c-orange-900: 245 238 228;   /* near-white cream for headings */

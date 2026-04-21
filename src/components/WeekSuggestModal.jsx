@@ -70,9 +70,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     setServings((prev) => ({ ...prev, [key]: n }));
   }
 
-  async function swapDay(weekNum, dayObj) {
+  async function swapDay(weekNum, dayObj, overrideRequest) {
     const key = `${weekNum}-${dayObj.day}`;
-    const request = (swapInput[key] || '').trim();
+    const request = overrideRequest || (swapInput[key] || '').trim();
     if (!request || swappingKey) return;
     setSwappingKey(key);
     try {
@@ -239,7 +239,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
               </div>
 
               {/* Horizontal carousel — one day per swipe */}
-              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory px-5 pb-3 scrollbar-hide">
+              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory px-5 scroll-px-5 pb-3 scrollbar-hide">
                 {week.days.map((day) => {
                   const key = `${week.week}-${day.day}`;
                   const isSelected = !!selected[key];
@@ -347,24 +347,34 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           <div className="pt-2 border-t border-orange-50 space-y-2">
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2 flex-1">
-                                <Users size={13} className="text-orange-400 flex-shrink-0" />
-                                <span className="text-xs text-orange-900">Portions</span>
+                                <Users size={13} className="text-stone-400 flex-shrink-0" />
+                                <span className="text-xs text-stone-700">Portions</span>
                                 <div className="flex items-center gap-1.5 ml-auto">
                                   <button
                                     onClick={() => setDayServings(key, dayServings - 1)}
-                                    className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition text-sm font-bold"
+                                    className="w-6 h-6 rounded-full border border-stone-200 flex items-center justify-center text-stone-600 hover:bg-stone-50 transition text-sm font-bold"
                                   >−</button>
-                                  <span className="text-sm font-semibold text-orange-900 w-4 text-center">{dayServings}</span>
+                                  <span className="text-sm font-semibold text-stone-800 w-4 text-center">{dayServings}</span>
                                   <button
                                     onClick={() => setDayServings(key, dayServings + 1)}
-                                    className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition text-sm font-bold"
+                                    className="w-6 h-6 rounded-full border border-stone-200 flex items-center justify-center text-stone-600 hover:bg-stone-50 transition text-sm font-bold"
                                   >+</button>
                                 </div>
                               </div>
-                              <div className="w-px h-4 bg-orange-100" />
+                              <div className="w-px h-4 bg-stone-100" />
+                              <button
+                                onClick={() => swapDay(week.week, day, 'suggest something different')}
+                                disabled={!!swappingKey}
+                                className="flex items-center gap-1 text-xs text-stone-400 hover:text-orange-600 transition disabled:opacity-40"
+                                title="Suggest a different recipe for this day"
+                              >
+                                <Wand2 size={13} />
+                                Another
+                              </button>
+                              <div className="w-px h-4 bg-stone-100" />
                               <button
                                 onClick={() => toggleDay(key)}
-                                className="flex items-center gap-1 text-xs text-orange-400 hover:text-red-500 transition"
+                                className="flex items-center gap-1 text-xs text-stone-400 hover:text-red-500 transition"
                               >
                                 <MinusCircle size={13} />
                                 Skip
@@ -373,17 +383,17 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                             <div className="flex gap-1.5">
                               <input
                                 type="text"
-                                placeholder='Ask for changes — "lighter", "no fish"…'
+                                placeholder='Ask for changes — "lighter", "no fish", "gluten-free"…'
                                 value={swapInput[key] || ''}
                                 onChange={(e) => setSwapInput((p) => ({ ...p, [key]: e.target.value }))}
                                 onKeyDown={(e) => e.key === 'Enter' && swapDay(week.week, day)}
                                 disabled={swappingKey === key}
-                                className="flex-1 text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 disabled:opacity-50 min-w-0"
+                                className="flex-1 text-xs border border-stone-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-stone-300 disabled:opacity-50 min-w-0"
                               />
                               <button
                                 onClick={() => swapDay(week.week, day)}
                                 disabled={!(swapInput[key] || '').trim() || swappingKey === key}
-                                className="flex-shrink-0 px-3 py-1.5 bg-orange-500 text-white rounded-xl text-xs font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1"
+                                className="flex-shrink-0 px-3 py-1.5 bg-orange-600 text-white rounded-xl text-xs font-semibold hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-1"
                               >
                                 <Wand2 size={11} />
                                 {swappingKey === key ? '…' : 'Swap'}

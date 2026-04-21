@@ -91,6 +91,13 @@ Replace the dish with something that:
 - still respects the rules below
 - doesn't duplicate what's already on other days this week: ${other_days_names.join(', ') || '(no other days specified)'}
 
+IMPORTANT — if the request is a dietary adaptation ("make it gluten-free", "dairy-free version",
+"make it vegan"), DO NOT replace the dish with a different one. Keep the same dish concept and
+only swap the offending ingredients (e.g. gluten-free pasta, oat milk, plant-based mince).
+Name the result to make the adaptation clear ("Carbonara with gluten-free pasta").
+
+COOKING TIME: ${['Monday','Tuesday','Wednesday','Thursday'].includes(day_name) ? 'This is a weekday — total time (prep + cook) must stay at or under 40 minutes.' : day_name === 'Friday' ? 'Friday — aim for under 50 minutes.' : 'Weekend — up to 90 minutes is fine.'}
+
 HOUSEHOLD-LEVEL PREFERENCES:
 ${preferences || 'No specific preferences — be creative and varied.'}
 
