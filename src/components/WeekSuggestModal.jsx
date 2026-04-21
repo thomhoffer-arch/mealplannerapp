@@ -11,7 +11,7 @@ const SOURCE_COLORS = {
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 // Single expandable meal row inside a day card
-function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor, usesPantry, sideDish, isExpanded, onToggle }) {
+function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor, sideDish, isExpanded, onToggle }) {
   const label = mealType === 'dinner' ? 'Dinner'
     : mealType === 'breakfast' ? 'Breakfast'
     : mealType === 'lunch' ? 'Lunch'
@@ -49,18 +49,11 @@ function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor,
           {reason && (
             <p className="font-display italic text-orange-600 text-xs leading-snug bg-orange-50/60 rounded-xl px-3 py-2">— {reason}</p>
           )}
-          {(leftoverFor || (usesPantry || []).length > 0) && (
+          {leftoverFor && (
             <div className="flex flex-wrap gap-1.5">
-              {leftoverFor && (
-                <span className="text-[10px] bg-amber-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
-                  → {leftoverFor}
-                </span>
-              )}
-              {(usesPantry || []).map((item) => (
-                <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full border border-orange-100">
-                  <span className="font-display italic">from pantry</span> · {item}
-                </span>
-              ))}
+              <span className="text-[10px] bg-amber-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
+                → {leftoverFor}
+              </span>
             </div>
           )}
           {sideDish?.name && (
@@ -418,8 +411,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         </div>
                       )}
 
-                      {/* Scrollable body — only this day scrolls */}
-                      <div className="overflow-y-auto max-h-72 scrollbar-hide">
+                      <div>
 
                         {/* Selection toggle + source badges */}
                         <div className="flex items-center gap-2 px-4 pt-3 pb-2">
@@ -493,7 +485,6 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                             overview={recipe?.overview || day.overview}
                             reason={day.reason}
                             leftoverFor={day.leftover_for}
-                            usesPantry={day.uses_pantry}
                             sideDish={recipe?._sideDish}
                             isExpanded={!!dayExpanded.dinner}
                             onToggle={() => toggleMealPanel(key, 'dinner')}
