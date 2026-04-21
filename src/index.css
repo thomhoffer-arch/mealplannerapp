@@ -88,7 +88,7 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: white;
+  background-color: rgb(var(--c-orange-50));
   pointer-events: none;
 }
 
@@ -96,8 +96,10 @@ body::before {
 
 html { scroll-behavior: smooth; }
 
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.no-scrollbar,
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* Warm paper backdrop — landing page and auth screens only */
 .bg-paper {
@@ -117,6 +119,12 @@ html { scroll-behavior: smooth; }
 .dark .bg-white\/70      { background-color: rgb(var(--c-orange-100) / 0.70); }
 .dark .bg-white\/60      { background-color: rgb(var(--c-orange-100) / 0.60); }
 
+/* bg-white opacity variants not covered by the base rules above */
+.dark .bg-white\/75  { background-color: rgb(var(--c-orange-100) / 0.75); }
+.dark .bg-white\/50  { background-color: rgb(var(--c-orange-100) / 0.50); }
+.dark .bg-white\/30  { background-color: rgb(var(--c-orange-100) / 0.30); }
+.dark .bg-white\/20  { background-color: rgb(var(--c-orange-100) / 0.20); }
+
 /* Green "success" tints used for cooked items etc. also read too bright in
    dark mode — soften to a sage-on-dark. */
 .dark .bg-green-50       { background-color: rgb(var(--c-sage-100)); }
@@ -126,3 +134,20 @@ html { scroll-behavior: smooth; }
 .dark .text-green-700    { color: rgb(var(--c-sage-500)); }
 .dark .border-green-200,
 .dark .border-green-300  { border-color: rgb(var(--c-sage-400) / 0.4); }
+
+/* Error reds — Tailwind red scale is not remapped; add softer dark variants */
+.dark .bg-red-50             { background-color: rgb(58 22 22); }
+.dark .border-red-200        { border-color: rgb(110 44 44 / 0.6); }
+.dark .text-red-400          { color: rgb(220 110 110); }
+.dark .text-red-500          { color: rgb(215 95 95); }
+.dark .text-red-600          { color: rgb(210 80 80); }
+.dark .text-red-700          { color: rgb(200 70 70); }
+.dark .hover\:bg-red-50:hover  { background-color: rgb(58 22 22); }
+.dark .hover\:text-red-400:hover { color: rgb(220 110 110); }
+.dark .hover\:text-red-500:hover { color: rgb(215 95 95); }
+.dark .hover\:text-red-700:hover { color: rgb(200 70 70); }
+
+/* Allergen / tag yellows — map to warm amber tones on dark surfaces */
+.dark .bg-yellow-100     { background-color: rgb(var(--c-amber-100)); }
+.dark .text-yellow-700   { color: rgb(var(--c-orange-600)); }
+.dark .border-yellow-200 { border-color: rgb(var(--c-orange-300) / 0.4); }
