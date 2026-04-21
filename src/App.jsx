@@ -34,6 +34,23 @@ const SOURCE_COLORS = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function totalTime(r) { return (r.prepTime || 0) + (r.cookTime || 0); }
 
+// Common food qualifiers that shouldn't affect ingredient matching.
+const FOOD_QUALIFIERS = /\b(unsalted|salted|fresh|dried|ground|whole|organic|plain|low-fat|full-fat|semi-skimmed|skimmed|chopped|sliced|diced|frozen|canned|tinned|large|small|medium|extra|light|dark|sweet|raw|cooked|white|brown|black|red|green|yellow|virgin|pure|fine|coarse|baby|mini|regular|softened|melted|cold)\b/gi;
+
+function pantryMatchesItem(pantryName, itemName) {
+  const p = pantryName.toLowerCase().trim();
+  const i = itemName.toLowerCase().trim();
+  if (p === i) return true;
+  // Whole-word match: "butter" matches "unsalted butter", "brown butter", etc.
+  const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (new RegExp(`\\b${escaped}\\b`).test(i)) return true;
+  // Core match: strip qualifiers from both sides and compare.
+  const coreP = p.replace(FOOD_QUALIFIERS, '').replace(/\s+/g, ' ').trim();
+  const coreI = i.replace(FOOD_QUALIFIERS, '').replace(/\s+/g, ' ').trim();
+  if (coreP && coreI && (coreP === coreI || coreI.includes(coreP) || coreP.includes(coreI))) return true;
+  return false;
+}
+
 // Returns the ISO date string (YYYY-MM-DD) of the Monday of the given date's week.
 function getWeekStart(date) {
   const d = new Date(date);
@@ -319,6 +336,25 @@ function SelectedRecipeCard({
                     </li>
                   ))}
                 </ol>
+              </div>
+            )}
+            {/* Side dish (if one has been attached to this dinner) */}
+            {recipe._sideDish && (
+              <div className="bg-orange-50/60 rounded-xl p-3 space-y-1.5">
+                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Side dish</p>
+                <p className="text-sm font-semibold text-orange-900">{recipe._sideDish.name}</p>
+                {recipe._sideDish.description && (
+                  <p className="text-xs text-orange-700 leading-snug">{recipe._sideDish.description}</p>
+                )}
+                {(recipe._sideDish.ingredients || []).length > 0 && (
+                  <ul className="pt-1 space-y-0.5">
+                    {recipe._sideDish.ingredients.map((ing, idx) => (
+                      <li key={idx} className="text-xs text-orange-600">
+                        {ing.amount ? `${ing.amount} ${ing.name}` : ing.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
             {/* Custom ingredients */}
@@ -1105,11 +1141,14 @@ export default function App() {
     const match = raw.match(/^([\d.]+\s*(?:g|kg|ml|l|tsp|tbsp|cup|cups|oz|lb|pieces?|slices?|handful|pinch)\s*)/i);
     let amount = "", name = raw;
     if (match) { amount = match[0].trim(); name = raw.slice(match[0].length).trim() || raw; }
-    await supabase.from("pantry_items").insert({ household_id: household.id, name, amount });
+    const tempId = `optimistic-${Date.now()}`;
+    setPantryItems((prev) => [...prev, { id: tempId, name, amount }]);
     setPantryInput("");
+    await supabase.from("pantry_items").insert({ household_id: household.id, name, amount });
   }
 
   async function removePantryItem(id) {
+    setPantryItems((prev) => prev.filter((i) => i.id !== id));
     await supabase.from("pantry_items").delete().eq("id", id);
   }
 
@@ -1121,11 +1160,11 @@ export default function App() {
 
   async function saveTemplate() {
     const name = templateName.trim();
-    if (!name || selectedRecipeObjects.length === 0) return;
+    if (!name || viewRecipeObjects.length === 0) return;
     await supabase.from("plan_templates").insert({
       household_id: household.id,
       name,
-      recipes: selectedRecipeObjects,
+      recipes: viewRecipeObjects,
     });
     setTemplateName("");
     setShowTemplates(false);
@@ -1156,9 +1195,11 @@ export default function App() {
     const rid = String(recipe.id);
     const isStarred = starredItems.some((s) => s.recipe_id === rid);
     if (isStarred) {
+      setStarredItems((prev) => prev.filter((s) => s.recipe_id !== rid));
       await supabase.from("starred_recipes").delete()
         .eq("household_id", household.id).eq("recipe_id", rid);
     } else {
+      setStarredItems((prev) => [...prev, { recipe_id: rid, recipe_data: recipe, rotation_priority: 2 }]);
       await supabase.from("starred_recipes").insert({
         household_id: household.id, recipe_id: rid, recipe_data: recipe,
       });
@@ -1195,13 +1236,10 @@ export default function App() {
     const item = mealPlanItems.find((i) => String(i.recipe_data?.id) === String(itemId));
     if (!item) return;
     const updated = { ...item.recipe_data };
-    if (sideDish) {
-      updated._sideDish = sideDish;
-    } else {
-      delete updated._sideDish;
-    }
+    if (sideDish) updated._sideDish = sideDish;
+    else delete updated._sideDish;
+    setMealPlanItems((prev) => prev.map((i) => i.id === item.id ? { ...i, recipe_data: updated } : i));
     await supabase.from('meal_plan_items').update({ recipe_data: updated }).eq('id', item.id);
-    loadMealPlan();
   }
 
   async function fetchSideSuggestions(dayKey, mainRecipe, preference) {
@@ -1300,6 +1338,7 @@ export default function App() {
     const rid = String(recipe.id);
     const existing = mealPlanItems.find((i) => i.recipe_id === rid);
     if (existing) {
+      setMealPlanItems((prev) => prev.filter((i) => i.recipe_id !== rid));
       await supabase.from("meal_plan_items").delete().eq("id", existing.id);
       return;
     }
@@ -1319,10 +1358,12 @@ export default function App() {
         if (!ok) return;
       }
     }
+    const recipeData = { ...recipe, _weekStart: recipe._weekStart || viewWeek };
+    setMealPlanItems((prev) => [...prev, { id: `optimistic-${rid}`, recipe_id: rid, recipe_data: recipeData }]);
     await supabase.from("meal_plan_items").insert({
       household_id: household.id,
       recipe_id: rid,
-      recipe_data: { ...recipe, _weekStart: recipe._weekStart || viewWeek },
+      recipe_data: recipeData,
     });
   }
 
@@ -1360,11 +1401,13 @@ export default function App() {
 
   async function toggleCookedRecipe(rid) {
     if (cookedRecipes[rid]) {
+      setCookedRecipes((prev) => { const n = { ...prev }; delete n[rid]; return n; });
       await supabase.from("cooked_recipes").delete()
         .eq("household_id", household.id).eq("recipe_id", rid);
     } else {
-      await supabase.from("cooked_recipes").insert({ household_id: household.id, recipe_id: rid });
+      setCookedRecipes((prev) => ({ ...prev, [rid]: true }));
       setRatingPrompt(rid);
+      await supabase.from("cooked_recipes").insert({ household_id: household.id, recipe_id: rid });
     }
   }
 
@@ -1389,13 +1432,16 @@ export default function App() {
     const match = raw.match(/^([\d.]+\s*(?:g|kg|ml|l|tsp|tbsp|cup|cups|oz|lb|piece|pieces|slice|slices|handful|pinch)?\s*)/i);
     let amount = "", name = raw;
     if (match) { amount = match[0].trim(); name = raw.slice(match[0].length).trim() || raw; }
+    const tempId = `optimistic-${Date.now()}`;
+    setCustomIngredients((prev) => ({ ...prev, [rid]: [...(prev[rid] || []), { id: tempId, name, amount }] }));
+    setNewIngredientInput((prev) => ({ ...prev, [rid]: "" }));
     await supabase.from("custom_ingredients").insert({
       household_id: household.id, recipe_id: rid, name, amount,
     });
-    setNewIngredientInput((prev) => ({ ...prev, [rid]: "" }));
   }
 
   async function removeCustomIngredient(rid, ingredientId) {
+    setCustomIngredients((prev) => ({ ...prev, [rid]: (prev[rid] || []).filter((i) => i.id !== ingredientId) }));
     await supabase.from("custom_ingredients").delete().eq("id", ingredientId);
   }
 
@@ -1453,11 +1499,10 @@ export default function App() {
   const selectedIds = new Set(mealPlanItems.map((i) => i.recipe_id));
   const starredIds = new Set(starredItems.map((s) => s.recipe_id));
   const starredRecipes = starredItems.map((s) => s.recipe_data);
-  const pantryNames = new Set(pantryItems.map((p) => p.name.toLowerCase().trim()));
   // Shopping list is scoped to the viewed week so users get a per-week list.
   const viewRecipeObjects = viewItems.map((i) => i.recipe_data);
   const shoppingList = consolidateIngredients(viewRecipeObjects, customIngredients)
-    .map((item) => ({ ...item, inPantry: pantryNames.has(item.name.toLowerCase().trim()) }));
+    .map((item) => ({ ...item, inPantry: pantryItems.some((p) => pantryMatchesItem(p.name, item.name)) }));
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { setWasteInsights(null); }, [shoppingList.length]);
@@ -2056,22 +2101,124 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* Extra meal rows (breakfast / lunch) */}
+                        {/* Extra meal rows (breakfast / lunch) — fully expandable */}
                         {extraItems.map((item) => {
                           const xr = item.recipe_data;
                           const xrid = String(xr.id);
-                          const typeLabel = xr._mealType === 'breakfast' ? 'Breakfast' : xr._mealType === 'lunch' ? 'Lunch' : xr._mealType;
+                          const typeLabel = xr._mealType === 'breakfast' ? 'Breakfast' : xr._mealType === 'lunch' ? 'Lunch' : (xr._mealType || 'Extra');
                           const xTime = (xr.prepTime || 0) + (xr.cookTime || 0);
+                          const xIsCooked = !!cookedRecipes[xrid];
+                          const xExpanded = !!expandedRecipes[xrid];
                           return (
-                            <div key={xrid} className="border-t border-orange-50 mx-4 py-2 flex items-center gap-3">
-                              <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-16 flex-shrink-0">{typeLabel}</span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-orange-900 leading-snug truncate">{xr.name}</p>
-                                {xTime > 0 && <p className="text-xs text-orange-400">{xTime} min</p>}
+                            <div key={xrid} className={`border-t-2 transition-all ${xIsCooked ? 'border-green-100' : 'border-orange-50'}`}>
+                              {/* Extra meal header — clickable to expand */}
+                              <div
+                                className="flex items-center gap-3 px-4 py-2.5 cursor-pointer"
+                                onClick={() => setExpandedRecipes((p) => ({ ...p, [xrid]: !p[xrid] }))}
+                              >
+                                <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-16 flex-shrink-0">{typeLabel}</span>
+                                {xr._plannerPhoto?.url && (
+                                  <img
+                                    src={xr._plannerPhoto.thumbnail || xr._plannerPhoto.url}
+                                    alt={xr._plannerPhoto.alt || xr.name}
+                                    loading="lazy"
+                                    className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-semibold leading-snug truncate ${xIsCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>
+                                    {xr.name}
+                                  </p>
+                                  <p className="text-xs text-orange-400 mt-0.5">
+                                    {[
+                                      xTime > 0 ? `${xTime} min` : null,
+                                      xr._aiSuggestion && (!xr.ingredients || !xr.ingredients.length) ? '· tap to generate' : null,
+                                    ].filter(Boolean).join(' ')}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {xIsCooked && <Check size={14} className="text-sage-500" />}
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(xr); }}
+                                    className="text-orange-300 hover:text-red-400 transition p-1"
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                  {xExpanded
+                                    ? <ChevronUp size={16} className="text-orange-400" />
+                                    : <ChevronDown size={16} className="text-orange-400" />}
+                                </div>
                               </div>
-                              <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(xr); }} className="text-orange-300 hover:text-red-400 transition flex-shrink-0 p-1">
-                                <X size={13} />
-                              </button>
+
+                              {/* Expanded full recipe view for extra meal */}
+                              {xExpanded && (
+                                <div className="border-t border-orange-50">
+                                  {(xr._plannerPhoto?.url || xr._plannerReason || xr._plannerLeftoverFor || (xr._plannerUsesPantry || []).length > 0) && (
+                                    <div className="bg-orange-50/50 border-b border-orange-100">
+                                      {xr._plannerPhoto?.url && (
+                                        <div className="relative h-40 w-full bg-orange-100 overflow-hidden">
+                                          <img
+                                            src={xr._plannerPhoto.url}
+                                            alt={xr._plannerPhoto.alt || xr.name}
+                                            loading="lazy"
+                                            className="absolute inset-0 w-full h-full object-cover"
+                                          />
+                                          {xr._plannerPhoto.photographer && (
+                                            <a
+                                              href={xr._plannerPhoto.photographer_url || 'https://www.pexels.com'}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              📷 {xr._plannerPhoto.photographer}
+                                            </a>
+                                          )}
+                                        </div>
+                                      )}
+                                      <div className="px-4 py-3 space-y-2">
+                                        {xr._plannerReason && (
+                                          <p className="text-xs text-orange-700 italic leading-snug">✨ {xr._plannerReason}</p>
+                                        )}
+                                        {((xr._plannerUsesPantry || []).length > 0 || xr._plannerLeftoverFor) && (
+                                          <div className="flex flex-wrap gap-1">
+                                            {xr._plannerLeftoverFor && (
+                                              <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">
+                                                → {xr._plannerLeftoverFor}
+                                              </span>
+                                            )}
+                                            {(xr._plannerUsesPantry || []).map((pi) => (
+                                              <span key={pi} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100">
+                                                🥫 {pi}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  <SelectedRecipeCard
+                                    recipe={xr}
+                                    expanded={true}
+                                    onToggleExpand={() => {}}
+                                    onToggleCooked={toggleCookedRecipe}
+                                    isCooked={xIsCooked}
+                                    customIngredients={customIngredients}
+                                    onAddCustom={addCustomIngredient}
+                                    onRemoveCustom={removeCustomIngredient}
+                                    onRemove={toggleSelectedRecipe}
+                                    newIngredientInput={newIngredientInput}
+                                    onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
+                                    preferences={preferences}
+                                    starredRecipes={starredRecipes}
+                                    onAcceptSubstitution={acceptSubstitution}
+                                    onGenerateRecipe={generateAndSaveRecipe}
+                                    onShareRecipe={shareRecipe}
+                                    rating={recipeRatings[xrid] || null}
+                                    inlineExpanded
+                                  />
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -2250,7 +2397,7 @@ export default function App() {
                           ))}
                         </div>
                       )}
-                      {selectedRecipeObjects.length > 0 && (
+                      {viewRecipeObjects.length > 0 && (
                         <div className="flex gap-2 pt-1">
                           <input type="text" placeholder="Name this week…"
                             value={templateName} onChange={(e) => setTemplateName(e.target.value)}
@@ -2263,7 +2410,7 @@ export default function App() {
                           </button>
                         </div>
                       )}
-                      {templates.length === 0 && selectedRecipeObjects.length === 0 && (
+                      {templates.length === 0 && viewRecipeObjects.length === 0 && (
                         <p className="text-xs text-orange-400">Plan a week first, then save it here to reuse.</p>
                       )}
                     </div>
@@ -2544,18 +2691,42 @@ export default function App() {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
-                    {preferences?.is_gifted && (
-                      <span
-                        className="text-[10px] font-semibold uppercase tracking-wider bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full"
-                        title="Gifted account — unlimited AI planning, no weekly cap"
-                      >
-                        ✨ Gifted
-                      </span>
-                    )}
-                  </div>
+                  <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
                   <p className="text-xs text-orange-400 truncate">{user?.email}</p>
+                  {(() => {
+                    const isGifted = !!preferences?.is_gifted;
+                    const hasPuter = !!preferences?.puter_token_hint;
+                    const hasGemini = !!preferences?.gemini_api_key_hint;
+                    let label, labelClass, upgradeText;
+                    if (isGifted) {
+                      label = '✨ Gifted — unlimited AI';
+                      labelClass = 'text-orange-700 bg-amber-50';
+                    } else if (hasPuter) {
+                      label = '⚡ Puter AI — unlimited';
+                      labelClass = 'text-orange-600 bg-orange-50';
+                    } else if (hasGemini) {
+                      label = '🔑 Gemini key connected';
+                      labelClass = 'text-orange-500 bg-orange-50';
+                      upgradeText = 'Connect Puter for unlimited';
+                    } else {
+                      label = '🆓 Free plan';
+                      labelClass = 'text-orange-400 bg-orange-50';
+                      upgradeText = 'Add an AI key for more';
+                    }
+                    return (
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${labelClass}`}>{label}</span>
+                        {upgradeText && (
+                          <button
+                            onClick={() => setShowSettings(true)}
+                            className="text-[11px] font-semibold text-orange-500 hover:text-orange-700 transition underline underline-offset-2"
+                          >
+                            {upgradeText} →
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <button onClick={() => setShowSettings((v) => !v)}
                   className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition ${showSettings ? 'bg-orange-100 text-orange-600' : 'text-orange-400 hover:bg-orange-50 hover:text-orange-600'}`}
