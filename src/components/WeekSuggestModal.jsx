@@ -411,8 +411,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         </div>
                       )}
 
-                      {/* Scrollable body — only this day scrolls */}
-                      <div className="overflow-y-auto max-h-72 scrollbar-hide">
+                      <div>
 
                         {/* Selection toggle + source badges */}
                         <div className="flex items-center gap-2 px-4 pt-3 pb-2">
