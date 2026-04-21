@@ -101,16 +101,50 @@ const ALLERGENS = [
   { name: 'Celery',     color: 'bg-lime-100 text-lime-700',     patterns: ['celery','celeriac'] },
   { name: 'Sulphites',  color: 'bg-purple-100 text-purple-700', patterns: ['wine','vinegar','dried apricot','dried fruit','balsamic'] },
 ];
+// Ingredients typically bought in larger units than a single recipe needs.
+// When checked off the shopping list these are auto-added to the pantry.
+const BULK_STAPLES = [
+  'olive oil','oil','butter','coconut oil','sesame oil','vegetable oil','sunflower oil',
+  'vinegar','balsamic','apple cider vinegar','white wine vinegar','red wine vinegar','rice vinegar',
+  'soy sauce','fish sauce','worcestershire','hot sauce','ketchup','mustard','mayonnaise',
+  'oyster sauce','hoisin','sriracha','tahini','miso','miso paste',
+  'salt','pepper','paprika','cumin','coriander','turmeric','oregano','thyme','basil',
+  'bay leaves','chili flakes','cayenne','cinnamon','nutmeg','cardamom','cloves','garam masala',
+  'canned tomatoes','tomato paste','coconut milk','tomato puree',
+  'pasta','rice','flour','sugar','honey','maple syrup',
+  'parmesan','pecorino','stock','broth','bouillon',
+  'dried herbs','dried spices',
+];
+function isBulkStaple(name) {
+  const n = (name || '').toLowerCase().trim();
+  return BULK_STAPLES.some((s) => n.includes(s));
+}
+
 function detectAllergens(ingredients = []) {
   const text = ingredients.map((i) => `${i.name || ''} ${i.amount || ''}`).join(' ').toLowerCase();
   return ALLERGENS.filter((a) => a.patterns.some((p) => text.includes(p)));
+}
+
+const PREP_WORDS = ['sliced','diced','chopped','minced','peeled','grated','shredded','torn','crushed','halved','quartered','julienned','roughly','finely','thinly','thickly','cut','trimmed','washed','rinsed','dried','softened','melted','beaten','whisked','to taste','at room temperature','room temperature'];
+function normalizeIngredientName(name) {
+  // Strip prep description after the first comma if it looks like a preparation instruction
+  const commaIdx = name.indexOf(',');
+  if (commaIdx > 0) {
+    const afterComma = name.slice(commaIdx + 1).trim().toLowerCase();
+    if (PREP_WORDS.some((p) => afterComma.startsWith(p))) {
+      name = name.slice(0, commaIdx).trim();
+    }
+  }
+  // Strip parenthetical prep notes like "(peeled and diced)"
+  return name.replace(/\s*\([^)]*\)/g, '').trim();
 }
 
 function consolidateIngredients(selectedRecipes, customIngredients) {
   const items = {};
   selectedRecipes.forEach((recipe) => {
     const rid = String(recipe.id);
-    (recipe.ingredients || []).forEach(({ name, amount }) => {
+    (recipe.ingredients || []).forEach(({ name: rawName, amount }) => {
+      const name = normalizeIngredientName(rawName);
       const key = name.toLowerCase().trim();
       if (items[key]) items[key].amounts.push(amount);
       else items[key] = { name, amounts: [amount] };
@@ -1720,6 +1754,16 @@ export default function App() {
         .eq("household_id", household.id).eq("item_name", itemName);
     } else {
       await supabase.from("shopping_checks").insert({ household_id: household.id, item_name: itemName });
+      // Auto-add bulk staples to pantry — they'll have plenty left over after one use
+      if (isBulkStaple(itemName)) {
+        const alreadyInPantry = pantryItems.some((p) => p.name.toLowerCase().trim() === itemName.toLowerCase().trim());
+        if (!alreadyInPantry) {
+          const { data: inserted } = await supabase.from('pantry_items')
+            .insert({ household_id: household.id, name: itemName, amount: '' })
+            .select('id, name, amount').single();
+          if (inserted) setPantryItems((prev) => [...prev, inserted]);
+        }
+      }
     }
   }
 
