@@ -569,6 +569,19 @@ export default function App() {
     loadHousehold();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Already-signed-in user pastes an invite URL → apply the invite. The
+  // [user] effect above only fires when user first signs in; once a
+  // household is loaded a fresh visit to /?invite=TOKEN wouldn't otherwise
+  // trigger anything. loadHousehold itself clears the URL after applying,
+  // so this doesn't loop.
+  useEffect(() => {
+    if (!user || !household) return;
+    const token = new URLSearchParams(window.location.search).get('invite');
+    if (!token) return;
+    loadingForUser.current = null; // allow loadHousehold to run again
+    loadHousehold();
+  }, [user, household?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Keep the membership list fresh across devices — when a new row appears
   // (invite accepted elsewhere) or disappears (kicked / left), re-run
   // loadHousehold so the switcher and active household reflect reality.
@@ -589,6 +602,24 @@ export default function App() {
       "If this is a 403, the RLS SELECT policies on household_members / households " +
       "are missing. Run supabase/migration_add_rls_select_policies.sql in the " +
       "Supabase SQL editor, then sign in again.";
+
+    // Apply any pending invite BEFORE we look at memberships — fixes the
+    // signup race where loadHousehold was otherwise beating
+    // join_household_by_token to the membership check and auto-creating
+    // a stray solo household. Also covers already-signed-in users who
+    // paste an invite URL. Idempotent on the DB side (ON CONFLICT DO
+    // NOTHING), so harmless if AuthScreen already ran it.
+    const inviteToken = new URLSearchParams(window.location.search).get('invite');
+    if (inviteToken) {
+      const { error: joinErr } = await supabase.rpc('join_household_by_token', {
+        p_token: inviteToken, p_user_id: user.id,
+      });
+      if (joinErr) {
+        console.error('[auth] join_household_by_token failed:', joinErr.message);
+      } else {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
 
     async function readMemberships() {
       const { data, error } = await supabase
