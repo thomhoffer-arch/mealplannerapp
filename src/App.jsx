@@ -70,6 +70,12 @@ function consolidateIngredients(selectedRecipes, customIngredients) {
       if (items[key]) items[key].amounts.push(amount);
       else items[key] = { name, amounts: [amount] };
     });
+    // Include side dish ingredients if present.
+    (recipe._sideDish?.ingredients || []).forEach(({ name, amount }) => {
+      const key = name.toLowerCase().trim();
+      if (items[key]) items[key].amounts.push(amount || '');
+      else items[key] = { name, amounts: [amount || ''], isSide: true };
+    });
     (customIngredients[rid] || []).forEach(({ name, amount }) => {
       const key = name.toLowerCase().trim();
       if (items[key]) items[key].amounts.push(amount || "");
@@ -688,6 +694,7 @@ export default function App() {
   // ── Local UI state
   const [expandedRecipes, setExpandedRecipes] = useState({});
   const [newIngredientInput, setNewIngredientInput] = useState({});
+  const [generatingExtra, setGeneratingExtra] = useState(null); // "Monday-breakfast" while generating
 
   // ── Auth setup ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1319,6 +1326,38 @@ export default function App() {
     });
   }
 
+  async function addExtraMeal(day, mealType, request) {
+    const key = `${day}-${mealType}`;
+    setGeneratingExtra(key);
+    try {
+      const otherNames = viewItems.map((i) => i.recipe_data?.name).filter(Boolean);
+      const data = await apiFetch('/api/ai/regenerate-day', {
+        method: 'POST',
+        body: {
+          day_name: day,
+          current_recipe_name: '',
+          change_request: request || `A simple ${mealType} for ${day}`,
+          other_days_names: otherNames,
+          meal_type: mealType,
+        },
+      });
+      if (data?.recipe) {
+        await toggleSelectedRecipe({
+          ...data.recipe,
+          _plannedDay: day,
+          _weekStart: viewWeek,
+          _mealType: mealType,
+          _plannerReason: data.reason || null,
+          _plannerPhoto: data.photo || null,
+        });
+      }
+    } catch {
+      // fail silently — button re-enables
+    } finally {
+      setGeneratingExtra(null);
+    }
+  }
+
   async function toggleCookedRecipe(rid) {
     if (cookedRecipes[rid]) {
       await supabase.from("cooked_recipes").delete()
@@ -1415,7 +1454,9 @@ export default function App() {
   const starredIds = new Set(starredItems.map((s) => s.recipe_id));
   const starredRecipes = starredItems.map((s) => s.recipe_data);
   const pantryNames = new Set(pantryItems.map((p) => p.name.toLowerCase().trim()));
-  const shoppingList = consolidateIngredients(selectedRecipeObjects, customIngredients)
+  // Shopping list is scoped to the viewed week so users get a per-week list.
+  const viewRecipeObjects = viewItems.map((i) => i.recipe_data);
+  const shoppingList = consolidateIngredients(viewRecipeObjects, customIngredients)
     .map((item) => ({ ...item, inPantry: pantryNames.has(item.name.toLowerCase().trim()) }));
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1901,14 +1942,19 @@ export default function App() {
                 {/* Day-by-day calendar */}
                 <div className="space-y-3">
                   {DAYS.map((day) => {
-                    const dayItem = viewItems.find((i) => {
+                    // All items for this day, split into dinner (primary) + extras
+                    const allDayItems = viewItems.filter((i) => {
                       const pd = i.recipe_data?._plannedDay;
                       return pd && String(pd).toLowerCase().startsWith(day.toLowerCase().slice(0, 3));
                     });
-                    const recipe = dayItem?.recipe_data;
+                    const dinnerItem = allDayItems.find((i) => !i.recipe_data?._mealType || i.recipe_data?._mealType === 'dinner');
+                    const extraItems = allDayItems.filter((i) => i.recipe_data?._mealType && i.recipe_data?._mealType !== 'dinner');
+                    const recipe = dinnerItem?.recipe_data;
                     const rid = recipe ? String(recipe.id) : null;
                     const isToday = viewWeek === currentWeekStart && todayName === day;
                     const isCooked = rid ? !!cookedRecipes[rid] : false;
+                    const hasBreakfast = extraItems.some((i) => i.recipe_data?._mealType === 'breakfast');
+                    const hasLunch = extraItems.some((i) => i.recipe_data?._mealType === 'lunch');
 
                     return (
                       <div key={day} className={`rounded-2xl border-2 transition-all ${
@@ -1987,7 +2033,7 @@ export default function App() {
 
                         {/* Side dish row */}
                         {recipe && (
-                          <div className="px-4 pb-3 -mt-1">
+                          <div className="px-4 pb-2 -mt-1">
                             {recipe._sideDish ? (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">
@@ -2005,6 +2051,50 @@ export default function App() {
                                 className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400"
                               >
                                 + Add a side
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Extra meal rows (breakfast / lunch) */}
+                        {extraItems.map((item) => {
+                          const xr = item.recipe_data;
+                          const xrid = String(xr.id);
+                          const typeLabel = xr._mealType === 'breakfast' ? 'Breakfast' : xr._mealType === 'lunch' ? 'Lunch' : xr._mealType;
+                          const xTime = (xr.prepTime || 0) + (xr.cookTime || 0);
+                          return (
+                            <div key={xrid} className="border-t border-orange-50 mx-4 py-2 flex items-center gap-3">
+                              <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-16 flex-shrink-0">{typeLabel}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-orange-900 leading-snug truncate">{xr.name}</p>
+                                {xTime > 0 && <p className="text-xs text-orange-400">{xTime} min</p>}
+                              </div>
+                              <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(xr); }} className="text-orange-300 hover:text-red-400 transition flex-shrink-0 p-1">
+                                <X size={13} />
+                              </button>
+                            </div>
+                          );
+                        })}
+
+                        {/* Add extra meal buttons — shown when day has a dinner */}
+                        {recipe && (!hasBreakfast || !hasLunch) && (
+                          <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+                            {!hasBreakfast && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'breakfast', ''); }}
+                                disabled={generatingExtra === `${day}-breakfast`}
+                                className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50"
+                              >
+                                {generatingExtra === `${day}-breakfast` ? 'Adding…' : '+ Breakfast'}
+                              </button>
+                            )}
+                            {!hasLunch && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'lunch', ''); }}
+                                disabled={generatingExtra === `${day}-lunch`}
+                                className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50"
+                              >
+                                {generatingExtra === `${day}-lunch` ? 'Adding…' : '+ Lunch'}
                               </button>
                             )}
                           </div>
