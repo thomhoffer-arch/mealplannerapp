@@ -716,6 +716,7 @@ export default function App() {
   const [planExtrasText, setPlanExtrasText] = useState('');
   const [sideDishPanel, setSideDishPanel] = useState(null);
   const [clearWeekConfirm, setClearWeekConfirm] = useState(false);
+  const [showEmptyGrid, setShowEmptyGrid] = useState(false);
   const [wasteInsights, setWasteInsights] = useState(null); // null | { loading, insights, error }
   const [showBagModal, setShowBagModal] = useState(false); // { key, mainRecipe, rid, input, loading, suggestions, error }
 
@@ -1121,6 +1122,9 @@ export default function App() {
       setShowReminderBanner(true);
     }
   }, [preferences.reminder_enabled, preferences.reminder_day, mealPlanItems]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset empty-grid flag when navigating to a different week
+  useEffect(() => { setShowEmptyGrid(false); }, [viewWeek]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Activity notifications ────────────────────────────────────────────────
   // Filter stored notifications to the active household when it changes.
@@ -1652,14 +1656,17 @@ export default function App() {
   }
 
   async function clearCheckedItems() {
-    await supabase.from("shopping_checks").delete().eq("household_id", household.id);
+    setCheckedItems({});
+    supabase.from("shopping_checks").delete().eq("household_id", household.id);
   }
 
   async function clearWeekPlan() {
     const ids = viewItems.map((i) => i.id).filter(Boolean);
     if (!ids.length) return;
-    await supabase.from("meal_plan_items").delete().in("id", ids);
+    setMealPlanItems((prev) => prev.filter((i) => !ids.includes(i.id)));
     setClearWeekConfirm(false);
+    setShowEmptyGrid(true);
+    supabase.from("meal_plan_items").delete().in("id", ids);
   }
 
   // ── Invite link ───────────────────────────────────────────────────────────
@@ -1887,7 +1894,34 @@ export default function App() {
           planExtrasText={planExtrasText}
           onClose={() => setShowWeekSuggest(false)}
           onLoadPlan={async (recipes) => {
-            for (const recipe of recipes) await toggleSelectedRecipe({ ...recipe, _weekStart: viewWeek });
+            setShowEmptyGrid(false);
+            // Optimistically clear existing items for this week
+            const oldIds = viewItems.map((i) => i.id).filter(Boolean);
+            if (oldIds.length) {
+              setMealPlanItems((prev) => prev.filter((i) => !oldIds.includes(i.id)));
+              supabase.from("meal_plan_items").delete().in("id", oldIds);
+            }
+            // Optimistically add new items
+            const newRows = recipes.map((recipe) => ({
+              id: `optimistic-${recipe.id}-${Math.random()}`,
+              recipe_id: String(recipe.id),
+              recipe_data: { ...recipe, _weekStart: viewWeek },
+              household_id: household.id,
+            }));
+            setMealPlanItems((prev) => [...prev, ...newRows]);
+            // Persist to DB
+            const { data: inserted } = await supabase.from("meal_plan_items").insert(
+              newRows.map(({ recipe_id, recipe_data }) => ({ household_id: household.id, recipe_id, recipe_data }))
+            ).select('id, recipe_id');
+            if (inserted) {
+              const idMap = {};
+              inserted.forEach((r) => { idMap[r.recipe_id] = r.id; });
+              setMealPlanItems((prev) => prev.map((item) =>
+                item.id.startsWith('optimistic-') && idMap[item.recipe_id]
+                  ? { ...item, id: idMap[item.recipe_id] }
+                  : item
+              ));
+            }
             setActiveTab("week");
           }}
         />
@@ -2191,7 +2225,7 @@ export default function App() {
                   </div>
                 )}
               </div>
-            ) : viewItems.length > 0 ? (
+            ) : viewItems.length > 0 || showEmptyGrid ? (
               <>
                 {/* Header row */}
                 <div className="flex items-center justify-between mb-5">
@@ -2199,8 +2233,10 @@ export default function App() {
                     <h2 className="font-display text-xl font-semibold text-orange-900 leading-none">
                       {viewWeek === currentWeekStart ? 'This week' : viewWeek < currentWeekStart ? 'Past week' : 'Upcoming week'}
                     </h2>
-                    <p className="text-xs text-orange-400 mt-0.5">{viewItems.length} meal{viewItems.length !== 1 ? 's' : ''} planned</p>
-                    {!clearWeekConfirm ? (
+                    {viewItems.length > 0 && (
+                      <p className="text-xs text-orange-400 mt-0.5">{viewItems.length} meal{viewItems.length !== 1 ? 's' : ''} planned</p>
+                    )}
+                    {viewItems.length > 0 && (!clearWeekConfirm ? (
                       <button onClick={() => setClearWeekConfirm(true)} className="text-[10px] text-orange-200 hover:text-orange-400 transition mt-0.5">Clear week</button>
                     ) : (
                       <span className="flex items-center gap-1.5 mt-0.5">
@@ -2208,22 +2244,24 @@ export default function App() {
                         <button onClick={clearWeekPlan} className="text-[10px] text-red-500 font-semibold hover:text-red-700 transition">Yes</button>
                         <button onClick={() => setClearWeekConfirm(false)} className="text-[10px] text-orange-400 hover:text-orange-600 transition">No</button>
                       </span>
-                    )}
+                    ))}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setShowBagModal(true)}
-                      className="px-3 py-1.5 border border-dashed border-orange-200 text-orange-400 rounded-full text-xs hover:border-orange-400 hover:text-orange-600 transition">
-                      What've I got?
-                    </button>
+                    {viewItems.length > 0 && (
+                      <button onClick={() => setShowBagModal(true)}
+                        className="px-3 py-1.5 border border-dashed border-orange-200 text-orange-400 rounded-full text-xs hover:border-orange-400 hover:text-orange-600 transition">
+                        What've I got?
+                      </button>
+                    )}
                     <button onClick={() => setShowWeekSuggest(true)}
                       className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition shadow-warm">
                       <Sparkles size={13} />
-                      Replan
+                      {viewItems.length > 0 ? 'Replan' : 'Plan week'}
                     </button>
                   </div>
                 </div>
 
-                <WeeklyNutritionCard recipes={viewItems.map((i) => i.recipe_data)} />
+                {viewItems.length > 0 && <WeeklyNutritionCard recipes={viewItems.map((i) => i.recipe_data)} />}
 
                 {/* Day-by-day calendar */}
                 <div className="space-y-3">
@@ -2534,7 +2572,7 @@ export default function App() {
                 )}
 
                 {/* Saved templates */}
-                <div className="mt-6 mb-2">
+                {viewItems.length > 0 && <div className="mt-6 mb-2">
                   <button onClick={() => setShowTemplates((v) => !v)}
                     className="flex items-center gap-1.5 text-xs font-semibold text-orange-400 hover:text-orange-600 transition">
                     <Calendar size={13} />
@@ -2582,7 +2620,7 @@ export default function App() {
                       )}
                     </div>
                   )}
-                </div>
+                </div>}
               </>
             ) : viewWeek !== currentWeekStart ? (
               /* ── Empty state for past/future weeks ── */
