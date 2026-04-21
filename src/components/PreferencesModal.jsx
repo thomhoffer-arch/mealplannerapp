@@ -7,8 +7,13 @@ import PuterConnect from './PuterConnect';
 
 // section: 'dietary' | 'settings' | undefined (all)
 // initialPrefs: the preferences object from App.jsx state (avoids a second DB round-trip)
-export default function PreferencesModal({ household, onClose, onPrefsChange, inline = false, section, initialPrefs }) {
+// personalPrefs: the current user's personal_prefs string from household_members
+// onSavePersonalPrefs(text): saves personal_prefs to household_members for the current user
+export default function PreferencesModal({ household, onClose, onPrefsChange, inline = false, section, initialPrefs, personalPrefs: personalPrefsProp = '', onSavePersonalPrefs }) {
   const [text, setText] = useState('');
+  const [personalText, setPersonalText] = useState('');
+  const [savingPersonal, setSavingPersonal] = useState(false);
+  const [savedPersonal, setSavedPersonal] = useState(false);
   const [keyInput, setKeyInput] = useState('');
   const [keyHint, setKeyHint] = useState(null);
   const [puterInput, setPuterInput] = useState('');
@@ -31,6 +36,21 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
   const [savedPrefs, setSavedPrefs] = useState(false);
   const [savedKey, setSavedKey] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  useEffect(() => {
+    setPersonalText(personalPrefsProp || '');
+  }, [personalPrefsProp]);
+
+  async function handleSavePersonal() {
+    setSavingPersonal(true);
+    try {
+      await onSavePersonalPrefs?.(personalText);
+      setSavedPersonal(true);
+      setTimeout(() => setSavedPersonal(false), 2000);
+    } finally {
+      setSavingPersonal(false);
+    }
+  }
 
   // Sync from App.jsx preferences state when provided — this is the primary
   // data source for inline usage and avoids a separate DB query that can fail
@@ -174,32 +194,54 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
           </div>
           )}
 
-          {/* ── Dietary & taste preferences + also plan ── */}
+          {/* ── Dietary & taste preferences ── */}
           {showDietary && (
-          <div className={`space-y-3 ${showSettings ? 'border-t border-orange-100 pt-4' : ''}`}>
-            <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Dietary &amp; taste preferences</p>
-            <textarea
-              rows={4}
-              placeholder="e.g. We're gluten intolerant and Thom doesn't eat pork. Evelina uses oat milk instead of regular milk. We prefer mostly plant-based meals during the week but enjoy chicken or fish on weekends. We love spicy food and prefer lighter meals — nothing too heavy or creamy."
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
-            />
-            <div>
-              <p className="text-xs text-orange-400 mb-1.5">Dinner's always in. Describe anything else you'd like planned.</p>
+          <div className={`space-y-4 ${showSettings ? 'border-t border-orange-100 pt-4' : ''}`}>
+
+            {/* Personal preferences */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Your dietary wishes</p>
+              <p className="text-xs text-orange-400">Only applies to you — won't affect other household members.</p>
               <textarea
-                rows={2}
-                placeholder="e.g. Quick breakfasts Mon–Fri. Packed lunches for Tom. A bake for Sunday afternoon."
-                value={extrasText}
-                onChange={(e) => setExtrasText(e.target.value)}
+                rows={3}
+                placeholder="e.g. I'm lactose intolerant. I don't eat red meat. I prefer lighter meals in the evening."
+                value={personalText}
+                onChange={(e) => setPersonalText(e.target.value)}
                 className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
               />
+              <button onClick={handleSavePersonal} disabled={savingPersonal}
+                className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+                {savedPersonal ? <><Check size={14} /> Saved</> : savingPersonal ? 'Saving…' : 'Save my preferences'}
+              </button>
             </div>
-            <button onClick={handleSavePrefs} disabled={savingPrefs}
-              className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
-              {savedPrefs ? <><Check size={14} /> Saved</> : savingPrefs ? 'Saving…' : 'Save preferences'}
-            </button>
-            {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+
+            {/* Shared household preferences */}
+            <div className="space-y-2 border-t border-orange-100 pt-3">
+              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Shared household preferences <span className="font-normal normal-case text-orange-400">(optional)</span></p>
+              <p className="text-xs text-orange-400">Applies to everyone — cuisine styles, things you all agree on.</p>
+              <textarea
+                rows={3}
+                placeholder="e.g. We prefer mostly plant-based during the week. We love spicy food. Nothing too heavy or creamy."
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
+              />
+              <div>
+                <p className="text-xs text-orange-400 mb-1.5">Dinner's always in. Describe anything else you'd all like planned.</p>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Quick breakfasts Mon–Fri. Packed lunches for Tom. A bake for Sunday afternoon."
+                  value={extrasText}
+                  onChange={(e) => setExtrasText(e.target.value)}
+                  className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
+                />
+              </div>
+              <button onClick={handleSavePrefs} disabled={savingPrefs}
+                className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+                {savedPrefs ? <><Check size={14} /> Saved</> : savingPrefs ? 'Saving…' : 'Save household preferences'}
+              </button>
+              {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+            </div>
           </div>
           )}
 

@@ -2030,6 +2030,16 @@ export default function App() {
     setTimeout(() => setInviteCopied(false), 2000);
   }
 
+  async function savePersonalPrefs(text) {
+    const { error } = await supabase
+      .from('household_members')
+      .update({ personal_prefs: text.trim() || null })
+      .eq('user_id', user.id)
+      .eq('household_id', household.id);
+    if (error) throw new Error(error.message);
+    setMemberProfile((m) => ({ ...m, personal_prefs: text.trim() || null }));
+  }
+
   async function sendEmailInvite(e) {
     e.preventDefault();
     const addr = inviteEmail.trim();
@@ -3605,7 +3615,16 @@ export default function App() {
 
             {/* Dietary wishes — always visible */}
             <div className="bg-white rounded-2xl border border-orange-100 p-4">
-              <PreferencesModal household={household} section="dietary" inline={true} initialPrefs={preferences} onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))} onClose={loadPreferences} />
+              <PreferencesModal
+                household={household}
+                section="dietary"
+                inline={true}
+                initialPrefs={preferences}
+                onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                onClose={loadPreferences}
+                personalPrefs={memberProfile?.personal_prefs || ''}
+                onSavePersonalPrefs={savePersonalPrefs}
+              />
             </div>
 
             {/* Data export + account deletion */}
