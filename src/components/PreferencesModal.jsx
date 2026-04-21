@@ -22,19 +22,21 @@ export default function PreferencesModal({ household, onClose, inline = false, s
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [savingNotifications, setSavingNotifications] = useState(false);
   const [extrasText, setExtrasText] = useState('');
+  const [extrasSaved, setExtrasSaved] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [keyError, setKeyError] = useState('');
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [savingKey, setSavingKey] = useState(false);
   const [savedPrefs, setSavedPrefs] = useState(false);
   const [savedKey, setSavedKey] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     supabase
       .from('household_preferences')
       .select('preferences_text, gemini_api_key_hint, puter_token_hint, reminder_enabled, reminder_day, plan_extras_text, notifications_enabled')
       .eq('household_id', household.id)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         if (data) {
           setText(data.preferences_text || '');
@@ -51,20 +53,34 @@ export default function PreferencesModal({ household, onClose, inline = false, s
 
   async function handleSavePrefs() {
     setSavingPrefs(true);
-    await supabase.from('household_preferences').upsert(
-      { household_id: household.id, preferences_text: text, updated_at: new Date().toISOString() },
-      { onConflict: 'household_id' }
-    );
-    setSavingPrefs(false);
-    setSavedPrefs(true);
-    setTimeout(() => setSavedPrefs(false), 2000);
+    setSaveError('');
+    try {
+      const { error } = await supabase.from('household_preferences').upsert(
+        { household_id: household.id, preferences_text: text, updated_at: new Date().toISOString() },
+        { onConflict: 'household_id' }
+      );
+      if (error) throw error;
+      setSavedPrefs(true);
+      setTimeout(() => setSavedPrefs(false), 2000);
+      onClose?.();
+    } catch (err) {
+      setSaveError(err.message || 'Could not save — try again');
+    } finally {
+      setSavingPrefs(false);
+    }
   }
 
   async function handleSaveExtras() {
-    await supabase.from('household_preferences').upsert(
+    setExtrasSaved(false);
+    const { error } = await supabase.from('household_preferences').upsert(
       { household_id: household.id, plan_extras_text: extrasText },
       { onConflict: 'household_id' }
     );
+    if (!error) {
+      setExtrasSaved(true);
+      setTimeout(() => setExtrasSaved(false), 2000);
+      onClose?.();
+    }
   }
 
   async function handleSaveKey() {
@@ -88,11 +104,12 @@ export default function PreferencesModal({ household, onClose, inline = false, s
 
   async function handleSaveReminder() {
     setSavingReminder(true);
-    await supabase.from('household_preferences').upsert(
+    const { error } = await supabase.from('household_preferences').upsert(
       { household_id: household.id, reminder_enabled: reminderEnabled, reminder_day: reminderDay, updated_at: new Date().toISOString() },
       { onConflict: 'household_id' }
     );
     setSavingReminder(false);
+    if (!error) onClose?.();
   }
 
   async function handleRemoveKey() {
@@ -165,6 +182,7 @@ export default function PreferencesModal({ household, onClose, inline = false, s
               className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
               {savedPrefs ? <><Check size={14} /> Saved</> : savingPrefs ? 'Saving…' : 'Save preferences'}
             </button>
+            {saveError && <p className="text-xs text-red-500">{saveError}</p>}
           </div>
 
           {/* ── What else to plan ── */}
@@ -179,6 +197,9 @@ export default function PreferencesModal({ household, onClose, inline = false, s
               onBlur={handleSaveExtras}
               className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
             />
+            {extrasSaved && (
+              <p className="text-[11px] text-sage-500 flex items-center gap-1"><Check size={11} /> Saved</p>
+            )}
           </div>
           </>)}
 
