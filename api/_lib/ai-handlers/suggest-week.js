@@ -319,7 +319,9 @@ Dietary constraints:
   Adaptive diets (gluten-free, dairy-free, vegan, etc.) — keep the dish concept, adapt the ingredients, name the adaptation in the title.
 
 Variety:
-  Different main protein and different cuisine each day. No repeated hero ingredient on consecutive days.
+  Different main protein AND different cuisine each day. No repeated hero ingredient on consecutive days.
+  This includes breakfast ingredients — if Tuesday has eggs, Wednesday cannot also feature eggs as the hero.
+  Examples of hero ingredients: eggs, chicken, beef, salmon, pasta, lentils, tofu, shrimp.
   Dinner and any extras on the same day must be meaningfully different dishes.
   Spread themed days (fish, vegetarian, etc.) naturally across the week.
 
@@ -327,11 +329,15 @@ Starred recipes:
   HIGH-priority starred recipes should appear in week 1. Respect rotation priorities.
 
 Waste-first thinking:
-  One "cook once, eat twice" per week where natural. leftover_for must point at a meal that was already going to be planned — never invent an extras entry just to receive leftovers.
+  One "cook once, eat twice" per week where natural. leftover_for can point at a meal 1 or 2 days later — don't force next-day if that creates awkward clusters. leftovers from different cook days can also be combined into one meal. leftover_for must point at a meal that was already going to be planned — never invent an extras entry just to receive leftovers.
   Side dishes and extras should reuse ingredients already in the week's plan where possible.
 
-Extras only when asked:
-  Every day's "extras" array is [] unless the user explicitly requested a non-dinner meal for that day. Never add breakfast, lunch or snacks on your own initiative.
+Extras — only when there is a clear basis:
+  Every day's "extras" array is [] by default. Only add breakfast, lunch or snacks when you can point to a clear signal in the user's input:
+  • An explicit request this week ("waffles Saturday morning")
+  • A standing extras instruction that covers this day ("we always have a big brunch on weekends")
+  • A strong, repeated pattern in household preferences (e.g. the preferences text or standing extras frequently mention weekend breakfasts — honour that rhythm)
+  If there is no such signal, leave extras empty — including on weekends. Never invent extras that have no basis in anything the user has told you.
 
 Real dishes only:
   Every suggestion must be a recognisable, real-world dish.
