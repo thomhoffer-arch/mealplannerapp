@@ -265,7 +265,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           </div>
           <textarea
             rows={2}
-            placeholder='Anything on your mind for this week — the AI reads this first…'
+            placeholder='Anything specific this week? Dietary requests, events, ingredients to use up…'
             value={thisWeekWishes}
             onChange={(e) => setThisWeekWishes(e.target.value)}
             className="w-full text-xs border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"

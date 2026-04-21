@@ -139,6 +139,45 @@ function normalizeIngredientName(name) {
   return name.replace(/\s*\([^)]*\)/g, '').trim();
 }
 
+const _FRACS = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1/3, '⅔': 2/3, '⅛': 0.125 };
+const _NUM_RE = /^([\d½¼¾⅓⅔⅛][^a-zA-Z]*?)\s*([a-zA-Z]+\.?)?$/;
+function mergeAmounts(rawAmounts) {
+  const amounts = rawAmounts.map((a) => (a || '').trim()).filter(Boolean);
+  if (!amounts.length) return '';
+  // Deduplicate identical strings (handles "to taste × N" → "to taste")
+  const deduped = amounts.filter(
+    (a, i) => amounts.findIndex((b) => b.toLowerCase() === a.toLowerCase()) === i
+  );
+  if (deduped.length === 1) return deduped[0];
+  // Try to sum numeric amounts sharing a unit
+  const byUnit = new Map();
+  const misc = [];
+  for (const a of deduped) {
+    const m = a.trim().match(_NUM_RE);
+    if (m) {
+      const numStr = m[1].trim();
+      const unit = (m[2] || '').toLowerCase().replace(/\.$/, '');
+      let qty = 0;
+      for (const part of numStr.replace(/,/g, '.').split(/\s+/)) {
+        if (_FRACS[part]) { qty += _FRACS[part]; continue; }
+        if (part.includes('/')) { const [n, d] = part.split('/').map(Number); if (d) qty += n / d; continue; }
+        const n = parseFloat(part); if (!isNaN(n)) qty += n;
+      }
+      if (qty > 0) {
+        const key = unit || '__bare__';
+        byUnit.set(key, { total: (byUnit.get(key)?.total || 0) + qty, unit: m[2] || '' });
+        continue;
+      }
+    }
+    misc.push(a);
+  }
+  const numParts = [...byUnit.values()].map(({ total, unit }) => {
+    const fmt = Number.isInteger(total) ? String(total) : parseFloat(total.toFixed(2)).toString().replace(/\.?0+$/, '');
+    return unit ? `${fmt} ${unit}` : fmt;
+  });
+  return [...numParts, ...misc].join(' + ');
+}
+
 function consolidateIngredients(selectedRecipes, customIngredients) {
   const items = {};
   selectedRecipes.forEach((recipe) => {
@@ -149,7 +188,6 @@ function consolidateIngredients(selectedRecipes, customIngredients) {
       if (items[key]) items[key].amounts.push(amount);
       else items[key] = { name, amounts: [amount] };
     });
-    // Include side dish ingredients if present.
     (recipe._sideDish?.ingredients || []).forEach(({ name, amount }) => {
       const key = name.toLowerCase().trim();
       if (items[key]) items[key].amounts.push(amount || '');
@@ -163,7 +201,7 @@ function consolidateIngredients(selectedRecipes, customIngredients) {
   });
   return Object.values(items).map((item) => ({
     name: item.name,
-    amount: item.amounts.filter(Boolean).join(" + "),
+    amount: mergeAmounts(item.amounts),
     isCustom: item.isCustom || false,
   }));
 }
@@ -456,6 +494,16 @@ function SelectedRecipeCard({
                       </li>
                     ))}
                   </ul>
+                )}
+                {(recipe._sideDish.steps || []).length > 0 && (
+                  <ol className="pt-2 space-y-1.5 border-t border-orange-100 mt-1">
+                    {recipe._sideDish.steps.map((step, idx) => (
+                      <li key={idx} className="text-xs text-orange-700 flex gap-1.5">
+                        <span className="flex-shrink-0 font-semibold text-orange-400 w-4">{idx + 1}.</span>
+                        <span className="leading-snug">{step}</span>
+                      </li>
+                    ))}
+                  </ol>
                 )}
               </div>
             )}
@@ -2062,6 +2110,9 @@ export default function App() {
                       cookTime: generated.cookTime || stub.cookTime,
                       macros: generated.macros || {},
                       _weekStart: viewWeek,
+                      ...(stub._sideDish && {
+                        _sideDish: { ...stub._sideDish, steps: generated.side_dish_steps || [] },
+                      }),
                     };
                     setMealPlanItems((prev) => prev.map((item) =>
                       item.recipe_id === String(stub.id)
@@ -2213,14 +2264,12 @@ export default function App() {
               </button>
               <div className="text-center">
                 <p className="text-sm font-semibold text-orange-900">{formatWeekLabel(viewWeek)}</p>
-                {viewWeek !== currentWeekStart && (
-                  <button
-                    onClick={() => setViewWeek(currentWeekStart)}
-                    className="text-[11px] text-orange-600 hover:text-orange-900 transition font-medium"
-                  >
-                    Back to this week
-                  </button>
-                )}
+                <button
+                  onClick={() => setViewWeek(currentWeekStart)}
+                  className={`text-[11px] text-orange-600 hover:text-orange-900 transition font-medium ${viewWeek === currentWeekStart ? 'invisible' : ''}`}
+                >
+                  Back to this week
+                </button>
               </div>
               <button
                 onClick={() => setViewWeek((w) => addWeeks(w, 1))}
@@ -2518,14 +2567,14 @@ export default function App() {
                         'border-dashed border-orange-100 bg-white/50'
                       }`}>
 
-                        {/* ── Breakfast slot — only if one exists ── */}
-                        {!isNotAtHome && hasBreakfast && extraItems.filter((i) => i.recipe_data._mealType === 'breakfast').map(renderExtraRow)}
+                        {/* ── Breakfast slot — always show if planned ── */}
+                        {hasBreakfast && extraItems.filter((i) => i.recipe_data._mealType === 'breakfast').map(renderExtraRow)}
 
-                        {/* ── Lunch slot — only if one exists ──────── */}
-                        {!isNotAtHome && hasLunch && extraItems.filter((i) => i.recipe_data._mealType === 'lunch').map(renderExtraRow)}
+                        {/* ── Lunch slot — always show if planned ──────── */}
+                        {hasLunch && extraItems.filter((i) => i.recipe_data._mealType === 'lunch').map(renderExtraRow)}
 
-                        {/* ── Other extras (snacks etc.) ───────────── */}
-                        {!isNotAtHome && extraItems.filter((i) => !['breakfast','lunch'].includes(i.recipe_data._mealType)).map(renderExtraRow)}
+                        {/* ── Other extras (snacks etc.) ───────────────── */}
+                        {extraItems.filter((i) => !['breakfast','lunch'].includes(i.recipe_data._mealType)).map(renderExtraRow)}
 
                         {/* ── Dinner slot (primary) ─────────────────── */}
                         <div>
@@ -2533,7 +2582,7 @@ export default function App() {
                             onClick={() => !isNotAtHome && recipe && toggleDayMeal(rid)}>
                             <div className="w-16 flex-shrink-0">
                               <p className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-orange-600' : 'text-orange-400'}`}>{day.slice(0, 3)}</p>
-                              {isToday && <p className="text-[10px] text-orange-400 font-medium">today</p>}
+                              <p className={`text-[10px] font-medium text-orange-400 ${isToday ? '' : 'invisible'}`}>today</p>
                             </div>
                             {isNotAtHome ? (
                               <>

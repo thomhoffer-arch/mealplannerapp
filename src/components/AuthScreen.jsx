@@ -45,8 +45,8 @@ const CHAPTERS = [
   },
   {
     glyph: GlyphCalendar,
-    title: 'Let the week plan itself',
-    desc: "One tap builds seven dinners from what you actually eat — filtered by what's in season and how long you've got. Swap anything you don't fancy; the rest shuffles around it.",
+    title: 'One tap plans the week',
+    desc: "Builds seven dinners from what you actually eat — filtered by how long you've got. Swap anything you don't fancy; the rest adjusts around it.",
   },
   {
     glyph: GlyphBasket,
@@ -631,7 +631,7 @@ export default function AuthScreen() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full border border-orange-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 placeholder-orange-300 bg-white"
+            className="w-full border border-orange-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 placeholder-orange-300 bg-white"
           />
           <input
             type="password"
@@ -642,7 +642,7 @@ export default function AuthScreen() {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            className="w-full border border-orange-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 placeholder-orange-300 bg-white"
+            className="w-full border border-orange-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 placeholder-orange-300 bg-white"
           />
           {error && <p className="text-sm text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
           <button

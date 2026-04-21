@@ -119,8 +119,8 @@ export default function NotificationBell({ household }) {
             {notifications.length === 0 ? (
               <div className="text-center py-8 text-orange-400">
                 <Bell size={28} className="mx-auto mb-2 opacity-40" />
-                <p className="text-sm">No activity yet</p>
-                <p className="text-xs mt-0.5">Changes your partner makes will appear here</p>
+                <p className="text-sm">Nothing yet</p>
+                <p className="text-xs mt-0.5">When your household makes changes, you'll see them here</p>
               </div>
             ) : (
               notifications.map((n) => (

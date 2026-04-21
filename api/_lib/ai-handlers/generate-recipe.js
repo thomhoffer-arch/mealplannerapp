@@ -48,11 +48,20 @@ export default async function handleGenerateRecipe(req, res) {
 }
 
 function buildGeneratePrompt(recipe) {
-  const { name, overview, cuisineType, prepTime, cookTime } = recipe;
+  const { name, overview, cuisineType, prepTime, cookTime, _sideDish } = recipe;
   const totalTime = (prepTime || 0) + (cookTime || 0);
   const timeHint = totalTime > 0 ? ` Total time around ${totalTime} minutes.` : '';
   const cuisineHint = cuisineType ? ` Cuisine: ${cuisineType}.` : '';
   const overviewHint = overview ? `\nContext: ${overview}` : '';
+
+  const hasSide = !!_sideDish?.name;
+  const sideIngList = hasSide && (_sideDish.ingredients || []).length > 0
+    ? ` Ingredients: ${_sideDish.ingredients.map((i) => `${i.amount || ''} ${i.name}`.trim()).join(', ')}.`
+    : '';
+  const sideSection = hasSide
+    ? `\nThis dinner is served with a side dish: "${_sideDish.name}".${_sideDish.description ? ` ${_sideDish.description}` : ''}${sideIngList} Write 3–5 steps for the side dish in "side_dish_steps".`
+    : '';
+  const sideSchema = hasSide ? `,\n  "side_dish_steps": ["Heat oil in a small pan over medium heat...", "..."]` : '';
 
   return `${VOICE_GUIDE}
 
@@ -61,7 +70,7 @@ function buildGeneratePrompt(recipe) {
 Write a complete dinner recipe for "${name}".${overviewHint}
 ${cuisineHint}${timeHint}
 Portions for 2 people.
-
+${sideSection}
 If the dish name already implies a dietary adaptation (e.g. "with
 gluten-free pasta", "vegetarian lasagne"), reflect that in the
 ingredient list — label GF pasta as "gluten-free pasta", label
@@ -75,7 +84,7 @@ Return ONLY a JSON object, no markdown:
   "servings": 2,
   "prepTime": <minutes as integer>,
   "cookTime": <minutes as integer>,
-  "macros": { "calories": 520, "protein": 38, "carbs": 22, "fat": 28 }
+  "macros": { "calories": 520, "protein": 38, "carbs": 22, "fat": 28 }${sideSchema}
 }`;
 }
 

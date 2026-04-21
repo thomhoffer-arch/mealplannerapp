@@ -43,7 +43,7 @@ export default function StarredPanel({ starredItems, household, onClose, onAddTo
             <div className="text-center py-10">
               <Star size={36} className="mx-auto mb-3 text-orange-400" />
               <p className="text-sm text-orange-400 font-medium">No starred recipes yet</p>
-              <p className="text-xs text-orange-400 mt-1">Tap ☆ on any recipe to save it here</p>
+              <p className="text-xs text-orange-400 mt-1">Star a recipe from the library and it'll appear here</p>
             </div>
           ) : (
             starredItems.map((item) => {
