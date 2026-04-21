@@ -2893,6 +2893,9 @@ export default function App() {
                             <div>
                               <p className="text-sm font-semibold text-sage-600 capitalize">{ins.ingredient}</p>
                               <p className="text-xs text-sage-600 mt-0.5 leading-relaxed">{ins.tip}</p>
+                              {ins.suggestion && (
+                                <p className="text-[11px] font-medium text-sage-500 mt-1 italic">→ {ins.suggestion}</p>
+                              )}
                             </div>
                           </div>
                         ))}

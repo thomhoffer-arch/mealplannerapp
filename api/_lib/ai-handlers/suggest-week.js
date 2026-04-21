@@ -347,7 +347,7 @@ P6. VARIETY AND BALANCE.
     (vegetarian day, fish day, etc.), distribute these naturally across the whole
     week — do not default to placing them on Monday or Tuesday. Any day qualifies.
 
-P7. PRACTICAL MEAL PLANNING.
+P7. PRACTICAL MEAL PLANNING — think waste-first.
     One "cook once, eat twice" per week where natural. Set leftover_for only
     if the target meal was already going to be planned anyway (a dinner or an
     explicitly requested extra). NEVER create an extra meal entry just to give
@@ -355,6 +355,17 @@ P7. PRACTICAL MEAL PLANNING.
     at a dinner (e.g. "Wednesday dinner") or leave leftover_for null.
     Favour ingredient reuse across the week. Draw from pantry items where it
     fits naturally.
+
+    SIDE DISHES: when a day has a side_dish, design it to use an ingredient
+    that is already purchased for another dinner that week (e.g. if spinach
+    appears in Tuesday's curry, a wilted-spinach side on Wednesday costs
+    nothing extra). Note the shared ingredient in the side_dish description.
+
+    EXTRA MEALS (breakfast/lunch when requested): when planning an extra,
+    prefer ingredients already in the week's plan. A grain cooked for dinner
+    becomes a grain bowl at lunch; roasted veg becomes a frittata at
+    breakfast. This cuts waste and shopping cost — mention the connection
+    briefly in the extra's reason field.
 
 !! EXTRAS ONLY WHEN EXPLICITLY REQUESTED !!
     "extras" must be an empty array [] on every day UNLESS the user has
