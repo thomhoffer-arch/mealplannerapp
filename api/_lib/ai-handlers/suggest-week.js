@@ -257,21 +257,29 @@ ${dayNotesSection ? `\nPER-DAY NOTES:\n${dayNotesSection}` : ''}
 RULES — ordered by priority. Higher rules override lower ones.
 
 P1. HONOUR USER INTENT FROM THIS WEEK'S NOTES — highest priority.
-    Read "THIS WEEK SPECIFICALLY" and "PER-DAY NOTES" carefully. Whatever the
-    household has asked for this week takes precedence over every default below.
-    This includes time constraints, cuisines, moods, specific dishes, extra meals
-    (breakfast/lunch), and any indication that a day should be skipped.
+    Read "THIS WEEK SPECIFICALLY" and "PER-DAY NOTES" carefully and interpret
+    them flexibly — users write casually, not in structured commands. Whatever
+    the household has asked for this week takes precedence over every default below.
     Apply it precisely — do not soften, approximate or reinterpret the request.
 
-    TIME CONSTRAINTS from P1: if the user specifies a time limit (e.g. "35 min",
-    "under an hour"), apply it as a hard maximum to every day that matches their
-    description. "Weekdays" = Monday through Friday inclusive. "Weekends" = Saturday
-    and Sunday. The total (prep_time + cook_time) must not exceed their limit on
-    those days. Do not use the P3 defaults for any day the user has constrained.
+    INTERPRETING TIME CONSTRAINTS: extract duration limits from any natural phrasing.
+    Users may write things like a number followed by minutes, phrases about being
+    quick or slow, references to a busy or relaxed day, or general adjectives about
+    effort level. Map these to prep_time + cook_time totals. When they qualify which
+    days (e.g. a group of days, a single named day, or days that share a pattern like
+    work days vs. rest days), apply the limit to exactly those days and no others.
+    "Weekdays" = Monday through Friday inclusive. "Weekends" = Saturday and Sunday.
+    Once you've identified a P1 time limit for a day, discard the P3 default for it.
 
-    EXTRA MEALS from P1: if the user requests a breakfast, lunch or other meal on
-    a specific day (e.g. "Saturday pancakes for breakfast"), add it to that day's
-    "extras" array. The extras are separate from the dinner — plan both.
+    INTERPRETING EXTRA MEALS: when the user asks for a meal that isn't dinner on a
+    specific day — regardless of how they phrase it (a dish name, a mood, a tradition,
+    a craving, a type of meal) — add it to that day's "extras" array with the
+    appropriate meal_type. Plan both the extra and the dinner for that day.
+
+    INTERPRETING ANYTHING ELSE: if the request doesn't fit a clear category, reason
+    about what the household most plausibly wants and honour that spirit. Preference
+    lists, cuisine themes, mood words, ingredient-based requests, portion notes, and
+    "make it lighter/heavier" language all have obvious meanings — use good judgment.
 
 P2. SKIP DAYS WHEN THE HOUSEHOLD WON'T BE EATING IN.
     If the notes convey — in any wording — that the household will not need a

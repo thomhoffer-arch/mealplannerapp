@@ -162,8 +162,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     : selectedCount;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex flex-col bg-white">
+      <div className="w-full max-w-lg mx-auto flex flex-col h-full">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-orange-50">
@@ -205,7 +205,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto flex-1 px-5 pb-4">
+        <div className="overflow-y-auto flex-1 px-5 pb-6 safe-area-bottom">
           {error && (
             <div className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2 mb-3">{error}</div>
           )}
