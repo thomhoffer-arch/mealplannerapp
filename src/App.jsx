@@ -2030,6 +2030,16 @@ export default function App() {
     setTimeout(() => setInviteCopied(false), 2000);
   }
 
+  async function savePersonalPrefs(text) {
+    const { error } = await supabase
+      .from('household_members')
+      .update({ personal_prefs: text.trim() || null })
+      .eq('user_id', user.id)
+      .eq('household_id', household.id);
+    if (error) throw new Error(error.message);
+    setMemberProfile((m) => ({ ...m, personal_prefs: text.trim() || null }));
+  }
+
   async function sendEmailInvite(e) {
     e.preventDefault();
     const addr = inviteEmail.trim();
@@ -3580,32 +3590,39 @@ export default function App() {
                         {inviteCopied ? 'Copied!' : 'Copy link'}
                       </button>
                     </div>
+                    <form onSubmit={sendEmailInvite} className="flex gap-2 pt-1">
+                      <input
+                        type="email"
+                        placeholder="Invite by email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        className="flex-1 text-xs border border-orange-200 rounded-xl px-3 py-2 bg-white text-orange-900 placeholder:text-orange-300 focus:outline-none focus:border-orange-400"
+                      />
+                      <button
+                        type="submit"
+                        disabled={sendingEmailInvite || !inviteEmail.trim()}
+                        className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                      >
+                        {emailInviteSent ? <Check size={12} /> : <Mail size={12} />}
+                        {emailInviteSent ? 'Sent!' : sendingEmailInvite ? 'Sending…' : 'Send'}
+                      </button>
+                    </form>
                   </div>
                 )}
-                {/* Email invite */}
-                <form onSubmit={sendEmailInvite} className="flex gap-2">
-                  <input
-                    type="email"
-                    placeholder="Invite by email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    className="flex-1 text-xs border border-orange-200 rounded-xl px-3 py-2 bg-orange-50 text-orange-900 placeholder:text-orange-300 focus:outline-none focus:border-orange-400"
-                  />
-                  <button
-                    type="submit"
-                    disabled={sendingEmailInvite || !inviteEmail.trim()}
-                    className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                  >
-                    {emailInviteSent ? <Check size={12} /> : <Mail size={12} />}
-                    {emailInviteSent ? 'Sent!' : sendingEmailInvite ? 'Sending…' : 'Send'}
-                  </button>
-                </form>
-              </div>
             </div>
 
             {/* Dietary wishes — always visible */}
             <div className="bg-white rounded-2xl border border-orange-100 p-4">
-              <PreferencesModal household={household} section="dietary" inline={true} initialPrefs={preferences} onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))} onClose={loadPreferences} />
+              <PreferencesModal
+                household={household}
+                section="dietary"
+                inline={true}
+                initialPrefs={preferences}
+                onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                onClose={loadPreferences}
+                personalPrefs={memberProfile?.personal_prefs || ''}
+                onSavePersonalPrefs={savePersonalPrefs}
+              />
             </div>
 
             {/* Data export + account deletion */}
