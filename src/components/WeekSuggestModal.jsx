@@ -379,6 +379,16 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           </div>
                         )}
 
+                        {/* Side dish if planned for this day */}
+                        {recipe?._sideDish?.name && (
+                          <div className="border-t border-orange-50 pt-2">
+                            <div className="flex items-center gap-2 bg-orange-50/60 rounded-xl px-3 py-2">
+                              <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-14 flex-shrink-0">Side</span>
+                              <p className="text-xs font-semibold text-orange-900 truncate">{recipe._sideDish.name}</p>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Extra meals (breakfast/lunch requested for this day) */}
                         {(day.extras || []).length > 0 && (
                           <div className="space-y-1.5 border-t border-orange-50 pt-2">

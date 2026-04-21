@@ -169,6 +169,17 @@ async function _handler(req, res) {
           _extraReason: e.reason || '',
         }));
 
+      // Attach side dish to dinner recipe if the AI provided one.
+      if (day.side_dish?.name && recipe) {
+        recipe._sideDish = {
+          name: day.side_dish.name,
+          description: day.side_dish.description || '',
+          ingredients: Array.isArray(day.side_dish.ingredients) ? day.side_dish.ingredients : [],
+          prep_time: day.side_dish.prep_time || null,
+          cook_time: day.side_dish.cook_time || null,
+        };
+      }
+
       // Surface per-day reasoning + leftover chaining directly on the day so the UI
       // can show "why this?" and the cook-once-eat-twice pairing.
       return {
@@ -271,10 +282,19 @@ P1. HONOUR USER INTENT FROM THIS WEEK'S NOTES — highest priority.
     "Weekdays" = Monday through Friday inclusive. "Weekends" = Saturday and Sunday.
     Once you've identified a P1 time limit for a day, discard the P3 default for it.
 
-    INTERPRETING EXTRA MEALS: when the user asks for a meal that isn't dinner on a
-    specific day — regardless of how they phrase it (a dish name, a mood, a tradition,
-    a craving, a type of meal) — add it to that day's "extras" array with the
-    appropriate meal_type. Plan both the extra and the dinner for that day.
+    INTERPRETING EXTRA MEALS: when the user asks for a meal that isn't dinner —
+    regardless of how they phrase it — add it to the relevant day's "extras" array
+    with the appropriate meal_type ("breakfast", "lunch", or "snack"). Per-day
+    requests in THIS WEEK SPECIFICALLY and PER-DAY NOTES apply to the named day(s).
+    Standing instructions in EXTRAS THE HOUSEHOLD WANTS PLANNED apply to every
+    applicable day every week — "breakfast on weekends" means populate extras for
+    Saturday and Sunday, "lunch on Monday" means populate extras for Monday.
+    Plan both the extra and the dinner for each affected day.
+
+    INTERPRETING SIDE DISH REQUESTS: when the user asks for a side dish alongside
+    dinner on specific days — in any wording (a side, an accompaniment, a salad,
+    a vegetable, "something to go with it") — populate that day's "side_dish" field
+    with a suggested side. Only add a side_dish when explicitly requested for that day.
 
     INTERPRETING ANYTHING ELSE: if the request doesn't fit a clear category, reason
     about what the household most plausibly wants and honour that spirit. Preference
@@ -312,8 +332,11 @@ P6. VARIETY AND BALANCE.
 
 P7. PRACTICAL MEAL PLANNING.
     One "cook once, eat twice" per week (leftover_for points at the meal it
-    covers). Favour ingredient reuse across the week. Draw from pantry items
-    where it fits naturally.
+    covers, e.g. "Tuesday lunch"). Only set leftover_for if that target meal
+    is actually planned — either as a dinner on that day, or as an entry in
+    that day's extras array. Do not suggest leftovers for meals that have not
+    been planned. Favour ingredient reuse across the week. Draw from pantry
+    items where it fits naturally.
 
 P8. REAL DISHES ONLY.
     Every suggestion must be a recognisable, real-world dish.
@@ -335,6 +358,13 @@ Return ONLY a JSON object, no markdown:
           "reason": "<one short sentence: why this dish, this day>",
           "leftover_for": "<e.g. 'Tuesday lunch', or null>",
           "uses_pantry": ["<pantry item this recipe uses>"],
+          "side_dish": {
+            "name": "<side dish name or null>",
+            "description": "<one sentence or null>",
+            "prep_time": <minutes or null>,
+            "cook_time": <minutes or null>,
+            "ingredients": [{"name": "<ingredient>", "amount": "<amount>"}]
+          },
           "extras": [
             {
               "meal_type": "<breakfast|lunch|snack>",
@@ -352,7 +382,8 @@ Return ONLY a JSON object, no markdown:
   "notes": "<2-3 sentences explaining the overall plan shape>"
 }
 
-"extras" is an empty array [] on days with no requested extras. Only populate it when the user explicitly asked for a specific extra meal on that day.
+"extras" is an empty array [] on days with no requested extras. Populate it based on EXTRAS THE HOUSEHOLD WANTS PLANNED (standing instructions — apply to all relevant days every week) and per-day requests in THIS WEEK SPECIFICALLY or PER-DAY NOTES.
+"side_dish" is null on days where no side was requested. Only populate it when the user explicitly asked for a side dish on that day.
 
 Each week must have exactly 7 day entries (Monday through Sunday). Skipped days still appear with skip=true and name=null.${numWeeks === 2 ? ' Return exactly 2 week objects.' : ' Return exactly 1 week object.'}`;
 }

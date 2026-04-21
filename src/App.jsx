@@ -715,6 +715,7 @@ export default function App() {
   const [preferences, setPreferences] = useState({});
   const [planExtrasText, setPlanExtrasText] = useState('');
   const [sideDishPanel, setSideDishPanel] = useState(null);
+  const [clearWeekConfirm, setClearWeekConfirm] = useState(false);
   const [wasteInsights, setWasteInsights] = useState(null); // null | { loading, insights, error }
   const [showBagModal, setShowBagModal] = useState(false); // { key, mainRecipe, rid, input, loading, suggestions, error }
 
@@ -1641,6 +1642,13 @@ export default function App() {
     await supabase.from("shopping_checks").delete().eq("household_id", household.id);
   }
 
+  async function clearWeekPlan() {
+    const ids = viewItems.map((i) => i.id).filter(Boolean);
+    if (!ids.length) return;
+    await supabase.from("meal_plan_items").delete().in("id", ids);
+    setClearWeekConfirm(false);
+  }
+
   // ── Invite link ───────────────────────────────────────────────────────────
   const inviteUrl = household
     ? `${window.location.origin}?invite=${household.invite_token}`
@@ -2172,6 +2180,15 @@ export default function App() {
                       {viewWeek === currentWeekStart ? 'This week' : viewWeek < currentWeekStart ? 'Past week' : 'Upcoming week'}
                     </h2>
                     <p className="text-xs text-orange-400 mt-0.5">{viewItems.length} meal{viewItems.length !== 1 ? 's' : ''} planned</p>
+                    {!clearWeekConfirm ? (
+                      <button onClick={() => setClearWeekConfirm(true)} className="text-[10px] text-orange-200 hover:text-orange-400 transition mt-0.5">Clear week</button>
+                    ) : (
+                      <span className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[10px] text-orange-500">Remove all?</span>
+                        <button onClick={clearWeekPlan} className="text-[10px] text-red-500 font-semibold hover:text-red-700 transition">Yes</button>
+                        <button onClick={() => setClearWeekConfirm(false)} className="text-[10px] text-orange-400 hover:text-orange-600 transition">No</button>
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setShowBagModal(true)}
