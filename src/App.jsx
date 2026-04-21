@@ -268,12 +268,12 @@ function SelectedRecipeCard({
         <div className="flex items-center gap-2 pt-1">
           <button
             onClick={() => onToggleCooked(rid)}
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border-2 transition ${isCooked ? 'border-green-400 bg-green-50 text-green-700' : 'border-stone-200 text-stone-500 hover:border-green-300 hover:text-green-600'}`}
+            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border-2 transition ${isCooked ? 'border-sage-400 bg-sage-100 text-sage-600' : 'border-orange-200 text-orange-400 hover:border-sage-300 hover:text-sage-600'}`}
           >
             <Check size={12} />
             {isCooked ? 'Cooked!' : 'Mark cooked'}
           </button>
-          {rating && <p className="text-xs ml-1">{"⭐".repeat(rating)}</p>}
+          {rating && <p className="text-xs ml-1 text-orange-400">{'★'.repeat(rating)}</p>}
           <button
             onClick={async () => {
               if (sharing) return;
@@ -289,7 +289,7 @@ function SelectedRecipeCard({
                 setSharing(false);
               }
             }}
-            className="ml-auto flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:bg-stone-50 transition"
+            className="ml-auto flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
             title={shareCopied ? 'Link copied!' : 'Share recipe'}
           >
             {shareCopied ? <Check size={15} className="text-orange-600" /> : <Link2 size={15} />}
@@ -298,7 +298,7 @@ function SelectedRecipeCard({
         {isStub ? (
           <div className="text-center py-4">
             <p className="text-sm text-orange-900 mb-1 font-display italic">Full recipe not written yet.</p>
-            <p className="text-xs text-stone-500 mb-4">The AI will write ingredients and steps now — takes about 10 seconds.</p>
+            <p className="text-xs text-orange-400 mb-4">The AI will write ingredients and steps now — takes about 10 seconds.</p>
             {generateError && <p className="text-xs text-red-500 mb-3">{generateError}</p>}
             <button onClick={generateFullRecipe} disabled={generating}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50">
@@ -319,7 +319,7 @@ function SelectedRecipeCard({
                 ].map(({ label, value, unit }) => (
                   <div key={label} className="bg-orange-50 rounded-lg p-2 text-center">
                     <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>
-                    <p className="text-xs text-stone-500">{label}</p>
+                    <p className="text-xs text-orange-400">{label}</p>
                   </div>
                 ))}
               </div>
@@ -327,7 +327,7 @@ function SelectedRecipeCard({
             {/* Steps */}
             {(recipe.steps || []).length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Instructions</p>
+                <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2">Instructions</p>
                 <ol className="space-y-2">
                   {recipe.steps.map((step, i) => (
                     <li key={i} className="flex gap-2 text-sm text-orange-900">
@@ -341,7 +341,7 @@ function SelectedRecipeCard({
             {/* Side dish (if one has been attached to this dinner) */}
             {recipe._sideDish && (
               <div className="bg-orange-50/60 rounded-xl p-3 space-y-1.5">
-                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Side dish</p>
+                <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide">Side dish</p>
                 <p className="text-sm font-semibold text-orange-900">{recipe._sideDish.name}</p>
                 {recipe._sideDish.description && (
                   <p className="text-xs text-orange-700 leading-snug">{recipe._sideDish.description}</p>
@@ -359,13 +359,13 @@ function SelectedRecipeCard({
             )}
             {/* Custom ingredients */}
             <div>
-              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Add Extra Ingredients</p>
+              <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2">Add Extra Ingredients</p>
               <div className="flex gap-2">
                 <input type="text" placeholder="e.g. 100g breadcrumbs"
                   value={newIngredientInput[rid] || ""}
                   onChange={(e) => onInputChange(rid, e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && onAddCustom(rid)}
-                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400"
+                  className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400"
                 />
                 <button onClick={() => onAddCustom(rid)}
                   className="px-4 py-2 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition text-sm font-medium">Add</button>
@@ -383,12 +383,12 @@ function SelectedRecipeCard({
             </div>
             {/* Tweak */}
             <div>
-              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Tweak this recipe</p>
+              <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2">Tweak this recipe</p>
               <div className="flex gap-2">
                 <input type="text" placeholder='e.g. use chicken breast, make it spicier…'
                   value={adjustInput} onChange={(e) => setAdjustInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && adjustRecipe()}
-                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-stone-300"
+                  className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
                 />
                 <button onClick={adjustRecipe} disabled={adjusting || !adjustInput.trim()}
                   className="flex-shrink-0 px-4 py-2 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-1.5">
@@ -410,12 +410,12 @@ function SelectedRecipeCard({
   }
 
   return (
-    <div className={`rounded-2xl border-2 transition-all ${isCooked ? "border-green-300 bg-green-50 opacity-80" : "border-orange-100 bg-white"}`}>
+    <div className={`rounded-2xl border-2 transition-all ${isCooked ? "border-sage-200 bg-sage-100/40 opacity-80" : "border-orange-100 bg-white"}`}>
       <div className="p-4">
         <div className="flex items-start gap-3">
           <button
             onClick={() => onToggleCooked(rid)}
-            className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all ${isCooked ? "bg-green-500 border-green-500 text-white" : "border-gray-300"}`}
+            className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all ${isCooked ? "bg-sage-500 border-sage-500 text-white" : "border-orange-300"}`}
           >
             {isCooked && <Check size={12} />}
           </button>
@@ -430,7 +430,7 @@ function SelectedRecipeCard({
               {recipe.name}
             </h3>
             {rating && (
-              <p className="text-xs mt-0.5">{"⭐".repeat(rating)}</p>
+              <p className="text-xs mt-0.5 text-orange-400">{'★'.repeat(rating)}</p>
             )}
           </div>
           <button
@@ -1742,7 +1742,7 @@ export default function App() {
               {[1, 2, 3, 4, 5].map((s) => (
                 <button key={s} onClick={() => saveRating(ratingPrompt, s)}
                   className="text-3xl hover:scale-110 transition-transform">
-                  ⭐
+                  ★
                 </button>
               ))}
             </div>
@@ -1758,7 +1758,7 @@ export default function App() {
       {shareOffer && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 text-center">
-            <p className="text-2xl mb-2">{'⭐'.repeat(shareOffer.stars)}</p>
+            <p className="text-2xl mb-2 text-orange-400">{'★'.repeat(shareOffer.stars)}</p>
             <h3 className="text-base font-bold text-orange-900 mb-1">A winner — share it?</h3>
             <p className="text-xs text-orange-400 mb-4">Create a public link to <span className="font-semibold text-orange-600">{shareOffer.recipe.name}</span>. Good for sending to friends.</p>
             <button
@@ -1908,7 +1908,7 @@ export default function App() {
                     const lockMsg = isBYOK
                       ? `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} in the full library — upgrade for all results.`
                       : `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — add your Gemini key for more, or upgrade for the full library.`;
-                    const lockLabel = isBYOK ? 'Upgrade for full access' : 'Add a key to unlock';
+                    const lockLabel = isBYOK ? 'Upgrade for full access' : 'Add a key for more results';
                     return (
                       <div className="space-y-3">
                         <p className="text-sm text-orange-600 font-medium">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} found</p>
@@ -2003,7 +2003,7 @@ export default function App() {
 
                     return (
                       <div key={day} className={`rounded-2xl border-2 transition-all ${
-                        isCooked ? 'border-green-200 bg-green-50/40' :
+                        isCooked ? 'border-sage-200 bg-sage-100/40' :
                         recipe ? 'border-orange-100 bg-white' :
                         'border-dashed border-orange-100 bg-white/50'
                       }`}>
@@ -2562,7 +2562,7 @@ export default function App() {
 
                 {/* Waste insights panel */}
                 {wasteInsights && !wasteInsights.loading && (
-                  <div className="bg-green-50 border border-green-100 rounded-2xl p-4 mb-4">
+                  <div className="bg-sage-100/50 border border-sage-200 rounded-2xl p-4 mb-4">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-semibold text-sage-600 uppercase tracking-wide">Waste reduction</p>
                       <button onClick={() => setWasteInsights(null)} className="text-sage-400 hover:text-sage-600 transition"><X size={14} /></button>
@@ -2600,7 +2600,7 @@ export default function App() {
                         <button key={item.name} onClick={() => !item.inPantry && toggleItem(item.name)}
                           className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
                           <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                            item.inPantry ? "bg-gray-100 border-gray-200" : checked ? "bg-green-500 border-green-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
+                            item.inPantry ? "bg-orange-100 border-orange-200" : checked ? "bg-sage-500 border-sage-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
                             {(checked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-orange-400" : ""} />}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -2699,17 +2699,17 @@ export default function App() {
                     const hasGemini = !!preferences?.gemini_api_key_hint;
                     let label, labelClass, upgradeText;
                     if (isGifted) {
-                      label = '✨ Gifted — unlimited AI';
+                      label = 'Gifted — unlimited AI';
                       labelClass = 'text-orange-700 bg-amber-50';
                     } else if (hasPuter) {
-                      label = '⚡ Puter AI — unlimited';
+                      label = 'Puter AI — unlimited';
                       labelClass = 'text-orange-600 bg-orange-50';
                     } else if (hasGemini) {
-                      label = '🔑 Gemini key connected';
+                      label = 'Gemini key connected';
                       labelClass = 'text-orange-500 bg-orange-50';
                       upgradeText = 'Connect Puter for unlimited';
                     } else {
-                      label = '🆓 Free plan';
+                      label = 'Free plan';
                       labelClass = 'text-orange-400 bg-orange-50';
                       upgradeText = 'Add an AI key for more';
                     }
@@ -2763,7 +2763,7 @@ export default function App() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
-                        <p className="text-xs text-stone-400 truncate">{user?.email}</p>
+                        <p className="text-xs text-orange-400 truncate">{user?.email}</p>
                       </div>
                       <button onClick={() => setShowSettings(false)}
                         className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-orange-100 text-orange-600 hover:bg-orange-200 transition"

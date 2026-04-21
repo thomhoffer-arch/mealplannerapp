@@ -25,7 +25,7 @@ export default function PuterWelcomeModal({ onClose }) {
           <>
             <p className="font-display italic text-orange-600/80 text-xs tracking-wide mb-2">One last step</p>
             <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight mb-2">
-              Connect Puter to unlock the AI.
+              Connect Puter to use the AI.
             </h2>
             <p className="text-sm text-orange-900/80 leading-relaxed mb-5">
               Puter runs the AI for your household and bills you directly. A popup will open — sign in or create a Puter account, then come back here. You can top up a few euros and it'll cover weeks of planning.

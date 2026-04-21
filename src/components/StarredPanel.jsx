@@ -3,9 +3,9 @@ import { X, Star, Trash2, Plus, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const PRIORITY_CONFIG = [
-  { value: 1, label: 'Every week',   emoji: '🔥', color: 'bg-red-100 text-red-700 border-red-200' },
-  { value: 2, label: 'Biweekly',     emoji: '🔄', color: 'bg-orange-100 text-orange-900 border-orange-200' },
-  { value: 3, label: 'Occasional',   emoji: '💫', color: 'bg-gray-100 text-orange-400 border-gray-200' },
+  { value: 1, label: 'Every week',  color: 'bg-orange-500 text-white border-orange-500' },
+  { value: 2, label: 'Biweekly',   color: 'bg-orange-100 text-orange-900 border-orange-200' },
+  { value: 3, label: 'Occasional', color: 'bg-orange-50 text-orange-400 border-orange-200' },
 ];
 
 export default function StarredPanel({ starredItems, household, onClose, onAddToPlan, onUnstar, onPlanWeek }) {
@@ -59,7 +59,7 @@ export default function StarredPanel({ starredItems, household, onClose, onAddTo
                       className={`mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-semibold transition hover:opacity-80 ${priority.color}`}
                       title="Tap to change rotation priority"
                     >
-                      {priority.emoji} {priority.label}
+                      {priority.label}
                     </button>
                   </div>
                   <div className="flex flex-col gap-1.5 flex-shrink-0">

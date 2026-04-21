@@ -328,8 +328,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           </button>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                              {isStarred && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">⭐ Starred</span>}
-                              {isAI && <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">✨ New</span>}
+                              {isStarred && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">Starred</span>}
+                              {isAI && <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">AI</span>}
                               {recipe?.source && !isAI && !isStarred && (
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${SOURCE_COLORS[recipe.source] || 'bg-orange-50 text-orange-600'}`}>
                                   {recipe.source}
@@ -368,34 +368,34 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           <div className="pt-2 border-t border-orange-50 space-y-2">
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2 flex-1">
-                                <Users size={13} className="text-stone-400 flex-shrink-0" />
-                                <span className="text-xs text-stone-700">Portions</span>
+                                <Users size={13} className="text-orange-400 flex-shrink-0" />
+                                <span className="text-xs text-orange-600">Portions</span>
                                 <div className="flex items-center gap-1.5 ml-auto">
                                   <button
                                     onClick={() => setDayServings(key, dayServings - 1)}
-                                    className="w-6 h-6 rounded-full border border-stone-200 flex items-center justify-center text-stone-600 hover:bg-stone-50 transition text-sm font-bold"
+                                    className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition text-sm font-bold"
                                   >−</button>
-                                  <span className="text-sm font-semibold text-stone-800 w-4 text-center">{dayServings}</span>
+                                  <span className="text-sm font-semibold text-orange-900 w-4 text-center">{dayServings}</span>
                                   <button
                                     onClick={() => setDayServings(key, dayServings + 1)}
-                                    className="w-6 h-6 rounded-full border border-stone-200 flex items-center justify-center text-stone-600 hover:bg-stone-50 transition text-sm font-bold"
+                                    className="w-6 h-6 rounded-full border border-orange-200 flex items-center justify-center text-orange-600 hover:bg-orange-50 transition text-sm font-bold"
                                   >+</button>
                                 </div>
                               </div>
-                              <div className="w-px h-4 bg-stone-100" />
+                              <div className="w-px h-4 bg-orange-100" />
                               <button
                                 onClick={() => swapDay(week.week, day, 'suggest something different')}
                                 disabled={!!swappingKey}
-                                className="flex items-center gap-1 text-xs text-stone-400 hover:text-orange-600 transition disabled:opacity-40"
+                                className="flex items-center gap-1 text-xs text-orange-400 hover:text-orange-600 transition disabled:opacity-40"
                                 title="Suggest a different recipe for this day"
                               >
                                 <Wand2 size={13} />
                                 Another
                               </button>
-                              <div className="w-px h-4 bg-stone-100" />
+                              <div className="w-px h-4 bg-orange-100" />
                               <button
                                 onClick={() => toggleDay(key)}
-                                className="flex items-center gap-1 text-xs text-stone-400 hover:text-red-500 transition"
+                                className="flex items-center gap-1 text-xs text-orange-400 hover:text-red-500 transition"
                               >
                                 <MinusCircle size={13} />
                                 Skip
@@ -409,7 +409,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                                 onChange={(e) => setSwapInput((p) => ({ ...p, [key]: e.target.value }))}
                                 onKeyDown={(e) => e.key === 'Enter' && swapDay(week.week, day)}
                                 disabled={swappingKey === key}
-                                className="flex-1 text-xs border border-stone-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-stone-300 disabled:opacity-50 min-w-0"
+                                className="flex-1 text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 disabled:opacity-50 min-w-0"
                               />
                               <button
                                 onClick={() => swapDay(week.week, day)}
