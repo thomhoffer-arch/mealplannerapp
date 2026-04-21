@@ -6,7 +6,8 @@ import ThemeToggle from './ThemeToggle';
 import PuterConnect from './PuterConnect';
 
 // section: 'dietary' | 'settings' | undefined (all)
-export default function PreferencesModal({ household, onClose, inline = false, section }) {
+// initialPrefs: the preferences object from App.jsx state (avoids a second DB round-trip)
+export default function PreferencesModal({ household, onClose, inline = false, section, initialPrefs }) {
   const [text, setText] = useState('');
   const [keyInput, setKeyInput] = useState('');
   const [keyHint, setKeyHint] = useState(null);
@@ -29,13 +30,30 @@ export default function PreferencesModal({ household, onClose, inline = false, s
   const [savedKey, setSavedKey] = useState(false);
   const [saveError, setSaveError] = useState('');
 
+  // Sync from App.jsx preferences state when provided — this is the primary
+  // data source for inline usage and avoids a separate DB query that can fail
+  // if the client session hasn't fully initialised yet.
   useEffect(() => {
+    if (!initialPrefs) return;
+    setText(initialPrefs.preferences_text || '');
+    setExtrasText(initialPrefs.plan_extras_text || '');
+    setReminderEnabled(initialPrefs.reminder_enabled || false);
+    setReminderDay(initialPrefs.reminder_day || 'sunday');
+    setNotificationsEnabled(initialPrefs.notifications_enabled !== false);
+    setKeyHint(initialPrefs.gemini_api_key_hint || null);
+    setPuterHint(initialPrefs.puter_token_hint || null);
+  }, [initialPrefs]);
+
+  // Fallback DB query used when opened as a standalone modal (no initialPrefs).
+  useEffect(() => {
+    if (initialPrefs) return;
     supabase
       .from('household_preferences')
       .select('preferences_text, gemini_api_key_hint, puter_token_hint, reminder_enabled, reminder_day, plan_extras_text, notifications_enabled')
       .eq('household_id', household.id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('[PreferencesModal] load error:', error.message);
         if (data) {
           setText(data.preferences_text || '');
           setKeyHint(data.gemini_api_key_hint || null);
@@ -43,11 +61,10 @@ export default function PreferencesModal({ household, onClose, inline = false, s
           setReminderEnabled(data.reminder_enabled || false);
           setReminderDay(data.reminder_day || 'sunday');
           setExtrasText(data.plan_extras_text || '');
-          // Default to on for households that predate the column.
           setNotificationsEnabled(data.notifications_enabled !== false);
         }
       });
-  }, [household.id]);
+  }, [household.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSavePrefs() {
     setSavingPrefs(true);
