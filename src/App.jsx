@@ -987,6 +987,7 @@ export default function App() {
   const [clearWeekConfirm, setClearWeekConfirm] = useState(false);
   const [showEmptyGrid, setShowEmptyGrid] = useState(false);
   const [wasteInsights, setWasteInsights] = useState(null); // null | { loading, insights, error }
+  const [aiCleanNames, setAiCleanNames] = useState({}); // originalName → AI-cleaned name (premium only)
   const [showBagModal, setShowBagModal] = useState(false); // { key, mainRecipe, rid, input, loading, suggestions, error }
 
   // ── Search state
@@ -2228,6 +2229,38 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { setWasteInsights(null); }, [shoppingList.length]);
 
+  // AI polish pass — only for premium/gifted households.
+  // Sends items the heuristics couldn't fully clean (e.g. prep words in unusual positions,
+  // names > 4 words) to the AI endpoint and silently updates display names.
+  const _aiNormalizeKey = shoppingList.map((i) => i.name).join('|');
+  React.useEffect(() => {
+    const hasUnlimitedAi = !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+    if (!hasUnlimitedAi || !shoppingList.length) return;
+
+    // Only items that look like heuristics left something unresolved.
+    const _PREP_BODY = /\b(finely|roughly|coarsely|thinly|thickly|sliced|diced|chopped|minced|grated|shredded|crushed|beaten|roasted|steamed|boiled|softened|melted|cooked)\b/i;
+    const suspicious = shoppingList
+      .filter((item) => item.name.split(/\s+/).length > 4 || _PREP_BODY.test(item.name))
+      .map((item) => ({ name: item.name, amount: item.amount }));
+
+    if (!suspicious.length) return;
+
+    apiFetch('/api/ai/normalize-shopping-list', { method: 'POST', body: { items: suspicious } })
+      .then((data) => {
+        if (!data?.items?.length) return;
+        setAiCleanNames((prev) => {
+          const next = { ...prev };
+          data.items.forEach((r) => {
+            const original = suspicious[r.index]?.name;
+            if (original && !r.skip && r.name && r.name !== original) next[original] = r.name;
+          });
+          return next;
+        });
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [_aiNormalizeKey]);
+
   // ── Public recipe share view ─────────────────────────────────────────────
   // Rendered before the auth gate so unsigned visitors can see shared recipes.
   const shareToken = new URLSearchParams(window.location.search).get('recipe_share');
@@ -3379,7 +3412,7 @@ export default function App() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <span className={`text-sm font-medium transition-all ${isChecked || item.inPantry ? "line-through text-orange-400" : "text-orange-900"}`}>
-                            {item.name}
+                            {aiCleanNames[item.name] || item.name}
                             {item.isCustom && <span className="ml-1.5 text-xs text-orange-600 font-normal">custom</span>}
                             {item.inPantry && <span className="ml-1.5 text-xs text-orange-400 font-normal">in pantry</span>}
                           </span>

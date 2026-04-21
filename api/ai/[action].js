@@ -7,6 +7,7 @@ import handleShoppingInsights from '../_lib/ai-handlers/shopping-insights.js';
 import handleModerate from '../_lib/ai-handlers/moderate.js';
 import handleRegenerateDay from '../_lib/ai-handlers/regenerate-day.js';
 import handleNormalizePantryItem from '../_lib/ai-handlers/normalize-pantry-item.js';
+import handleNormalizeShoppingList from '../_lib/ai-handlers/normalize-shopping-list.js';
 import handleSearchDeals from '../_lib/ai-handlers/search-deals.js';
 import handleGenerateRecipesBatch from '../_lib/ai-handlers/generate-recipes-batch.js';
 import { applyCors } from '../_lib/cors.js';
@@ -28,6 +29,7 @@ const HANDLERS = {
   'moderate':          handleModerate,
   'regenerate-day':        handleRegenerateDay,
   'normalize-pantry-item':    handleNormalizePantryItem,
+  'normalize-shopping-list':  handleNormalizeShoppingList,
   'search-deals':             handleSearchDeals,
   'generate-recipes-batch':   handleGenerateRecipesBatch,
 };
