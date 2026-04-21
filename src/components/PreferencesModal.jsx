@@ -28,6 +28,8 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
   const [savingNotifications, setSavingNotifications] = useState(false);
   const [showWeeklyMacros, setShowWeeklyMacros] = useState(true);
   const [savingMacros, setSavingMacros] = useState(false);
+  const [mealPrepMode, setMealPrepMode] = useState(false);
+  const [savingMealPrep, setSavingMealPrep] = useState(false);
   const [extrasText, setExtrasText] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [keyError, setKeyError] = useState('');
@@ -63,6 +65,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
     setReminderDay(initialPrefs.reminder_day || 'sunday');
     setNotificationsEnabled(initialPrefs.notifications_enabled !== false);
     setShowWeeklyMacros(initialPrefs.show_weekly_macros !== false);
+    setMealPrepMode(initialPrefs.meal_prep_mode || false);
     setKeyHint(initialPrefs.gemini_api_key_hint || null);
     setPuterHint(initialPrefs.puter_token_hint || null);
   }, [initialPrefs]);
@@ -219,6 +222,32 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
             <div className="space-y-2 border-t border-orange-100 pt-3">
               <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Shared household preferences <span className="font-normal normal-case text-orange-400">(optional)</span></p>
               <p className="text-xs text-orange-400">Applies to everyone — cuisine styles, things you all agree on.</p>
+
+              {/* Meal prep mode */}
+              <div className="flex items-start justify-between gap-3 bg-orange-50 rounded-xl px-3 py-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-orange-900">Meal prep mode</p>
+                  <p className="text-xs text-orange-400 mt-0.5 leading-relaxed">Plan around batch cooking — 2–3 dishes cooked in large portions, eaten across the week. Overrides the standard "varied dish each day" rule.</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const next = !mealPrepMode;
+                    setMealPrepMode(next);
+                    setSavingMealPrep(true);
+                    const { error } = await supabase.from('household_preferences').upsert(
+                      { household_id: household.id, meal_prep_mode: next },
+                      { onConflict: 'household_id' }
+                    );
+                    setSavingMealPrep(false);
+                    if (!error) onPrefsChange?.({ meal_prep_mode: next });
+                  }}
+                  disabled={savingMealPrep}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 disabled:opacity-50 mt-0.5 ${mealPrepMode ? 'bg-orange-500' : 'bg-orange-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${mealPrepMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
               <textarea
                 rows={3}
                 placeholder="e.g. We prefer mostly plant-based during the week. We love spicy food. Nothing too heavy or creamy."
