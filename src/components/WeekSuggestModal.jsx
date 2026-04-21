@@ -121,22 +121,31 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     plan.forEach((week) => {
       week.days.forEach((day) => {
         const key = `${week.week}-${day.day}`;
-        if (selected[key] && day.recipe) {
+        if (!selected[key]) return;
+        if (day.recipe) {
           const override = servings[key];
           const base = override ? { ...day.recipe, servings: override } : day.recipe;
           recipes.push({
             ...base,
             _plannedDay: day.day,
             _plannedWeek: week.week,
-            // Persist planner context so the week view can show WHY this
-            // dish was picked + the pantry/leftover pairings even after
-            // the user saves the plan and reopens the app.
             _plannerReason: day.reason || null,
             _plannerLeftoverFor: day.leftover_for || null,
             _plannerUsesPantry: Array.isArray(day.uses_pantry) ? day.uses_pantry : [],
             _plannerPhoto: day.photo || null,
           });
         }
+        // Include extras (breakfast/lunch) for selected days
+        (day.extras || []).forEach((extra) => {
+          recipes.push({
+            ...extra,
+            _plannedDay: day.day,
+            _plannedWeek: week.week,
+            _plannerReason: extra._extraReason || null,
+            _plannerPhoto: extra.photo || null,
+            _plannerUsesPantry: [],
+          });
+        });
       });
     });
     onLoadPlan(recipes);
@@ -144,6 +153,13 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   }
 
   const selectedCount = Object.values(selected).filter(Boolean).length;
+  const selectedMealCount = plan
+    ? plan.reduce((acc, week) => week.days.reduce((a, day) => {
+        const key = `${week.week}-${day.day}`;
+        if (!selected[key]) return a;
+        return a + (day.recipe ? 1 : 0) + (day.extras?.length || 0);
+      }, acc), 0)
+    : selectedCount;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
@@ -363,6 +379,27 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           </div>
                         )}
 
+                        {/* Extra meals (breakfast/lunch requested for this day) */}
+                        {(day.extras || []).length > 0 && (
+                          <div className="space-y-1.5 border-t border-orange-50 pt-2">
+                            {day.extras.map((extra, i) => {
+                              const xTime = (extra.prepTime || 0) + (extra.cookTime || 0);
+                              return (
+                                <div key={i} className="flex items-center gap-2 bg-orange-50/60 rounded-xl px-3 py-2">
+                                  <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-14 flex-shrink-0">{extra._mealType || 'Extra'}</span>
+                                  {extra.photo?.thumbnail && (
+                                    <img src={extra.photo.thumbnail} alt={extra.name} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-semibold text-orange-900 truncate">{extra.name}</p>
+                                    {xTime > 0 && <p className="text-[10px] text-orange-400">{xTime} min</p>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
                         {/* Options — always visible now, not behind an expand */}
                         {isSelected && (
                           <div className="pt-2 border-t border-orange-50 space-y-2">
@@ -450,7 +487,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           <div className="px-5 py-4 border-t border-orange-50">
             <button onClick={handleLoadPlan} disabled={selectedCount === 0}
               className="w-full py-3 bg-orange-500 text-white rounded-full font-semibold text-sm hover:bg-orange-600 transition disabled:opacity-50">
-              Add {selectedCount} meal{selectedCount !== 1 ? 's' : ''} to my plan
+              Add {selectedMealCount} meal{selectedMealCount !== 1 ? 's' : ''} to my plan
             </button>
           </div>
         )}
