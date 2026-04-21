@@ -125,7 +125,9 @@ function detectAllergens(ingredients = []) {
   return ALLERGENS.filter((a) => a.patterns.some((p) => text.includes(p)));
 }
 
-const PREP_WORDS = ['sliced','diced','chopped','minced','peeled','grated','shredded','torn','crushed','halved','quartered','julienned','roughly','finely','thinly','thickly','cut','trimmed','washed','rinsed','dried','softened','melted','beaten','whisked','to taste','at room temperature','room temperature'];
+const PREP_WORDS = ['sliced','diced','chopped','minced','peeled','grated','shredded','torn','crushed','halved','quartered','julienned','roughly','finely','thinly','thickly','cut','trimmed','washed','rinsed','dried','softened','melted','beaten','whisked','to taste','at room temperature','room temperature','for serving','to serve','for garnish','to garnish','for topping','to top','for decoration','for drizzling','cooked','boiled','steamed'];
+// Trailing phrases that get appended without a comma but still indicate prep/serving notes
+const _TRAILING_PREP = /\s+(to taste|for serving|to serve|for garnish|to garnish|for topping|as needed)$/i;
 function normalizeIngredientName(name) {
   // Strip prep description after the first comma if it looks like a preparation instruction
   const commaIdx = name.indexOf(',');
@@ -136,7 +138,10 @@ function normalizeIngredientName(name) {
     }
   }
   // Strip parenthetical prep notes like "(peeled and diced)"
-  return name.replace(/\s*\([^)]*\)/g, '').trim();
+  name = name.replace(/\s*\([^)]*\)/g, '').trim();
+  // Strip trailing serving/taste notes even without a comma
+  name = name.replace(_TRAILING_PREP, '').trim();
+  return name;
 }
 
 // Tokens stripped from the END of an ingredient name when building the dedup key.
@@ -281,7 +286,7 @@ function mergeAmounts(rawAmounts, system = 'metric') {
 function consolidateIngredients(selectedRecipes, customIngredients, measurementSystem = 'metric') {
   const items = {};
 
-  const add = (rawName, amount, extra = {}) => {
+  const addSingle = (rawName, amount, extra = {}) => {
     const key = ingredientKey(rawName);
     if (!key || key.startsWith('leftover')) return;
     if (items[key]) {
@@ -289,6 +294,17 @@ function consolidateIngredients(selectedRecipes, customIngredients, measurementS
     } else {
       const displayName = normalizeIngredientName(rawName.split(/ or /i)[0].trim()).toLowerCase();
       items[key] = { name: displayName, amounts: [amount], ...extra };
+    }
+  };
+
+  // Split "X and Y" compound entries the AI occasionally generates as one ingredient.
+  // Each part inherits the same amount so pantry matching and dedup work correctly.
+  const add = (rawName, amount, extra = {}) => {
+    const parts = rawName.split(/ and /i);
+    if (parts.length > 1) {
+      parts.forEach((p) => addSingle(p.trim(), amount, extra));
+    } else {
+      addSingle(rawName, amount, extra);
     }
   };
 
@@ -1505,9 +1521,10 @@ export default function App() {
   }
 
   async function savePantryName(name, amount) {
+    const normalizedName = name.toLowerCase().trim();
     const tempId = `optimistic-${Date.now()}`;
-    setPantryItems((prev) => [...prev, { id: tempId, name, amount }]);
-    await supabase.from("pantry_items").insert({ household_id: household.id, name, amount });
+    setPantryItems((prev) => [...prev, { id: tempId, name: normalizedName, amount }]);
+    await supabase.from("pantry_items").insert({ household_id: household.id, name: normalizedName, amount });
   }
 
   async function confirmPantryNudge(chosenName) {
@@ -3428,7 +3445,7 @@ export default function App() {
                     {pantryItems.map((item) => (
                       <div key={item.id} className="flex items-center justify-between px-4 py-3">
                         <div>
-                          <span className="text-sm font-medium text-orange-900">{item.name}</span>
+                          <span className="text-sm font-medium text-orange-900">{item.name.toLowerCase()}</span>
                           {item.amount && <span className="text-xs text-orange-400 ml-2">{item.amount}</span>}
                         </div>
                         <button onClick={() => removePantryItem(item.id)}
