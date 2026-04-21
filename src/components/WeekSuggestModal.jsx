@@ -484,6 +484,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           <div className="flex items-center gap-1.5 flex-wrap flex-1">
                             {isStarred && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">Starred</span>}
                             {isAI && !isStarred && <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">AI</span>}
+                            {day.estimated_cost && <span className="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full font-semibold border border-green-100">{day.estimated_cost}</span>}
                           </div>
                           {swappingKey === key && (
                             <span className="text-[10px] text-orange-500 animate-pulse">Swapping…</span>
@@ -574,7 +575,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                                 className="flex items-center gap-1 text-xs text-orange-400 hover:text-orange-600 transition disabled:opacity-40"
                               >
                                 <Wand2 size={13} />
-                                Another
+                                Different dish
                               </button>
                               <div className="w-px h-4 bg-orange-100" />
                               <button

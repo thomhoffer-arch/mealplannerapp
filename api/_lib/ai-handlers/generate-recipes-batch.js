@@ -20,7 +20,12 @@ export default async function handleGenerateRecipesBatch(req, res) {
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  const { provider, token, usingSharedKey } = await resolveAiProvider(supabase, ctx.householdId);
+  const [{ provider, token, usingSharedKey }, { data: prefData }] = await Promise.all([
+    resolveAiProvider(supabase, ctx.householdId),
+    supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
+  ]);
+  const householdPrefs = prefData?.preferences_text || '';
+
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
   // One usage check for the entire batch — fair for users on shared free-tier key.
@@ -37,7 +42,7 @@ export default async function handleGenerateRecipesBatch(req, res) {
     recipes.map(async (recipe) => {
       if (!recipe?.name) return { id: recipe?.id, success: false, error: 'missing name' };
       try {
-        const rawText = await callAi(provider, token, buildGeneratePrompt(recipe));
+        const rawText = await callAi(provider, token, buildGeneratePrompt(recipe, householdPrefs));
         const result = JSON.parse(rawText);
         return { id: recipe.id, success: true, ...result };
       } catch (err) {
@@ -49,7 +54,7 @@ export default async function handleGenerateRecipesBatch(req, res) {
   res.json({ results });
 }
 
-function buildGeneratePrompt(recipe) {
+function buildGeneratePrompt(recipe, householdPrefs = '') {
   const { name, overview, cuisineType, prepTime, cookTime, _sideDish } = recipe;
   const totalTime = (prepTime || 0) + (cookTime || 0);
   const timeHint = totalTime > 0 ? ` Total time around ${totalTime} minutes.` : '';
@@ -65,6 +70,10 @@ function buildGeneratePrompt(recipe) {
     : '';
   const sideSchema = hasSide ? `,\n  "side_dish_steps": ["Heat oil in a small pan over medium heat...", "..."]` : '';
 
+  const prefsSection = householdPrefs
+    ? `\nHOUSEHOLD PREFERENCES (dietary restrictions to respect):\n${householdPrefs}\n`
+    : '';
+
   return `${VOICE_GUIDE}
 
 ---
@@ -72,7 +81,7 @@ function buildGeneratePrompt(recipe) {
 Write a complete dinner recipe for "${name}".${overviewHint}
 ${cuisineHint}${timeHint}
 Portions for 2 people.
-${sideSection}
+${prefsSection}${sideSection}
 If the dish name already implies a dietary adaptation (e.g. "with
 gluten-free pasta", "vegetarian lasagne"), reflect that in the
 ingredient list — label GF pasta as "gluten-free pasta", label

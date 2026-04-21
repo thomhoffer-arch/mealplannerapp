@@ -17,7 +17,12 @@ export default async function handleGenerateRecipe(req, res) {
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  const { provider, token, usingSharedKey } = await resolveAiProvider(supabase, ctx.householdId);
+  const [{ provider, token, usingSharedKey }, { data: prefData }] = await Promise.all([
+    resolveAiProvider(supabase, ctx.householdId),
+    supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
+  ]);
+  const householdPrefs = prefData?.preferences_text || '';
+
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
   if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId))) {
@@ -29,7 +34,7 @@ export default async function handleGenerateRecipe(req, res) {
     }
   }
 
-  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim()) : buildGeneratePrompt(recipe);
+  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim(), householdPrefs) : buildGeneratePrompt(recipe, householdPrefs);
 
   let rawText;
   try {
@@ -47,7 +52,7 @@ export default async function handleGenerateRecipe(req, res) {
   res.json(result);
 }
 
-function buildGeneratePrompt(recipe) {
+function buildGeneratePrompt(recipe, householdPrefs = '') {
   const { name, overview, cuisineType, prepTime, cookTime, _sideDish } = recipe;
   const totalTime = (prepTime || 0) + (cookTime || 0);
   const timeHint = totalTime > 0 ? ` Total time around ${totalTime} minutes.` : '';
@@ -63,6 +68,10 @@ function buildGeneratePrompt(recipe) {
     : '';
   const sideSchema = hasSide ? `,\n  "side_dish_steps": ["Heat oil in a small pan over medium heat...", "..."]` : '';
 
+  const prefsSection = householdPrefs
+    ? `\nHOUSEHOLD PREFERENCES (dietary restrictions to respect):\n${householdPrefs}\n`
+    : '';
+
   return `${VOICE_GUIDE}
 
 ---
@@ -70,7 +79,7 @@ function buildGeneratePrompt(recipe) {
 Write a complete dinner recipe for "${name}".${overviewHint}
 ${cuisineHint}${timeHint}
 Portions for 2 people.
-${sideSection}
+${prefsSection}${sideSection}
 If the dish name already implies a dietary adaptation (e.g. "with
 gluten-free pasta", "vegetarian lasagne"), reflect that in the
 ingredient list — label GF pasta as "gluten-free pasta", label
@@ -88,7 +97,7 @@ Return ONLY a JSON object, no markdown:
 }`;
 }
 
-function buildAdjustPrompt(recipe, request) {
+function buildAdjustPrompt(recipe, request, householdPrefs = '') {
   const ingredientsList = (recipe.ingredients || [])
     .map((i) => `  - ${i.amount ? `${i.amount} ` : ''}${i.name}`)
     .join('\n');
@@ -102,12 +111,16 @@ function buildAdjustPrompt(recipe, request) {
     ? `(original was approx. calories: ${existingMacros.calories}, protein: ${existingMacros.protein}g, carbs: ${existingMacros.carbs}g, fat: ${existingMacros.fat}g — recalculate based on what changed)`
     : '(estimate from the adjusted ingredients — do not return zeros)';
 
+  const prefsSection = householdPrefs
+    ? `\nHOUSEHOLD PREFERENCES (dietary restrictions to respect):\n${householdPrefs}\n`
+    : '';
+
   return `${VOICE_GUIDE}
 
 ---
 
 Adjust this recipe based on the user request. Change only what the request asks for.
-
+${prefsSection}
 RECIPE: ${recipe.name}
 INGREDIENTS:
 ${ingredientsList || '  (none listed)'}

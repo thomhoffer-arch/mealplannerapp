@@ -17,23 +17,25 @@ export default async function handleSuggestSide(req, res) {
   const { provider, token } = await resolveAiProvider(supabase, ctx.householdId);
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
-  // Pantry-awareness: prefer sides / bag-meals that lean on what's already
-  // on the shelf. Best-effort — if the query fails, fall back to the
-  // original prompt with no pantry hint.
-  const { data: pantryData } = await supabase
-    .from('pantry_items').select('name').eq('household_id', ctx.householdId);
+  // Pantry-awareness + household preferences fetched together.
+  const [{ data: pantryData }, { data: prefData }] = await Promise.all([
+    supabase.from('pantry_items').select('name').eq('household_id', ctx.householdId),
+    supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
+  ]);
   const pantry = (pantryData || []).map((p) => p.name).filter(Boolean).slice(0, 20);
   const pantryHint = pantry.length
     ? `\nPantry (already on hand, prefer when it fits): ${pantry.join(', ')}.`
     : '';
+  const householdPrefs = prefData?.preferences_text || '';
+  const prefHint = householdPrefs ? ` Household dietary preferences: ${householdPrefs}.` : '';
 
   let prompt;
   if (isBag) {
     const dietPart = dietary_prefs ? ` Dietary notes: ${dietary_prefs}.` : '';
-    prompt = `A home cook just got a surprise food bag with these ingredients: ${bag_ingredients}.${dietPart}${pantryHint} Suggest 2-3 complete meals they can cook with what they have. Return ONLY JSON: {"suggestions":[{"name":"...","description":"one sentence","ingredients":[{"name":"ingredient name","amount":"quantity e.g. 200g"}]}]}`;
+    prompt = `A home cook just got a surprise food bag with these ingredients: ${bag_ingredients}.${dietPart}${prefHint}${pantryHint} Suggest 2-3 complete meals they can cook with what they have. Return ONLY JSON: {"suggestions":[{"name":"...","description":"one sentence","ingredients":[{"name":"ingredient name","amount":"quantity e.g. 200g"}]}]}`;
   } else {
     const prefPart = preference ? ` ${preference}.` : '';
-    prompt = `Suggest 2-3 quick side dishes to go with ${recipe.name}.${prefPart}${pantryHint} Each side should be simple (under 15 min). Return ONLY JSON: {"suggestions":[{"name":"...","description":"one line","ingredients":[{"name":"ingredient name","amount":"quantity e.g. 2 cups"}]}]}`;
+    prompt = `Suggest 2-3 quick side dishes to go with ${recipe.name}.${prefPart}${prefHint}${pantryHint} Each side should be simple (under 15 min). Return ONLY JSON: {"suggestions":[{"name":"...","description":"one line","ingredients":[{"name":"ingredient name","amount":"quantity e.g. 2 cups"}]}]}`;
   }
 
   let rawText;

@@ -317,6 +317,7 @@ function SelectedRecipeCard({
   customIngredients, onAddCustom, onRemoveCustom, onRemove,
   newIngredientInput, onInputChange, preferences, starredRecipes, onAcceptSubstitution,
   rating, onGenerateRecipe, onShareRecipe,
+  onSwapRecipe, swapping,
   inlineExpanded,
 }) {
   const [sharing, setSharing] = useState(false);
@@ -395,7 +396,7 @@ function SelectedRecipeCard({
   if (inlineExpanded) {
     return (
       <div className="px-4 pb-4 space-y-4">
-        {/* Minimal action row: cooked toggle + allergens + share */}
+        {/* Minimal action row: cooked toggle + swap + allergens + share */}
         <div className="flex items-center gap-2 pt-1 flex-wrap">
           <button
             onClick={() => onToggleCooked(rid)}
@@ -404,6 +405,16 @@ function SelectedRecipeCard({
             <Check size={12} />
             {isCooked ? 'Cooked!' : 'Mark cooked'}
           </button>
+          {onSwapRecipe && (
+            <button
+              onClick={() => onSwapRecipe(recipe)}
+              disabled={swapping}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border-2 border-orange-200 text-orange-400 hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50"
+            >
+              <Sparkles size={12} />
+              {swapping ? 'Finding…' : 'Different meal'}
+            </button>
+          )}
           {rating && <p className="text-xs ml-1 text-orange-400">{'★'.repeat(rating)}</p>}
           {detectedAllergens.length > 0 && (
             <button
@@ -1560,6 +1571,71 @@ export default function App() {
     ));
   }
 
+  const [swappingRecipeId, setSwappingRecipeId] = useState(null);
+
+  async function swapAndSaveRecipe(recipe) {
+    const rid = String(recipe.id);
+    setSwappingRecipeId(rid);
+    try {
+      const otherNames = viewItems
+        .filter((i) => i.recipe_id !== rid)
+        .map((i) => i.recipe_data?.name)
+        .filter(Boolean);
+      const result = await apiFetch('/api/ai/regenerate-day', {
+        method: 'POST',
+        body: {
+          day_name: recipe._plannedDay || 'any day',
+          current_recipe_name: recipe.name,
+          change_request: 'suggest a completely different dish for this day',
+          other_days_names: otherNames,
+        },
+      });
+      const dbItem = mealPlanItems.find((i) => i.recipe_id === rid);
+      const newRid = String(result.recipe.id);
+      const newRecipeData = {
+        ...result.recipe,
+        _plannedDay: recipe._plannedDay,
+        _plannedWeek: recipe._plannedWeek,
+        _plannerReason: result.reason || '',
+        _weekStart: viewWeek,
+      };
+      setMealPlanItems((prev) => prev.map((i) =>
+        i.recipe_id === rid ? { ...i, recipe_id: newRid, recipe_data: newRecipeData } : i
+      ));
+      if (dbItem?.id) {
+        supabase.from('meal_plan_items')
+          .update({ recipe_id: newRid, recipe_data: newRecipeData })
+          .eq('id', dbItem.id);
+      }
+      // Auto-generate full recipe for the new stub
+      if (result.recipe._aiSuggestion && !(result.recipe.ingredients?.length)) {
+        (async () => {
+          try {
+            const data = await apiFetch('/api/ai/generate-recipe', { method: 'POST', body: { recipe: result.recipe } });
+            const enriched = {
+              ...newRecipeData,
+              ingredients: data.ingredients || [],
+              steps: data.steps || [],
+              prepTime: data.prepTime || newRecipeData.prepTime,
+              cookTime: data.cookTime || newRecipeData.cookTime,
+              macros: data.macros || {},
+            };
+            setMealPlanItems((prev) => prev.map((i) =>
+              i.recipe_id === newRid ? { ...i, recipe_data: enriched } : i
+            ));
+            if (dbItem?.id) supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbItem.id);
+          } catch (err) {
+            console.error('[bg-generate-swapped]', err.message);
+          }
+        })();
+      }
+    } catch (err) {
+      console.error('[swap-recipe]', err.message);
+    } finally {
+      setSwappingRecipeId(null);
+    }
+  }
+
   // ── Side dish helpers ─────────────────────────────────────────────────────
   async function saveSideDish(itemId, sideDish) {
     const item = mealPlanItems.find((i) => String(i.recipe_data?.id) === String(itemId));
@@ -2688,7 +2764,9 @@ export default function App() {
                                 customIngredients={customIngredients} onAddCustom={addCustomIngredient} onRemoveCustom={removeCustomIngredient} onRemove={toggleSelectedRecipe}
                                 newIngredientInput={newIngredientInput} onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
                                 preferences={preferences} starredRecipes={starredRecipes} onAcceptSubstitution={acceptSubstitution}
-                                onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[xrid] || null} inlineExpanded />
+                                onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[xrid] || null}
+                                onSwapRecipe={swapAndSaveRecipe} swapping={swappingRecipeId === xrid}
+                                inlineExpanded />
                             </div>
                           )}
                         </div>
@@ -2856,7 +2934,9 @@ export default function App() {
                                 customIngredients={customIngredients} onAddCustom={addCustomIngredient} onRemoveCustom={removeCustomIngredient} onRemove={toggleSelectedRecipe}
                                 newIngredientInput={newIngredientInput} onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
                                 preferences={preferences} starredRecipes={starredRecipes} onAcceptSubstitution={acceptSubstitution}
-                                onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[rid] || null} inlineExpanded />
+                                onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[rid] || null}
+                                onSwapRecipe={swapAndSaveRecipe} swapping={swappingRecipeId === rid}
+                                inlineExpanded />
                             </div>
                           )}
                         </div>
