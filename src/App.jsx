@@ -1158,16 +1158,48 @@ export default function App() {
 
     const channel = supabase
       .channel(`hh-${household.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "meal_plan_items",    filter: `household_id=eq.${household.id}` }, loadMealPlan)
+      .on("postgres_changes", { event: "*", schema: "public", table: "meal_plan_items", filter: `household_id=eq.${household.id}` }, (payload) => {
+        loadMealPlan();
+        if (!wasLocalWrite('meal_plan_items')) {
+          const name = payload.new?.recipe_data?.name || payload.old?.recipe_data?.name;
+          if (payload.eventType === 'INSERT' && name) showActivityToast(`${name} added to the plan`);
+          else if (payload.eventType === 'DELETE' && name) showActivityToast(`${name} removed from the plan`);
+          else if (payload.eventType === 'UPDATE') showActivityToast('Meal plan updated');
+        }
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "custom_ingredients", filter: `household_id=eq.${household.id}` }, loadCustomIngredients)
       .on("postgres_changes", { event: "*", schema: "public", table: "cooked_recipes",     filter: `household_id=eq.${household.id}` }, loadCookedRecipes)
-      .on("postgres_changes", { event: "*", schema: "public", table: "shopping_checks",    filter: `household_id=eq.${household.id}` }, loadCheckedItems)
-      .on("postgres_changes", { event: "*", schema: "public", table: "starred_recipes",    filter: `household_id=eq.${household.id}` }, loadStarred)
-      .on("postgres_changes", { event: "*", schema: "public", table: "pantry_items",       filter: `household_id=eq.${household.id}` }, loadPantry)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shopping_checks", filter: `household_id=eq.${household.id}` }, (payload) => {
+        loadCheckedItems();
+        if (!wasLocalWrite('shopping_checks')) {
+          if (payload.eventType === 'INSERT') showActivityToast(`${payload.new?.item_name || 'Item'} checked off`);
+          else if (payload.eventType === 'DELETE') showActivityToast('Shopping list updated');
+        }
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "starred_recipes", filter: `household_id=eq.${household.id}` }, (payload) => {
+        loadStarred();
+        if (!wasLocalWrite('starred_recipes')) {
+          const name = payload.new?.recipe_data?.name || payload.old?.recipe_data?.name;
+          if (payload.eventType === 'INSERT' && name) showActivityToast(`${name} starred`);
+          else if (payload.eventType === 'DELETE' && name) showActivityToast(`${name} unstarred`);
+        }
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "pantry_items", filter: `household_id=eq.${household.id}` }, (payload) => {
+        loadPantry();
+        if (!wasLocalWrite('pantry_items')) {
+          const name = payload.new?.name || payload.old?.name;
+          if (payload.eventType === 'INSERT' && name) showActivityToast(`${name} added to pantry`);
+          else if (payload.eventType === 'DELETE' && name) showActivityToast(`${name} removed from pantry`);
+        }
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "user_recipes",       filter: `household_id=eq.${household.id}` }, loadUserRecipes)
-      .on("postgres_changes", { event: "*", schema: "public", table: "household_members",  filter: `household_id=eq.${household.id}` }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "household_members",  filter: `household_id=eq.${household.id}` }, (payload) => {
         supabase.from('household_members').select('display_name, user_id, personal_prefs').eq('household_id', household.id)
           .then(({ data }) => setHouseholdMembers(data || []));
+        if (!wasLocalWrite('household_members') && payload.eventType === 'INSERT') {
+          const name = payload.new?.display_name;
+          if (name) showActivityToast(`${name} joined the household`);
+        }
       })
       .subscribe();
 
@@ -1478,6 +1510,7 @@ export default function App() {
   async function toggleStar(recipe) {
     const rid = String(recipe.id);
     const isStarred = starredItems.some((s) => s.recipe_id === rid);
+    markLocalWrite('starred_recipes');
     if (isStarred) {
       setStarredItems((prev) => prev.filter((s) => s.recipe_id !== rid));
       await supabase.from("starred_recipes").delete()
@@ -1502,6 +1535,23 @@ export default function App() {
 
   const [basketToast, setBasketToast] = useState(null);
   const basketToastTimer = useRef(null);
+  const activityToastTimer = useRef(null);
+  const localWriteTs = useRef({});
+
+  function markLocalWrite(table) {
+    localWriteTs.current[table] = Date.now();
+  }
+  function wasLocalWrite(table) {
+    const ts = localWriteTs.current[table];
+    return ts && Date.now() - ts < 3000;
+  }
+
+  const [activityToast, setActivityToast] = useState(null);
+  function showActivityToast(message) {
+    clearTimeout(activityToastTimer.current);
+    setActivityToast(message);
+    activityToastTimer.current = setTimeout(() => setActivityToast(null), 5000);
+  }
 
   function showBasketToast(recipeName) {
     clearTimeout(basketToastTimer.current);
@@ -1697,6 +1747,7 @@ export default function App() {
     const rid = String(recipe.id);
     const existing = mealPlanItems.find((i) => i.recipe_id === rid);
     if (existing) {
+      markLocalWrite('meal_plan_items');
       setMealPlanItems((prev) => prev.filter((i) => i.recipe_id !== rid));
       setExpandedRecipes((p) => { const n = { ...p }; delete n[rid]; return n; });
       await supabase.from("meal_plan_items").delete().eq("id", existing.id);
@@ -1718,6 +1769,7 @@ export default function App() {
         if (!ok) return;
       }
     }
+    markLocalWrite('meal_plan_items');
     const recipeData = { ...recipe, _weekStart: recipe._weekStart || viewWeek };
     setMealPlanItems((prev) => [...prev, { id: `optimistic-${rid}`, recipe_id: rid, recipe_data: recipeData }]);
     const { data: inserted } = await supabase.from("meal_plan_items").insert({
@@ -1922,6 +1974,7 @@ export default function App() {
       else next[itemName] = true;
       return next;
     });
+    markLocalWrite('shopping_checks');
     if (wasChecked) {
       await supabase.from("shopping_checks").delete()
         .eq("household_id", household.id).eq("item_name", itemName);
@@ -1941,6 +1994,7 @@ export default function App() {
   }
 
   async function clearCheckedItems() {
+    markLocalWrite('shopping_checks');
     setCheckedItems({});
     supabase.from("shopping_checks").delete().eq("household_id", household.id);
   }
@@ -3194,36 +3248,47 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
-                  {[...shoppingList]
-                    .sort((a, b) => {
-                      const ac = checkedItems[a.name] ? 1 : 0;
-                      const bc = checkedItems[b.name] ? 1 : 0;
-                      return ac - bc || a.name.localeCompare(b.name);
-                    })
-                    .map((item) => {
-                      const checked = !!checkedItems[item.name];
-                      return (
-                        <button key={item.name} onClick={() => !item.inPantry && toggleItem(item.name)}
-                          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
-                          <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                            item.inPantry ? "bg-orange-100 border-orange-200" : checked ? "bg-sage-500 border-sage-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
-                            {(checked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-orange-400" : ""} />}
+                {(() => {
+                  const unchecked = shoppingList.filter((i) => !checkedItems[i.name]).sort((a, b) => a.name.localeCompare(b.name));
+                  const checked   = shoppingList.filter((i) =>  checkedItems[i.name]).sort((a, b) => a.name.localeCompare(b.name));
+                  const renderRow = (item) => {
+                    const isChecked = !!checkedItems[item.name];
+                    return (
+                      <button key={item.name} onClick={() => !item.inPantry && toggleItem(item.name)}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
+                        <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                          item.inPantry ? "bg-orange-100 border-orange-200" : isChecked ? "bg-sage-500 border-sage-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
+                          {(isChecked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-orange-400" : ""} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className={`text-sm font-medium transition-all ${isChecked || item.inPantry ? "line-through text-orange-400" : "text-orange-900"}`}>
+                            {item.name}
+                            {item.isCustom && <span className="ml-1.5 text-xs text-orange-600 font-normal">custom</span>}
+                            {item.inPantry && <span className="ml-1.5 text-xs text-orange-400 font-normal">in pantry</span>}
+                          </span>
+                        </div>
+                        {item.amount && (
+                          <span className={`text-xs flex-shrink-0 ${isChecked ? "text-orange-400" : "text-orange-600"}`}>{item.amount}</span>
+                        )}
+                      </button>
+                    );
+                  };
+                  return (
+                    <>
+                      <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+                        {unchecked.map(renderRow)}
+                      </div>
+                      {checked.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-[11px] font-semibold text-orange-400 uppercase tracking-wide px-1 mb-1.5">In the basket</p>
+                          <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+                            {checked.map(renderRow)}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <span className={`text-sm font-medium transition-all ${checked || item.inPantry ? "line-through text-orange-400" : "text-orange-900"}`}>
-                              {item.name}
-                              {item.isCustom && <span className="ml-1.5 text-xs text-orange-600 font-normal">custom</span>}
-                              {item.inPantry && <span className="ml-1.5 text-xs text-orange-400 font-normal">in pantry</span>}
-                            </span>
-                          </div>
-                          {item.amount && (
-                            <span className={`text-xs flex-shrink-0 ${checked ? "text-orange-400" : "text-orange-600"}`}>{item.amount}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </>
             ) : (
               <div className="text-center py-16 text-orange-400">
@@ -3585,6 +3650,13 @@ export default function App() {
 
       <InstallBanner />
       <UpdateToast />
+      {activityToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-orange-800 text-white rounded-full shadow-warm-lg px-4 py-3 flex items-center gap-2.5 animate-slide-up whitespace-nowrap">
+          <Users size={15} className="flex-shrink-0" />
+          <span className="text-sm font-medium">{activityToast}</span>
+          <button onClick={() => setActivityToast(null)} className="text-white/60 hover:text-white transition ml-1"><X size={14} /></button>
+        </div>
+      )}
       {basketToast && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-orange-900 text-white rounded-full shadow-warm-lg px-4 py-3 flex items-center gap-2.5 animate-slide-up whitespace-nowrap">
           <ShoppingCart size={15} className="flex-shrink-0" />
