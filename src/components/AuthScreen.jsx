@@ -283,7 +283,7 @@ export default function AuthScreen() {
 
             {/* The notebook week — framed inside a minimal app chrome so it
                 reads as "this is the actual app", not just an illustration. */}
-            <div className="rounded-[22px] border border-orange-200 shadow-warm-lg overflow-hidden">
+            <div className="rounded-[22px] shadow-warm-lg overflow-hidden">
               <div className="bg-orange-50/60 border-b border-orange-100 px-4 py-2.5 flex items-center gap-2">
                 <span className="font-display italic text-orange-600 text-xs">Meal Planner</span>
                 <span className="text-orange-400 text-xs">·</span>
