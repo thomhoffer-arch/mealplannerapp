@@ -461,7 +461,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                               <button
                                 onClick={() => swapDay(week.week, day)}
                                 disabled={!(swapInput[key] || '').trim() || swappingKey === key}
-                                className="flex-shrink-0 px-3 py-1.5 bg-orange-600 text-white rounded-xl text-xs font-semibold hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-1"
+                                className="flex-shrink-0 px-3 py-1.5 bg-orange-500 text-white rounded-xl text-xs font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1"
                               >
                                 <Wand2 size={11} />
                                 {swappingKey === key ? '…' : 'Swap'}
