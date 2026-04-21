@@ -105,8 +105,8 @@ automatically re-theme.
 | `orange-200`    | Muted peach — hair-thin dividers, second-tier borders               |
 | `orange-300`    | Soft warm clay — default tile borders, faded labels                 |
 | `orange-400`    | Warm stone — secondary text, placeholders, times, meta labels       |
-| `orange-500`    | Deep rust — brand primary (the "Together" rust from the hero), CTAs |
-| `orange-600`    | Richer rust — hover and pressed states of primary                   |
+| `orange-500`    | Deep rust — brand primary, CTA fills (buttons, pills)               |
+| `orange-600`    | Richer rust — the "Together" hero italic, the one accent for links, active states, italic annotations |
 | `orange-700`    | Dark rust — heavy accents, sign-in link                             |
 | `orange-800`    | Dark warm brown — body copy                                         |
 | `orange-900`    | Near-black with warmth — display type, heading serif                |

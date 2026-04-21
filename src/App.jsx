@@ -322,7 +322,7 @@ function SelectedRecipeCard({
               <button
                 onClick={() => adjustInput.trim() ? adjustRecipe() : generateFullRecipe()}
                 disabled={generating || adjusting}
-                className="flex-shrink-0 px-4 py-2 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-1.5">
+                className="flex-shrink-0 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
                 <Sparkles size={13} />
                 {generating || adjusting ? 'Writing…' : adjustInput.trim() ? 'Apply' : 'Generate'}
               </button>
@@ -393,7 +393,7 @@ function SelectedRecipeCard({
                   className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400"
                 />
                 <button onClick={() => onAddCustom(rid)}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition text-sm font-medium">Add</button>
+                  className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition text-sm font-medium">Add</button>
               </div>
               {customs.length > 0 && (
                 <ul className="mt-2 space-y-1">
@@ -416,7 +416,7 @@ function SelectedRecipeCard({
                   className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
                 />
                 <button onClick={adjustRecipe} disabled={adjusting || !adjustInput.trim()}
-                  className="flex-shrink-0 px-4 py-2 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-1.5">
+                  className="flex-shrink-0 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
                   <PenLine size={13} />
                   {adjusting ? 'Tweaking…' : 'Apply'}
                 </button>
@@ -2016,7 +2016,7 @@ export default function App() {
                 {viewWeek !== currentWeekStart && (
                   <button
                     onClick={() => setViewWeek(currentWeekStart)}
-                    className="text-[11px] text-orange-500 hover:text-orange-700 transition font-medium"
+                    className="text-[11px] text-orange-600 hover:text-orange-900 transition font-medium"
                   >
                     Back to this week
                   </button>
@@ -2184,7 +2184,7 @@ export default function App() {
                       <button onClick={() => setClearWeekConfirm(true)} className="text-[10px] text-orange-200 hover:text-orange-400 transition mt-0.5">Clear week</button>
                     ) : (
                       <span className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[10px] text-orange-500">Remove all?</span>
+                        <span className="text-[10px] text-orange-600">Remove all?</span>
                         <button onClick={clearWeekPlan} className="text-[10px] text-red-500 font-semibold hover:text-red-700 transition">Yes</button>
                         <button onClick={() => setClearWeekConfirm(false)} className="text-[10px] text-orange-400 hover:text-orange-600 transition">No</button>
                       </span>
@@ -2414,19 +2414,19 @@ export default function App() {
                               {!hasBreakfast && (
                                 <button onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'breakfast', ''); }}
                                   disabled={generatingExtra === `${day}-breakfast`}
-                                  className="text-xs text-orange-300 hover:text-orange-500 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1 disabled:opacity-50">
+                                  className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1 disabled:opacity-50">
                                   {generatingExtra === `${day}-breakfast` ? 'Adding…' : '+ Breakfast'}
                                 </button>
                               )}
                               {!hasLunch && (
                                 <button onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'lunch', ''); }}
                                   disabled={generatingExtra === `${day}-lunch`}
-                                  className="text-xs text-orange-300 hover:text-orange-500 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1 disabled:opacity-50">
+                                  className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1 disabled:opacity-50">
                                   {generatingExtra === `${day}-lunch` ? 'Adding…' : '+ Lunch'}
                                 </button>
                               )}
                               <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
-                                className="text-xs text-orange-300 hover:text-orange-500 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">Away</button>
+                                className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">Away</button>
                             </div>
                           )}
 
@@ -2879,7 +2879,7 @@ export default function App() {
                       labelClass = 'text-orange-600 bg-orange-50';
                     } else if (hasGemini) {
                       label = 'Gemini key connected';
-                      labelClass = 'text-orange-500 bg-orange-50';
+                      labelClass = 'text-orange-600 bg-orange-50';
                       upgradeText = 'Connect Puter for unlimited';
                     } else {
                       label = 'Free plan';
@@ -2892,7 +2892,7 @@ export default function App() {
                         {upgradeText && (
                           <button
                             onClick={() => setShowSettings(true)}
-                            className="text-[11px] font-semibold text-orange-500 hover:text-orange-700 transition underline underline-offset-2"
+                            className="text-[11px] font-semibold text-orange-600 hover:text-orange-900 transition underline underline-offset-2"
                           >
                             {upgradeText} →
                           </button>
