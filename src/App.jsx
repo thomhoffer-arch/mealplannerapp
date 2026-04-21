@@ -203,6 +203,7 @@ function SelectedRecipeCard({
 }) {
   const [sharing, setSharing] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareError, setShareError] = useState(null);
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
   const [aiLoading, setAiLoading] = useState(false);
@@ -293,15 +294,16 @@ function SelectedRecipeCard({
                 setShareCopied(true);
                 setTimeout(() => setShareCopied(false), 2000);
               } catch (err) {
-                window.alert(err.message || 'Could not create share link');
+                setShareError(err.message || 'Could not create share link');
+                setTimeout(() => setShareError(null), 4000);
               } finally {
                 setSharing(false);
               }
             }}
             className="ml-auto flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
-            title={shareCopied ? 'Link copied!' : 'Share recipe'}
+            title={shareError ? shareError : shareCopied ? 'Link copied!' : 'Share recipe'}
           >
-            {shareCopied ? <Check size={15} className="text-orange-600" /> : <Link2 size={15} />}
+            {shareError ? <X size={15} className="text-red-400" /> : shareCopied ? <Check size={15} className="text-orange-600" /> : <Link2 size={15} />}
           </button>
         </div>
         {isStub ? (
@@ -712,6 +714,7 @@ export default function App() {
   const [editingHouseholdName, setEditingHouseholdName] = useState(false);
   const [householdNameDraft, setHouseholdNameDraft] = useState('');
   const searchInputRef = useRef(null);
+  const fetchedPhotoIds = useRef(new Set()); // prevents re-fetching on realtime updates
   const [searchQuery, setSearchQuery] = useState("");
   const [recipes, setRecipes] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -732,6 +735,7 @@ export default function App() {
   const [shareOffer, setShareOffer] = useState(null);       // { recipe, stars } after a 4-5★ cook
   const [pantryItems, setPantryItems] = useState([]);      // [{ id, name, amount }]
   const [pantryInput, setPantryInput] = useState("");
+  const [pantryNudge, setPantryNudge] = useState(null);   // { original, amount, suggestions, loading }
   const [templates, setTemplates] = useState([]);          // [{ id, name, recipes }]
   const [templateName, setTemplateName] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -990,6 +994,33 @@ export default function App() {
     setMealPlanItems(data || []);
   }
 
+  // Backfill Pexels photos for any plan item that doesn't have one yet.
+  // Uses a ref to ensure each item is only fetched once per session even if
+  // loadMealPlan is called multiple times via the realtime subscription.
+  useEffect(() => {
+    if (!household) return;
+    mealPlanItems.forEach((item) => {
+      const rd = item.recipe_data;
+      if (!rd || rd._plannerPhoto || rd._notAtHome || rd._isLeftovers) return;
+      const key = item.id || rd.id;
+      if (!key || fetchedPhotoIds.current.has(String(key))) return;
+      if (!rd.name) return;
+      fetchedPhotoIds.current.add(String(key));
+      apiFetch(`/api/photo?name=${encodeURIComponent(rd.name)}`)
+        .then(({ photo }) => {
+          if (!photo) return;
+          const withPhoto = { ...rd, _plannerPhoto: photo };
+          setMealPlanItems((prev) => prev.map((i) =>
+            (i.id === item.id) ? { ...i, recipe_data: withPhoto } : i
+          ));
+          if (item.id && !String(item.id).startsWith('optimistic-')) {
+            supabase.from('meal_plan_items').update({ recipe_data: withPhoto }).eq('id', item.id);
+          }
+        })
+        .catch(() => {});
+    });
+  }, [mealPlanItems, household]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function loadCustomIngredients() {
     const { data } = await supabase
       .from("custom_ingredients").select("*").eq("household_id", household.id);
@@ -1151,10 +1182,44 @@ export default function App() {
     const match = raw.match(/^([\d.]+\s*(?:g|kg|ml|l|tsp|tbsp|cup|cups|oz|lb|pieces?|slices?|handful|pinch)\s*)/i);
     let amount = "", name = raw;
     if (match) { amount = match[0].trim(); name = raw.slice(match[0].length).trim() || raw; }
+
+    // Premium/gifted: ask AI if the name is ambiguous before saving.
+    const hasUnlimitedAi = !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+    if (hasUnlimitedAi && name.split(/\s+/).length <= 2) {
+      setPantryInput("");
+      setPantryNudge({ original: name, amount, suggestions: [], loading: true });
+      try {
+        const data = await apiFetch('/api/ai/normalize-pantry-item', { method: 'POST', body: { name } });
+        if (data.ambiguous && data.alternatives?.length > 0) {
+          setPantryNudge({ original: name, amount, suggestions: [data.canonical, ...data.alternatives], loading: false });
+          return; // wait for user to pick
+        }
+        // Unambiguous — save canonical name directly
+        await savePantryName(data.canonical || name, amount);
+      } catch {
+        // AI unavailable — fall back to raw name
+        await savePantryName(name, amount);
+      } finally {
+        setPantryNudge(null);
+      }
+      return;
+    }
+
+    await savePantryName(name, amount);
+    setPantryInput("");
+  }
+
+  async function savePantryName(name, amount) {
     const tempId = `optimistic-${Date.now()}`;
     setPantryItems((prev) => [...prev, { id: tempId, name, amount }]);
-    setPantryInput("");
     await supabase.from("pantry_items").insert({ household_id: household.id, name, amount });
+  }
+
+  async function confirmPantryNudge(chosenName) {
+    if (!pantryNudge) return;
+    const { amount } = pantryNudge;
+    setPantryNudge(null);
+    await savePantryName(chosenName, amount);
   }
 
   async function removePantryItem(id) {
@@ -1869,15 +1934,17 @@ export default function App() {
                   const url = await shareRecipe(shareOffer.recipe);
                   await navigator.clipboard?.writeText(url);
                   setShareOffer(null);
-                  window.alert('Link copied to clipboard');
                 } catch (err) {
-                  window.alert(err.message || 'Could not create share link');
+                  setShareOffer((o) => o ? { ...o, error: err.message || 'Could not create share link' } : null);
                 }
               }}
               className="w-full py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition mb-2"
             >
               Create share link
             </button>
+            {shareOffer?.error && (
+              <p className="text-xs text-red-500 mt-2 mb-1">{shareOffer.error}</p>
+            )}
             <button onClick={() => setShareOffer(null)}
               className="text-xs text-orange-400 hover:text-orange-600 transition">
               Not this time
@@ -2652,6 +2719,32 @@ export default function App() {
                     </button>
                   </div>
                   <p className="text-xs text-orange-400 mt-2">Items here are skipped (greyed out) in your shopping list.</p>
+                  {pantryNudge && (
+                    <div className="mt-3 p-3 bg-orange-50 rounded-xl border border-orange-200">
+                      {pantryNudge.loading ? (
+                        <p className="text-xs text-orange-400 flex items-center gap-2">
+                          <span className="inline-block w-3 h-3 border-2 border-orange-300 border-t-orange-500 rounded-full animate-spin" />
+                          Checking ingredient…
+                        </p>
+                      ) : (
+                        <>
+                          <p className="text-xs font-medium text-orange-700 mb-2">Which type of <em>{pantryNudge.original}</em>?</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {pantryNudge.suggestions.map((s) => (
+                              <button key={s} onClick={() => confirmPantryNudge(s)}
+                                className="text-xs px-3 py-1 bg-white border border-orange-300 text-orange-700 rounded-full hover:bg-orange-100 transition capitalize">
+                                {s}
+                              </button>
+                            ))}
+                            <button onClick={() => confirmPantryNudge(pantryNudge.original)}
+                              className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 transition">
+                              Keep "{pantryNudge.original}"
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {pantryItems.length > 0 ? (
                   <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
