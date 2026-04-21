@@ -1699,8 +1699,12 @@ export default function App() {
   async function saveHouseholdName() {
     const name = householdNameDraft.trim();
     if (!name || name === household.name) { setEditingHouseholdName(false); return; }
-    await supabase.from('households').update({ name }).eq('id', household.id);
-    setHousehold((h) => ({ ...h, name }));
+    const { error } = await supabase.from('households').update({ name }).eq('id', household.id);
+    if (error) {
+      console.error('[saveHouseholdName]', error.message);
+    } else {
+      setHousehold((h) => ({ ...h, name }));
+    }
     setEditingHouseholdName(false);
   }
 
@@ -1828,6 +1832,7 @@ export default function App() {
         <PreferencesModal
           household={household}
           initialPrefs={preferences}
+          onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
           onClose={() => { setShowPreferences(false); loadPreferences(); }}
         />
       )}
@@ -3004,7 +3009,7 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                  <PreferencesModal household={household} section="settings" inline={true} initialPrefs={preferences} onClose={() => { loadPreferences(); setShowSettings(false); }} />
+                  <PreferencesModal household={household} section="settings" inline={true} initialPrefs={preferences} onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))} onClose={() => { loadPreferences(); setShowSettings(false); }} />
                 </div>
               </div>
             )}
@@ -3147,7 +3152,7 @@ export default function App() {
 
             {/* Dietary wishes — always visible */}
             <div className="bg-white rounded-2xl border border-orange-100 p-4">
-              <PreferencesModal household={household} section="dietary" inline={true} initialPrefs={preferences} onClose={loadPreferences} />
+              <PreferencesModal household={household} section="dietary" inline={true} initialPrefs={preferences} onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))} onClose={loadPreferences} />
             </div>
 
             {/* Data export + account deletion */}
