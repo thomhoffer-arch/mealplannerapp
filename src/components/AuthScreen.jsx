@@ -15,6 +15,7 @@ const TESTIMONIALS = [
     household: 'household of two',
     large: true,
     rotate: '-rotate-[0.5deg]',
+    avatar: 'https://i.pravatar.cc/80?img=47',
   },
   {
     quote: "I starred about twenty recipes in the first week. Now the planner just… knows. The shopping list comes out pre-sorted by aisle, which is honestly ridiculous.",
@@ -23,6 +24,7 @@ const TESTIMONIALS = [
     household: 'three flatmates',
     large: false,
     rotate: 'rotate-[0.7deg]',
+    avatar: 'https://i.pravatar.cc/80?img=12',
   },
   {
     quote: "We had pasta four nights in a row before this. No longer.",
@@ -31,6 +33,7 @@ const TESTIMONIALS = [
     household: 'couple',
     large: false,
     rotate: '-rotate-[0.4deg]',
+    avatar: 'https://i.pravatar.cc/80?img=35',
   },
 ];
 
@@ -339,18 +342,24 @@ export default function AuthScreen() {
               <p className="font-display text-xl sm:text-2xl font-semibold text-orange-900 leading-snug mb-4">
                 "{TESTIMONIALS[0].quote}"
               </p>
-              <p className="font-display italic text-orange-600 text-sm">
-                — {TESTIMONIALS[0].name}, {TESTIMONIALS[0].location} · {TESTIMONIALS[0].household}
-              </p>
+              <div className="flex items-center gap-3">
+                <img src={TESTIMONIALS[0].avatar} alt={TESTIMONIALS[0].name} className="w-9 h-9 rounded-full object-cover flex-shrink-0 border-2 border-orange-100" />
+                <p className="font-display italic text-orange-600 text-sm">
+                  {TESTIMONIALS[0].name}, {TESTIMONIALS[0].location} · {TESTIMONIALS[0].household}
+                </p>
+              </div>
             </blockquote>
 
             <div className="grid sm:grid-cols-2 gap-5 sm:gap-6">
               {TESTIMONIALS.slice(1).map((t) => (
                 <blockquote key={t.name} className={`bg-white rounded-[18px] border border-orange-200 px-6 py-5 shadow-warm ${t.rotate}`}>
                   <p className="text-orange-900/85 text-[15px] leading-relaxed mb-3">"{t.quote}"</p>
-                  <p className="font-display italic text-orange-600 text-xs">
-                    — {t.name}, {t.location} · {t.household}
-                  </p>
+                  <div className="flex items-center gap-2.5">
+                    <img src={t.avatar} alt={t.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0 border-2 border-orange-100" />
+                    <p className="font-display italic text-orange-600 text-xs">
+                      {t.name}, {t.location} · {t.household}
+                    </p>
+                  </div>
                 </blockquote>
               ))}
             </div>
