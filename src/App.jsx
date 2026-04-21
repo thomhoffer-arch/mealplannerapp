@@ -1752,6 +1752,15 @@ export default function App() {
     }
   }
 
+  async function toggleMealSkip(itemId) {
+    setMealPlanItems((prev) => prev.map((item) => {
+      if (item.id !== itemId) return item;
+      const updated = { ...item.recipe_data, _skipped: !item.recipe_data._skipped };
+      supabase.from('meal_plan_items').update({ recipe_data: updated }).eq('id', itemId);
+      return { ...item, recipe_data: updated };
+    }));
+  }
+
   async function saveRating(rid, stars) {
     setRatingPrompt(null);
     setRecipeRatings((prev) => ({ ...prev, [rid]: stars }));
@@ -1893,6 +1902,7 @@ export default function App() {
   const viewRecipeObjects = viewItems
     .filter((i) => {
       if (i.recipe_data?._notAtHome) return false;
+      if (i.recipe_data?._skipped) return false;
       const pd = i.recipe_data?._plannedDay;
       if (!pd) return true;
       return !notAtHomeDaySet.has(String(pd).toLowerCase().slice(0, 3));
@@ -2502,28 +2512,45 @@ export default function App() {
                       const xTime = (xr.prepTime || 0) + (xr.cookTime || 0);
                       const xIsCooked = !!cookedRecipes[xrid];
                       const xExpanded = !!expandedRecipes[xrid];
+                      const xIsSkipped = !!xr._skipped;
                       return (
-                        <div key={xrid} className={`border-b border-orange-50 transition-all ${xIsCooked ? 'bg-sage-100/20' : ''}`}>
+                        <div key={xrid} className={`border-b border-orange-50 transition-all ${xIsCooked ? 'bg-sage-100/20' : ''} ${xIsSkipped ? 'opacity-50' : ''}`}>
                           <div
                             className="flex items-center gap-3 px-4 py-2.5 cursor-pointer"
-                            onClick={() => toggleDayMeal(xrid)}
+                            onClick={() => !xIsSkipped && toggleDayMeal(xrid)}
                           >
                             <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-16 flex-shrink-0">{typeLabel}</span>
-                            {xr._plannerPhoto?.url && (
+                            {xr._plannerPhoto?.url && !xIsSkipped && (
                               <img src={xr._plannerPhoto.thumbnail || xr._plannerPhoto.url} alt={xr._plannerPhoto.alt || xr.name}
                                 loading="lazy" className="w-9 h-9 rounded-[10px] object-cover flex-shrink-0" />
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-semibold leading-snug truncate ${xIsCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>{xr.name}</p>
-                              <p className="text-xs text-orange-400 mt-0.5">{[xTime > 0 ? `${xTime} min` : null, (xr._aiSuggestion || xr._quickEntry) && (!xr.ingredients || !xr.ingredients.length) ? '· tap to fill in' : null].filter(Boolean).join(' ')}</p>
+                              <p className={`text-sm font-semibold leading-snug truncate ${xIsSkipped || xIsCooked ? 'line-through text-orange-300' : 'text-orange-900'}`}>{xr.name}</p>
+                              {!xIsSkipped && <p className="text-xs text-orange-400 mt-0.5">{[xTime > 0 ? `${xTime} min` : null, (xr._aiSuggestion || xr._quickEntry) && (!xr.ingredients || !xr.ingredients.length) ? '· tap to fill in' : null].filter(Boolean).join(' ')}</p>}
+                              {xIsSkipped && <p className="text-xs text-orange-300 mt-0.5 font-display italic">not happening</p>}
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
-                              {xIsCooked && <Check size={14} className="text-sage-500" />}
-                              <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(xr); }} className="text-orange-300 hover:text-red-400 transition p-1"><X size={13} /></button>
-                              {xExpanded ? <ChevronUp size={16} className="text-orange-400" /> : <ChevronDown size={16} className="text-orange-400" />}
+                              {xIsSkipped ? (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); toggleMealSkip(item.id); }}
+                                  className="text-xs text-orange-400 hover:text-orange-600 transition px-2 py-0.5 border border-dashed border-orange-200 hover:border-orange-400 rounded-full">
+                                  Restore
+                                </button>
+                              ) : (
+                                <>
+                                  {xIsCooked && <Check size={14} className="text-sage-500" />}
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleMealSkip(item.id); }}
+                                    className="text-orange-300 hover:text-orange-500 transition p-1" title="Skip this meal">
+                                    <MinusCircle size={13} />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(xr); }} className="text-orange-300 hover:text-red-400 transition p-1"><X size={13} /></button>
+                                  {xExpanded ? <ChevronUp size={16} className="text-orange-400" /> : <ChevronDown size={16} className="text-orange-400" />}
+                                </>
+                              )}
                             </div>
                           </div>
-                          {xExpanded && (
+                          {xExpanded && !xIsSkipped && (
                             <div className="border-t border-orange-50">
                               {(xr._plannerPhoto?.url || xr._plannerReason || xr._plannerLeftoverFor || (xr._plannerUsesPantry || []).length > 0) && (
                                 <div className="bg-orange-50/50 border-b border-orange-100">

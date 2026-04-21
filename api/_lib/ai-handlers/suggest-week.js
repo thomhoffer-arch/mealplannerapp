@@ -242,7 +242,7 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, pl
 
 ---
 
-You plan meals for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinner meals for this household. When the user requests extra meals (breakfast, lunch, etc.) for specific days, include them in the "extras" array for that day.
+You plan meals for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinners, plus any extra meals (breakfast, lunch, snacks) the household has asked for.
 
 HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}
@@ -262,132 +262,79 @@ ${disliked.length ? `  DISLIKED (1-2★): ${disliked.slice(0, 15).join(', ')} �
 
 PANTRY (already on the shelf — prefer recipes that use these to minimise shopping):
 ${pantry.length ? `  ${pantry.slice(0, 30).join(', ')}` : '  (empty)'}
-${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED (standing instructions):\n${planExtrasText}` : ''}
-${thisWeekWishes?.trim() ? `\nTHIS WEEK SPECIFICALLY (one-off wishes — weight these heavily):\n${thisWeekWishes.trim()}` : ''}
+${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED (standing instructions, apply every week):\n${planExtrasText}` : ''}
+${thisWeekWishes?.trim() ? `\nTHIS WEEK SPECIFICALLY (one-off wishes — weight these above everything else):\n${thisWeekWishes.trim()}` : ''}
 ${dayNotesSection ? `\nPER-DAY NOTES:\n${dayNotesSection}` : ''}
-RULES — ordered by priority. Higher rules override lower ones.
 
-P1. HONOUR USER INTENT FROM THIS WEEK'S NOTES — highest priority.
-    Read "THIS WEEK SPECIFICALLY" and "PER-DAY NOTES" carefully and interpret
-    them flexibly — users write casually, not in structured commands. Whatever
-    the household has asked for this week takes precedence over every default below.
-    Apply it precisely — do not soften, approximate or reinterpret the request.
+HOW TO READ USER INPUT
+Users write casually. Read every input for intent, not literal words. Here are examples across the full range of things they ask — use these to reason about inputs you haven't seen before:
 
-    INTERPRETING TIME CONSTRAINTS: extract duration limits from any natural phrasing.
-    Users may write things like a number followed by minutes, phrases about being
-    quick or slow, references to a busy or relaxed day, or general adjectives about
-    effort level. Map these to prep_time + cook_time totals. When they qualify which
-    days (e.g. a group of days, a single named day, or days that share a pattern like
-    work days vs. rest days), apply the limit to exactly those days and no others.
-    "Weekdays" = Monday through Friday inclusive. "Weekends" = Saturday and Sunday.
-    Once you've identified a P1 time limit for a day, discard the P3 default for it.
+  Timing:
+  • "quick meals this week" → keep all dinners under ~30 min total
+  • "long day Monday, keep it easy" → Monday dinner fast; still a dinner
+  • "relaxed Sunday, something special" → Sunday can take up to 90 min
+  • "under 20 min Thursday" → Thursday total ≤ 20 min
 
-    INTERPRETING EXTRA MEALS: when the user asks for a meal that isn't dinner —
-    regardless of how they phrase it — add it to the relevant day's "extras" array
-    with the appropriate meal_type ("breakfast", "lunch", or "snack"). Per-day
-    requests in THIS WEEK SPECIFICALLY and PER-DAY NOTES apply to the named day(s).
-    Standing instructions in EXTRAS THE HOUSEHOLD WANTS PLANNED apply to every
-    applicable day every week — "breakfast on weekends" means populate extras for
-    Saturday and Sunday, "lunch on Monday" means populate extras for Monday.
+  Extra meals (breakfast, lunch, snacks):
+  • "waffles Sunday breakfast" → Sunday: breakfast extra (waffles) + a dinner
+  • "Monday lunch for the kids" → Monday: lunch extra + a dinner
+  • "breakfast on weekends" → Saturday extra + dinner, Sunday extra + dinner
+  • "packed lunch Tuesday" → Tuesday: lunch extra + a dinner
+  Asking for a specific meal never removes other meals for that day unless the user also says they won't be home.
 
-    Requesting an extra meal never removes dinner from that day — both are planned.
-    Examples:
-      • "Sunday waffles for breakfast" → breakfast extra (waffles) + dinner on Sunday
-      • "Monday lunch with leftovers" → lunch extra + dinner on Monday
-      • "breakfast on weekends" → breakfast extra + dinner on Saturday AND Sunday
-    The only exception is when the user also signals they won't be home (see P2).
+  Skipping / not at home:
+  • "not home Wednesday" → Wednesday: skip=true, no dinner, extras=[]
+  • "eating out Saturday" → Saturday: skip=true, extras=[] — standing breakfast extras don't apply
+  • "away Friday evening" → Friday: skip=true
+  • "long commute Thursday, easy dinner" → NOT a skip — plan dinner, just make it fast
 
-    !! CRITICAL — EXTRAS MUST BE IN THE ARRAY, NOT JUST IN "notes" !!
-    A very common failure is writing "I've planned breakfast for Monday" in the
-    "notes" field but leaving Monday's "extras" array empty. This makes the extra
-    meal completely invisible to the user. If an extra meal was requested, it MUST
-    have an entry in "extras" with a real name, overview, meal_type, prep_time,
-    and cook_time. The "notes" field is only for overall plan-level commentary.
-    Before finalising your JSON, re-read every day's "extras" array and confirm
-    that each requested extra appears there — not just in "notes".
+  Dietary / themed days:
+  • "fish day this week" → one day has a fish dinner — any day works, pick what fits
+  • "vegetarian Tuesday" → Tuesday dinner is vegetarian
+  • "meat-free a couple of days" → spread 2 vegetarian dinners across the week, not clustered
 
-    INTERPRETING SIDE DISH REQUESTS: when the user asks for a side dish alongside
-    dinner on specific days — in any wording (a side, an accompaniment, a salad,
-    a vegetable, "something to go with it") — populate that day's "side_dish" field
-    with a suggested side. Only add a side_dish when explicitly requested for that day.
+  Side dishes:
+  • "something on the side Tuesday" → Tuesday gets a side_dish alongside dinner
+  • "salad with the pasta" → the pasta day gets a side_dish
 
-    INTERPRETING ANYTHING ELSE: if the request doesn't fit a clear category, reason
-    about what the household most plausibly wants and honour that spirit. Preference
-    lists, cuisine themes, mood words, ingredient-based requests, portion notes, and
-    "make it lighter/heavier" language all have obvious meanings — use good judgment.
+  Anything else:
+  • "use up the spinach" → one recipe this week uses spinach
+  • "lighter this week" → favour lower-calorie dishes across the week
+  • Ingredient names, cuisine requests, mood words — apply them where they fit most naturally
 
-P2. SKIP DAYS WHEN THE HOUSEHOLD WON'T BE EATING IN.
-    If the notes convey — in any wording — that the household will not be home
-    or will not need home-cooked food on a specific day, set skip=true, name=null,
-    and extras=[] for that day. Standing extras (e.g. "breakfast on weekends") do
-    not apply to a skipped day.
-    Examples:
-      • "Not home Tuesday" → Tuesday: skip=true, extras=[], dinner=null
-      • "Eating out Saturday" → Saturday: skip=true, extras=[] — even if Saturday normally gets a weekend breakfast
-      • "Long day at work Thursday, keep it quick" → NOT a skip — plan a fast dinner (≤ 40 min)
+EXTRAS IN THE ARRAY — A COMMON FAILURE
+When an extra meal is requested, it MUST appear in that day's "extras" array with a real name, meal_type, overview, prep_time and cook_time. Writing it only in "notes" makes it invisible. Check every day before finalising.
 
-P3. COOKING TIME — default limits, only used when P1 specifies nothing for that day.
-    - Mon–Fri (weekdays): total time (prep_time + cook_time) ≤ 40 minutes.
-    - Sat–Sun (weekends): ≤ 90 minutes.
-    These are defaults only. Any P1 time constraint overrides these completely.
+PLANNING PRINCIPLES
 
-P4. DIETARY CONSTRAINTS — two tiers, both mandatory.
-    Tier A — absolute avoids: anything the household says they cannot or will not
-    eat (allergies, ethics, religion, explicit dislikes). Extract every such item
-    from the preferences and exclude it entirely from every dish.
-    Tier B — adaptive diets (gluten-free, dairy-free, vegan, vegetarian, etc.):
-    keep the dish concept, adapt the ingredients. A dietary constraint is never
-    a reason to choose a different dish — it is a reason to reformulate the same
-    dish. Name the adaptation explicitly in the dish title.
+Cooking time defaults (use when the user hasn't said anything about time):
+  Weekdays (Mon–Fri): aim for ~25–40 min total. Weekends: up to ~90 min is fine.
+  These are soft defaults. Any timing the user specifies overrides them.
 
-P5. PRIORITISE STARRED RECIPES.
-    HIGH-priority starred recipes should appear in week 1. Respect the rotation
-    priorities across the week.
+Dietary constraints:
+  Absolute avoids (allergies, ethics, explicit dislikes) — exclude from every dish.
+  Adaptive diets (gluten-free, dairy-free, vegan, etc.) — keep the dish concept, adapt the ingredients, name the adaptation in the title.
 
-P6. VARIETY AND BALANCE.
-    No repeated main ingredient on consecutive days. Different cuisine each day.
-    Reflect the RATINGS HISTORY: lean toward loved patterns, avoid disliked ones.
-    Within a single day, dinner and any extras (breakfast, lunch, snacks) must be
-    meaningfully different — never the same dish concept or the same hero ingredient
-    (e.g. pancakes for breakfast AND pancakes for dinner on the same day is not
-    acceptable). Check every day where extras are planned and ensure the extras and
-    dinner are distinct dishes.
-    When the household requests or favours a specific meal type on certain days
-    (vegetarian day, fish day, etc.), distribute these naturally across the whole
-    week — do not default to placing them on Monday or Tuesday. Any day qualifies.
+Variety:
+  Different main protein and different cuisine each day. No repeated hero ingredient on consecutive days.
+  Dinner and any extras on the same day must be meaningfully different dishes.
+  Spread themed days (fish, vegetarian, etc.) naturally across the week.
 
-P7. PRACTICAL MEAL PLANNING — think waste-first.
-    One "cook once, eat twice" per week where natural. Set leftover_for only
-    if the target meal was already going to be planned anyway (a dinner or an
-    explicitly requested extra). NEVER create an extra meal entry just to give
-    leftover_for somewhere to point — if you want to suggest leftovers, point
-    at a dinner (e.g. "Wednesday dinner") or leave leftover_for null.
-    Favour ingredient reuse across the week. Draw from pantry items where it
-    fits naturally.
+Starred recipes:
+  HIGH-priority starred recipes should appear in week 1. Respect rotation priorities.
 
-    SIDE DISHES: when a day has a side_dish, design it to use an ingredient
-    that is already purchased for another dinner that week (e.g. if spinach
-    appears in Tuesday's curry, a wilted-spinach side on Wednesday costs
-    nothing extra). Note the shared ingredient in the side_dish description.
+Waste-first thinking:
+  One "cook once, eat twice" per week where natural. leftover_for must point at a meal that was already going to be planned — never invent an extras entry just to receive leftovers.
+  Side dishes and extras should reuse ingredients already in the week's plan where possible.
 
-    EXTRA MEALS (breakfast/lunch when requested): when planning an extra,
-    prefer ingredients already in the week's plan. A grain cooked for dinner
-    becomes a grain bowl at lunch; roasted veg becomes a frittata at
-    breakfast. This cuts waste and shopping cost — mention the connection
-    briefly in the extra's reason field.
+Extras only when asked:
+  Every day's "extras" array is [] unless the user explicitly requested a non-dinner meal for that day. Never add breakfast, lunch or snacks on your own initiative.
 
-!! EXTRAS ONLY WHEN EXPLICITLY REQUESTED !!
-    "extras" must be an empty array [] on every day UNLESS the user has
-    explicitly asked for a non-dinner meal on that day via planExtrasText,
-    thisWeekWishes, or dayNotes. Do NOT add breakfast, lunch, or snack entries
-    on your own initiative, even if they would be convenient for leftovers or
-    meal-prep logic. If no extra meal was explicitly requested for a day, its
-    "extras" array must be []. This overrides P7 leftover suggestions.
+Real dishes only:
+  Every suggestion must be a recognisable, real-world dish.
 
-P8. REAL DISHES ONLY.
-    Every suggestion must be a recognisable, real-world dish.
-
-SELF-CHECK BEFORE OUTPUT: For every day, verify (a) any requested extras appear in "extras" with a name/meal_type, NOT only in "notes"; (b) skipped days have skip=true, name=null, AND extras=[]; (c) the week has exactly 7 day entries; (d) every day's "extras" array is [] unless an extra meal was explicitly asked for by the user — leftover logic is NEVER a reason to add an extras entry; (e) every leftover_for value points at a dinner or an already-requested extra, never at a spontaneously invented meal; (f) every day where an extra meal was requested also has a dinner planned (name is non-null) unless the user separately indicated they won't be home for dinner.
+SELF-CHECK BEFORE OUTPUT
+For every day confirm: (a) requested extras are in the "extras" array, not just in "notes"; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) extras=[] on days where no extra was explicitly requested; (e) leftover_for never points at a spontaneously invented meal.
 
 Return ONLY a JSON object, no markdown:
 {
@@ -430,8 +377,6 @@ Return ONLY a JSON object, no markdown:
   "notes": "<2-3 sentences explaining the overall plan shape>"
 }
 
-"extras" is an empty array [] on days with no requested extras. Populate it based on EXTRAS THE HOUSEHOLD WANTS PLANNED (standing instructions — apply to all relevant days every week) and per-day requests in THIS WEEK SPECIFICALLY or PER-DAY NOTES.
-"side_dish" is null on days where no side was requested. Only populate it when the user explicitly asked for a side dish on that day.
-
-Each week must have exactly 7 day entries (Monday through Sunday). Skipped days still appear with skip=true and name=null.${numWeeks === 2 ? ' Return exactly 2 week objects.' : ' Return exactly 1 week object.'}`;
+"extras" is [] on days with no requested extras. "side_dish" is null unless a side was requested for that day.
+Each week must have exactly 7 day entries (Monday through Sunday). Skipped days appear with skip=true and name=null.${numWeeks === 2 ? ' Return exactly 2 week objects.' : ' Return exactly 1 week object.'}`;
 }
