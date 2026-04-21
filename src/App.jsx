@@ -139,6 +139,32 @@ function normalizeIngredientName(name) {
   return name.replace(/\s*\([^)]*\)/g, '').trim();
 }
 
+// Tokens stripped from the END of an ingredient name when building the dedup key.
+// "garlic cloves" → "garlic", "herb sprigs" → "herb".
+const _FORM_TOKENS = new Set([
+  'clove','cloves','bulb','bulbs','flake','flakes',
+  'leaf','leaves','stalk','stalks','sprig','sprigs','whole',
+]);
+// Tokens stripped from the START of an ingredient name when building the dedup key.
+// "fresh parsley" → "parsley", "frozen peas" → "peas".
+const _QUAL_TOKENS = new Set(['fresh','dried','frozen','canned','tinned','organic','raw']);
+
+function ingredientKey(rawName) {
+  // For "X or Y" alternatives take the first option
+  let n = rawName.split(/ or /i)[0].trim();
+  n = normalizeIngredientName(n);
+  // For keying strip everything after a comma ("garlic, whole cloves" → "garlic")
+  const ci = n.indexOf(',');
+  if (ci > 0) n = n.slice(0, ci).trim();
+  n = n.toLowerCase();
+  const parts = n.split(/\s+/).filter(Boolean);
+  // "garlic cloves" → "garlic"
+  while (parts.length > 1 && _FORM_TOKENS.has(parts[parts.length - 1])) parts.pop();
+  // "fresh parsley" → "parsley"
+  while (parts.length > 1 && _QUAL_TOKENS.has(parts[0])) parts.shift();
+  return parts.join(' ');
+}
+
 const _FRACS = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1/3, '⅔': 2/3, '⅛': 0.125 };
 const _NUM_RE = /^([\d½¼¾⅓⅔⅛][^a-zA-Z]*?)\s*([a-zA-Z]+\.?)?$/;
 function mergeAmounts(rawAmounts) {
@@ -180,25 +206,26 @@ function mergeAmounts(rawAmounts) {
 
 function consolidateIngredients(selectedRecipes, customIngredients) {
   const items = {};
+
+  const add = (rawName, amount, extra = {}) => {
+    const key = ingredientKey(rawName);
+    if (!key || key.startsWith('leftover')) return;
+    if (items[key]) {
+      items[key].amounts.push(amount);
+    } else {
+      // Display name: first alternative, normalized
+      const displayName = normalizeIngredientName(rawName.split(/ or /i)[0].trim());
+      items[key] = { name: displayName, amounts: [amount], ...extra };
+    }
+  };
+
   selectedRecipes.forEach((recipe) => {
     const rid = String(recipe.id);
-    (recipe.ingredients || []).forEach(({ name: rawName, amount }) => {
-      const name = normalizeIngredientName(rawName);
-      const key = name.toLowerCase().trim();
-      if (items[key]) items[key].amounts.push(amount);
-      else items[key] = { name, amounts: [amount] };
-    });
-    (recipe._sideDish?.ingredients || []).forEach(({ name, amount }) => {
-      const key = name.toLowerCase().trim();
-      if (items[key]) items[key].amounts.push(amount || '');
-      else items[key] = { name, amounts: [amount || ''], isSide: true };
-    });
-    (customIngredients[rid] || []).forEach(({ name, amount }) => {
-      const key = name.toLowerCase().trim();
-      if (items[key]) items[key].amounts.push(amount || "");
-      else items[key] = { name, amounts: [amount || ""], isCustom: true };
-    });
+    (recipe.ingredients || []).forEach(({ name: rawName, amount }) => add(rawName, amount));
+    (recipe._sideDish?.ingredients || []).forEach(({ name, amount }) => add(name, amount || ''));
+    (customIngredients[rid] || []).forEach(({ name, amount }) => add(name, amount || '', { isCustom: true }));
   });
+
   return Object.values(items).map((item) => ({
     name: item.name,
     amount: mergeAmounts(item.amounts),
@@ -296,6 +323,7 @@ function SelectedRecipeCard({
   const [shareCopied, setShareCopied] = useState(false);
   const [shareError, setShareError] = useState(null);
   const [showAllergens, setShowAllergens] = useState(false);
+  const [ingOpen, setIngOpen] = useState(true);
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
   const detectedAllergens = detectAllergens([...(recipe.ingredients || []), ...customs]);
@@ -462,6 +490,27 @@ function SelectedRecipeCard({
                     <p className="text-xs text-orange-400">{label}</p>
                   </div>
                 ))}
+              </div>
+            )}
+            {/* Ingredients — 2-column grid, toggled by clicking header */}
+            {(recipe.ingredients || []).length > 0 && (
+              <div>
+                <button
+                  onClick={() => setIngOpen((v) => !v)}
+                  className="flex items-center w-full text-left gap-1 text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2"
+                >
+                  Ingredients
+                  <ChevronDown size={12} className={`ml-auto transition-transform duration-150 ${ingOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {ingOpen && (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {recipe.ingredients.map((ing, i) => (
+                      <p key={i} className="text-xs text-orange-800 leading-snug">
+                        {ing.amount && <span className="font-medium text-orange-900">{ing.amount} </span>}{ing.name}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             {/* Steps */}
@@ -1661,6 +1710,29 @@ export default function App() {
         })
         .catch(() => {});
     }
+    // Background full-recipe generation for AI stubs added to an existing plan
+    if (recipe._aiSuggestion && !(recipe.ingredients?.length)) {
+      const dbRowId = inserted?.id;
+      (async () => {
+        try {
+          const data = await apiFetch('/api/ai/generate-recipe', { method: 'POST', body: { recipe } });
+          const enriched = {
+            ...recipeData,
+            ingredients: data.ingredients || [],
+            steps: data.steps || [],
+            prepTime: data.prepTime || recipeData.prepTime,
+            cookTime: data.cookTime || recipeData.cookTime,
+            macros: data.macros || {},
+          };
+          setMealPlanItems((prev) => prev.map((i) =>
+            i.recipe_id === rid ? { ...i, recipe_data: enriched } : i
+          ));
+          if (dbRowId) supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbRowId);
+        } catch (err) {
+          console.error('[bg-generate-single]', err.message);
+        }
+      })();
+    }
   }
 
   // When search was launched from a specific day slot, assign the recipe to that day
@@ -2098,6 +2170,7 @@ export default function App() {
         <WeekSuggestModal
           household={household}
           planExtrasText={planExtrasText}
+          preferences={preferences}
           onClose={() => setShowWeekSuggest(false)}
           onLoadPlan={async (recipes) => {
             setShowEmptyGrid(false);
@@ -2507,7 +2580,9 @@ export default function App() {
                   </div>
                 </div>
 
-                {viewItems.length > 0 && <WeeklyNutritionCard recipes={viewItems.map((i) => i.recipe_data)} />}
+                {viewItems.length > 0 && preferences.show_weekly_macros !== false && (
+                  <WeeklyNutritionCard recipes={viewItems.map((i) => i.recipe_data)} />
+                )}
 
                 {/* Day-by-day calendar */}
                 <div className="space-y-3">

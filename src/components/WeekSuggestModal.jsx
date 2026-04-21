@@ -66,7 +66,8 @@ function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor,
   );
 }
 
-export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText }) {
+export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences }) {
+  const hasDealsAccess = !!(preferences?.is_gifted || preferences?.gemini_api_key_hint);
   const [numWeeks, setNumWeeks]         = useState(1);
   const [loading, setLoading]           = useState(false);
   const [plan, setPlan]                 = useState(null);
@@ -292,8 +293,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             onChange={(e) => setThisWeekWishes(e.target.value)}
             className="w-full text-xs border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
           />
-          {/* Budget + simple night row */}
-          <div className="flex items-center gap-3 flex-wrap">
+          {/* Budget + simple night + deals row */}
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-orange-600">€</span>
               <input
@@ -316,51 +317,53 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             >
               {simpleNight ? '✓ ' : ''}Easy night
             </button>
+            <button
+              type="button"
+              onClick={hasDealsAccess ? fetchDeals : undefined}
+              disabled={dealsLoading || !hasDealsAccess}
+              title={!hasDealsAccess ? 'Requires your own Gemini API key — add one in Settings' : undefined}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition ${
+                !hasDealsAccess
+                  ? 'border-orange-100 text-orange-300 cursor-not-allowed'
+                  : deals.length
+                    ? 'bg-green-50 border-green-300 text-green-700 hover:border-green-400'
+                    : 'border-orange-200 text-orange-600 hover:border-orange-400 disabled:opacity-50'
+              }`}
+            >
+              <Tag size={12} />
+              {dealsLoading ? 'Finding deals…' : deals.length ? 'Refresh deals' : 'This week\'s deals'}
+            </button>
+            {dealsError && <span className="text-[11px] text-red-400">{dealsError}</span>}
           </div>
 
-          {/* Deals row — premium, Gemini key required */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={fetchDeals}
-                disabled={dealsLoading}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-orange-200 text-orange-600 hover:border-orange-400 transition disabled:opacity-50"
-              >
-                <Tag size={12} />
-                {dealsLoading ? 'Finding deals…' : deals.length ? 'Refresh deals' : 'Include this week\'s deals'}
-              </button>
-              {dealsError && <span className="text-[11px] text-red-400">{dealsError}</span>}
+          {deals.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {deals.map((deal, i) => (
+                <span key={i} className="flex items-center gap-1 text-[11px] bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full">
+                  {deal.item}{deal.price ? ` · ${deal.price}` : ''}
+                  <button
+                    type="button"
+                    onClick={() => setDeals((prev) => prev.filter((_, j) => j !== i))}
+                    className="text-green-400 hover:text-green-700 transition ml-0.5 flex-shrink-0"
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
             </div>
-            {deals.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {deals.map((deal, i) => (
-                  <span key={i} className="flex items-center gap-1 text-[11px] bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full">
-                    {deal.item}{deal.price ? ` · ${deal.price}` : ''}
-                    <button
-                      type="button"
-                      onClick={() => setDeals((prev) => prev.filter((_, j) => j !== i))}
-                      className="text-green-400 hover:text-green-700 transition ml-0.5 flex-shrink-0"
-                    >
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* Content area */}
-        <div className="flex-1 flex flex-col min-h-0">
+        {/* Content area — scrolls vertically so cards expand to their full height */}
+        <div className="flex-1 overflow-y-auto">
           {error && (
-            <div className="px-5 pt-2 flex-shrink-0">
+            <div className="px-5 pt-2">
               <div className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</div>
             </div>
           )}
 
           {loading && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <div className="flex flex-col items-center justify-center gap-3 py-20">
               <div className="w-8 h-8 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
               <p className="text-sm text-orange-600">Planning your week…</p>
               <p className="text-xs text-orange-400">Checking preferences and starred recipes</p>
@@ -368,7 +371,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           )}
 
           {!loading && !plan && !error && (
-            <div className="flex-1 flex flex-col items-center justify-center px-5 text-center">
+            <div className="flex flex-col items-center justify-center px-5 text-center py-20">
               <Sparkles size={40} className="mx-auto mb-3 text-orange-400" />
               <p className="text-sm text-orange-600 font-medium">AI plans a varied week for you</p>
               <p className="text-xs text-orange-400 mt-1 leading-relaxed">Based on your preferences and starred recipes — no pasta two days in a row.</p>
@@ -376,15 +379,15 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           )}
 
           {plan && !loading && (
-            <div className="flex-1 flex flex-col min-h-0">
+            <div>
           {plan.map((week) => (
-            <div key={week.week} className="flex-1 flex flex-col min-h-0 -mx-5">
+            <div key={week.week} className="mb-4">
               {plan.length > 1 && (
-                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2 px-5 flex-shrink-0">Week {week.week}</p>
+                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2 px-5">Week {week.week}</p>
               )}
 
-              {/* Horizontal carousel — one day per swipe */}
-              <div className="flex-1 min-h-0 flex gap-3 overflow-x-auto overflow-y-hidden snap-x snap-mandatory px-5 scroll-px-5 pb-3 scrollbar-hide">
+              {/* Horizontal carousel — cards align with the controls above */}
+              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory px-5 scroll-px-5 pb-3 scrollbar-hide">
                 {week.days.map((day) => {
                   const key = `${week.week}-${day.day}`;
                   const isSelected = !!selected[key];
@@ -423,7 +426,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                     <div
                       key={day.day}
                       id={`plan-day-${week.week}-${day.day}`}
-                      className={`flex-shrink-0 w-full snap-start rounded-2xl border-2 overflow-hidden flex flex-col bg-white transition ${
+                      className={`flex-shrink-0 w-full snap-start rounded-2xl border-2 overflow-hidden bg-white transition ${
                         isSelected ? 'border-orange-400' : 'border-orange-100 opacity-75'
                       }`}
                     >
@@ -465,7 +468,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         </div>
                       )}
 
-                      <div className="flex-1 min-h-0 overflow-y-auto">
+                      <div>
 
                         {/* Selection toggle + source badges */}
                         <div className="flex items-center gap-2 px-4 pt-3 pb-2">
@@ -611,21 +614,21 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             </div>
           ))}
 
-              {/* AI planner notes */}
-              {notes && (
-                <div className="px-5 py-2 flex-shrink-0">
-                  <button
-                    onClick={() => setShowNotes((v) => !v)}
-                    className="flex items-center gap-1 text-xs text-orange-600 font-medium hover:text-orange-900 transition"
-                  >
-                    {showNotes ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                    Planner notes
-                  </button>
-                  {showNotes && (
-                    <p className="text-xs text-orange-600 bg-orange-50 rounded-xl px-3 py-2 mt-1 leading-relaxed">{notes}</p>
-                  )}
-                </div>
+          {/* AI planner notes */}
+          {notes && (
+            <div className="px-5 py-2">
+              <button
+                onClick={() => setShowNotes((v) => !v)}
+                className="flex items-center gap-1 text-xs text-orange-600 font-medium hover:text-orange-900 transition"
+              >
+                {showNotes ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                Planner notes
+              </button>
+              {showNotes && (
+                <p className="text-xs text-orange-600 bg-orange-50 rounded-xl px-3 py-2 mt-1 leading-relaxed">{notes}</p>
               )}
+            </div>
+          )}
             </div>
           )}
         </div>
