@@ -2948,7 +2948,7 @@ export default function App() {
                     } else {
                       label = 'Free plan';
                       labelClass = 'text-orange-400 bg-orange-50';
-                      upgradeText = 'Add an AI key for more';
+                      upgradeText = 'Upgrade for more';
                     }
                     return (
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
