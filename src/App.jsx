@@ -567,30 +567,6 @@ function SelectedRecipeCard({
                 )}
               </div>
             )}
-            {/* Custom ingredients */}
-            <div>
-              <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2">Add Extra Ingredients</p>
-              <div className="flex gap-2">
-                <input type="text" placeholder="e.g. 100g breadcrumbs"
-                  value={newIngredientInput[rid] || ""}
-                  onChange={(e) => onInputChange(rid, e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && onAddCustom(rid)}
-                  className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400"
-                />
-                <button onClick={() => onAddCustom(rid)}
-                  className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition text-sm font-medium">Add</button>
-              </div>
-              {customs.length > 0 && (
-                <ul className="mt-2 space-y-1">
-                  {customs.map((c) => (
-                    <li key={c.id} className="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2">
-                      <span className="text-sm text-orange-600">{c.amount ? `${c.amount} ${c.name}` : c.name}</span>
-                      <button onClick={() => onRemoveCustom(rid, c.id)} className="text-orange-600 hover:text-red-500 transition ml-2"><X size={14} /></button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
             {/* Tweak */}
             <div>
               <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2">Tweak this recipe</p>
@@ -756,41 +732,6 @@ function SelectedRecipeCard({
             </div>
           )}
 
-          {/* Custom ingredients */}
-          <div>
-            <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Add Extra Ingredients</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="e.g. 100g breadcrumbs"
-                value={newIngredientInput[rid] || ""}
-                onChange={(e) => onInputChange(rid, e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && onAddCustom(rid)}
-                className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400"
-              />
-              <button
-                onClick={() => onAddCustom(rid)}
-                className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition text-sm font-medium"
-              >
-                Add
-              </button>
-            </div>
-            {customs.length > 0 && (
-              <ul className="mt-2 space-y-1">
-                {customs.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2">
-                    <span className="text-sm text-orange-600">{c.amount ? `${c.amount} ${c.name}` : c.name}</span>
-                    <button
-                      onClick={() => onRemoveCustom(rid, c.id)}
-                      className="text-orange-600 hover:text-red-500 transition ml-2"
-                    >
-                      <X size={14} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
 
           {/* AI adaptation */}
           <div className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4">
