@@ -190,6 +190,7 @@ async function _handler(req, res) {
         reason: day.reason || '',
         leftover_for: day.leftover_for || null,
         uses_pantry: Array.isArray(day.uses_pantry) ? day.uses_pantry : [],
+        estimated_cost: weekly_budget ? (day.estimated_cost || null) : null,
         extras,
       };
     }),
@@ -211,6 +212,10 @@ async function _handler(req, res) {
 
   res.json({ weeks: enrichedWeeks, notes: plan.notes || '' });
 }
+
+// Basics assumed in every kitchen — exclude from the pantry hint so the AI
+// focuses on actual special ingredients the household has stocked.
+const _isKitchenBasic = (name) => /\boil\b|\bsalt\b|\bpepper\b|\bwater\b/i.test(name);
 
 function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = []) {
   let starredSection = '';
@@ -238,6 +243,10 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, pl
     })
     .join('\n');
 
+  // Filter out universal kitchen basics (oil, salt, pepper, water) — they're
+  // assumed in every household and don't meaningfully inform recipe choice.
+  const pantryFiltered = pantry.filter((p) => !_isKitchenBasic(p));
+
   return `${VOICE_GUIDE}
 
 ---
@@ -260,10 +269,10 @@ RATINGS HISTORY — what this household actually liked when they cooked it:
 ${loved.length ? `  LOVED (4-5★): ${loved.slice(0, 15).join(', ')}` : '  (no high ratings recorded yet)'}
 ${disliked.length ? `  DISLIKED (1-2★): ${disliked.slice(0, 15).join(', ')} — avoid these patterns` : ''}
 
-PANTRY (already on the shelf — prefer recipes that use these to minimise shopping):
-${pantry.length ? `  ${pantry.slice(0, 30).join(', ')}` : '  (empty)'}
+PANTRY (special ingredients already on the shelf — prefer recipes that use these):
+${pantryFiltered.length ? `  ${pantryFiltered.slice(0, 30).join(', ')}` : '  (nothing special on the shelf)'}
 ${deals.length ? `\nDEALS THIS WEEK (items on offer at local supermarkets — prioritise these ingredients where they fit):\n  ${deals.map((d) => `${d.item}${d.store ? ` (${d.store})` : ''}${d.price ? ` ${d.price}` : ''}`).join(', ')}` : ''}
-${weeklyBudget ? `\nWEEKLY BUDGET: €${weeklyBudget} — keep the shopping list affordable; favour seasonal produce, cheaper cuts, and pulses where possible.` : ''}
+${weeklyBudget ? `\nWEEKLY BUDGET: €${weeklyBudget} — keep the shopping list affordable; favour seasonal produce, cheaper cuts, and pulses where possible. Include an estimated_cost for each dinner (rough ingredient cost, e.g. "€6–9").` : ''}
 ${simpleNight ? `\nEASY NIGHT: include one night this week where dinner is genuinely minimal effort — a good supermarket pizza, assembled wraps, beans on toast, or similar. Mark the reason as "easy night" for that day.` : ''}
 ${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED (standing instructions, apply every week):\n${planExtrasText}` : ''}
 ${thisWeekWishes?.trim() ? `\nTHIS WEEK SPECIFICALLY (one-off wishes — weight these above everything else):\n${thisWeekWishes.trim()}` : ''}
@@ -273,9 +282,9 @@ HOW TO READ USER INPUT
 Users write casually. Read every input for intent, not literal words. Here are examples across the full range of things they ask — use these to reason about inputs you haven't seen before:
 
   Timing:
-  • "quick meals this week" → keep all dinners under ~30 min total
+  • "quick meals this week" → keep all dinners short (think: 30 min or so)
   • "long day Monday, keep it easy" → Monday dinner fast; still a dinner
-  • "relaxed Sunday, something special" → Sunday can take up to 90 min
+  • "relaxed Sunday, something special" → Sunday can take as long as needed
   • "under 20 min Thursday" → Thursday total ≤ 20 min
 
   Extra meals (breakfast, lunch, snacks):
@@ -310,20 +319,18 @@ When an extra meal is requested, it MUST appear in that day's "extras" array wit
 
 PLANNING PRINCIPLES
 
-Cooking time defaults (use when the user hasn't said anything about time):
-  Weekdays (Mon–Fri): aim for ~25–40 min total. Weekends: up to ~90 min is fine.
-  These are soft defaults. Any timing the user specifies overrides them.
+Cooking time — read the day and context:
+  Weeknights are busier for most households — something in the 30–40 min range tends to work. Weekends allow more space — an hour or more is fine. These are patterns, not rules. A user who says "I love slow cooking on Thursdays" overrides any default. Always let explicit instructions win; fall back on the day-of-week pattern only when nothing is said.
 
 Dietary constraints:
   Absolute avoids (allergies, ethics, explicit dislikes) — exclude from every dish.
   Adaptive diets (gluten-free, dairy-free, vegan, etc.) — keep the dish concept, adapt the ingredients, name the adaptation in the title.
 
-Variety:
-  Different main protein AND different cuisine each day. No repeated hero ingredient on consecutive days.
-  This includes breakfast ingredients — if Tuesday has eggs, Wednesday cannot also feature eggs as the hero.
-  Examples of hero ingredients: eggs, chicken, beef, salmon, pasta, lentils, tofu, shrimp.
-  Dinner and any extras on the same day must be meaningfully different dishes.
-  Spread themed days (fish, vegetarian, etc.) naturally across the week.
+Variety — applies across ALL meals chosen in the plan:
+  Look at every dinner, breakfast, lunch, and snack together. No hero ingredient should appear in two meals that are close together — not just dinner vs dinner, but across all meal types on nearby days.
+  Examples of hero ingredients: eggs, chicken, beef, salmon, pasta, lentils, tofu, shrimp, pork.
+  A dinner and an extra on the same day must be meaningfully different from each other.
+  Vary cuisines across the week. Spread themed days (fish, vegetarian, etc.) naturally.
 
 Starred recipes:
   HIGH-priority starred recipes should appear in week 1. Respect rotation priorities.
@@ -361,7 +368,7 @@ Return ONLY a JSON object, no markdown:
           "cook_time": <minutes or null>,
           "reason": "<one short sentence: why this dish, this day>",
           "leftover_for": "<e.g. 'Tuesday lunch', or null>",
-          "uses_pantry": ["<pantry item this recipe uses>"],
+          "uses_pantry": ["<pantry item this recipe uses>"],${weeklyBudget ? '\n          "estimated_cost": "<rough ingredient cost for this dinner, e.g. \'€6–9\'>,"' : ''}
           "side_dish": {
             "name": "<side dish name or null>",
             "description": "<one sentence or null>",

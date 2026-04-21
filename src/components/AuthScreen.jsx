@@ -214,7 +214,15 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
           window.history.replaceState({}, '', window.location.pathname);
         }
       } else {
-        const { data: { user, session }, error: authError } = await supabase.auth.signUp({ email, password });
+        const { data: { user, session }, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            // Redirect the confirmation link back to this app, regardless of
+            // what Site URL is configured in the Supabase dashboard.
+            emailRedirectTo: window.location.origin,
+          },
+        });
         if (authError) throw authError;
         if (!session) {
           // Email confirmation required — no active session yet.

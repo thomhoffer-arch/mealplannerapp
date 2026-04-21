@@ -14,9 +14,9 @@ All prompts start with the **VOICE GUIDE** (`api/_lib/voice.js`) prepended, unle
 - Starred recipes with rotation priority (HIGH / MEDIUM / OCCASIONAL)
 - Recently eaten recipes (last 10, to avoid repeats)
 - Rating history: loved (4–5★) and disliked (1–2★) dish names
-- Pantry items (prefer recipes that use these)
+- Pantry items — **kitchen basics (oil, salt, pepper, water) are filtered out** before passing; only meaningful stocked ingredients are included
 - This week's supermarket deals (optional, requires own Gemini key)
-- Weekly budget (optional)
+- Weekly budget (optional) — when set, AI also estimates ingredient cost per dinner
 - "Easy night" flag (one genuinely simple dinner)
 - Standing extras text (breakfast/lunch/snacks the household always wants)
 - One-off wishes for this specific week
@@ -24,7 +24,9 @@ All prompts start with the **VOICE GUIDE** (`api/_lib/voice.js`) prepended, unle
 - Number of weeks (1 or 2)
 
 **Key planning rules:**
-- Different main protein AND cuisine each day; no repeated hero ingredient on consecutive days (applies to breakfast extras too)
+- No repeated hero ingredient across **all meals in the plan** — dinners, breakfasts, lunches, and snacks counted together, not just dinner-vs-dinner
+- Examples of hero ingredients: eggs, chicken, beef, salmon, pasta, lentils, tofu, shrimp, pork
+- Cooking time is a **pattern, not a rule**: weeknights tend to suit shorter meals (≈30–40 min); weekends allow more space (an hour+). Explicit user instructions always win.
 - One "cook once, eat twice" per week; leftovers can land 1–2 days later, not forced next-day
 - Extras (breakfast/lunch/snacks) only when there is a clear signal: explicit request, standing instruction, or strong pattern in preferences — never invented
 - HIGH-priority starred recipes appear in week 1
@@ -46,6 +48,7 @@ All prompts start with the **VOICE GUIDE** (`api/_lib/voice.js`) prepended, unle
       "reason": "<one sentence: why this dish today>",
       "leftover_for": "<e.g. 'Tuesday lunch' or null>",
       "uses_pantry": ["<pantry items used>"],
+      "estimated_cost": "<rough ingredient cost e.g. '€6–9' — only present when weekly budget is set>",
       "side_dish": {
         "name": "<side or null>",
         "description": "<one sentence>",
@@ -71,7 +74,7 @@ All prompts start with the **VOICE GUIDE** (`api/_lib/voice.js`) prepended, unle
 
 ## 2. Single-Day Regeneration — `api/_lib/ai-handlers/regenerate-day.js`
 
-**Trigger:** User types a swap request in the text field under a day card (or taps "Another" for a fresh suggestion).
+**Trigger:** User types a swap request in the text field under a day card (or taps "Different dish" for a completely new suggestion).
 
 **Context injected:** Same household context as the week planner (preferences, starred, ratings, pantry, members). Plus:
 - Current recipe name for the day
@@ -82,7 +85,7 @@ All prompts start with the **VOICE GUIDE** (`api/_lib/voice.js`) prepended, unle
 **Key rules — ordered by priority:**
 1. **Honour the request precisely.** Deliver exactly what was asked for.
 2. **Adapt, don't replace** — if the request is additive ("add carbs", "make it heartier") or dietary ("dairy-free"), keep the dish concept and reformulate.
-3. **Cooking time** — weekdays ≤ 40 min, Friday ≤ 50 min, weekends ≤ 90 min; user request overrides.
+3. **Cooking time** — a pattern, not a rule: weeknights tend to suit shorter meals, weekends allow more. Explicit user instructions always override. Examples: weeknights ≈30–40 min, Fridays ≈45–50 min, weekends an hour or more.
 4. **No duplication** with other days this week.
 
 **Output schema:**

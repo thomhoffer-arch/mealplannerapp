@@ -82,11 +82,11 @@ export default async function handleRegenerateDay(req, res) {
   const isMealType = !!meal_type && meal_type !== 'dinner';
   const mealLabel = meal_type || 'dinner';
   const timeRule = isMealType
-    ? `${mealLabel}: keep it simple and quick — total time (prep + cook) ≤ 20 minutes.`
+    ? `${mealLabel}: keep it simple and quick — something around 20 minutes or less tends to work well.`
     : ['Monday','Tuesday','Wednesday','Thursday'].includes(day_name)
-      ? 'weekday: total time (prep + cook) must stay at or under 40 minutes.'
-      : day_name === 'Friday' ? 'Friday: aim for under 50 minutes.'
-      : 'weekend: up to 90 minutes is fine.';
+      ? 'weekday: most households are busier on weeknights — something in the 30–40 min range is a reasonable guide, not a hard limit.'
+      : day_name === 'Friday' ? 'Friday: a bit more flexibility than a weeknight — around 45–50 min is typical, but follow the user\'s lead.'
+      : 'weekend: more time is usually available — an hour or more is fine.';
 
   const taskLine = isMealType
     ? `Suggest a ${mealLabel} for ${day_name}.${change_request?.trim() ? ` Household preference: "${change_request.trim()}"` : ''}`
