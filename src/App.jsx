@@ -3248,36 +3248,47 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
-                  {[...shoppingList]
-                    .sort((a, b) => {
-                      const ac = checkedItems[a.name] ? 1 : 0;
-                      const bc = checkedItems[b.name] ? 1 : 0;
-                      return ac - bc || a.name.localeCompare(b.name);
-                    })
-                    .map((item) => {
-                      const checked = !!checkedItems[item.name];
-                      return (
-                        <button key={item.name} onClick={() => !item.inPantry && toggleItem(item.name)}
-                          className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
-                          <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                            item.inPantry ? "bg-orange-100 border-orange-200" : checked ? "bg-sage-500 border-sage-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
-                            {(checked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-orange-400" : ""} />}
+                {(() => {
+                  const unchecked = shoppingList.filter((i) => !checkedItems[i.name]).sort((a, b) => a.name.localeCompare(b.name));
+                  const checked   = shoppingList.filter((i) =>  checkedItems[i.name]).sort((a, b) => a.name.localeCompare(b.name));
+                  const renderRow = (item) => {
+                    const isChecked = !!checkedItems[item.name];
+                    return (
+                      <button key={item.name} onClick={() => !item.inPantry && toggleItem(item.name)}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
+                        <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                          item.inPantry ? "bg-orange-100 border-orange-200" : isChecked ? "bg-sage-500 border-sage-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
+                          {(isChecked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-orange-400" : ""} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className={`text-sm font-medium transition-all ${isChecked || item.inPantry ? "line-through text-orange-400" : "text-orange-900"}`}>
+                            {item.name}
+                            {item.isCustom && <span className="ml-1.5 text-xs text-orange-600 font-normal">custom</span>}
+                            {item.inPantry && <span className="ml-1.5 text-xs text-orange-400 font-normal">in pantry</span>}
+                          </span>
+                        </div>
+                        {item.amount && (
+                          <span className={`text-xs flex-shrink-0 ${isChecked ? "text-orange-400" : "text-orange-600"}`}>{item.amount}</span>
+                        )}
+                      </button>
+                    );
+                  };
+                  return (
+                    <>
+                      <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+                        {unchecked.map(renderRow)}
+                      </div>
+                      {checked.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-[11px] font-semibold text-orange-400 uppercase tracking-wide px-1 mb-1.5">In the basket</p>
+                          <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+                            {checked.map(renderRow)}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <span className={`text-sm font-medium transition-all ${checked || item.inPantry ? "line-through text-orange-400" : "text-orange-900"}`}>
-                              {item.name}
-                              {item.isCustom && <span className="ml-1.5 text-xs text-orange-600 font-normal">custom</span>}
-                              {item.inPantry && <span className="ml-1.5 text-xs text-orange-400 font-normal">in pantry</span>}
-                            </span>
-                          </div>
-                          {item.amount && (
-                            <span className={`text-xs flex-shrink-0 ${checked ? "text-orange-400" : "text-orange-600"}`}>{item.amount}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </>
             ) : (
               <div className="text-center py-16 text-orange-400">
