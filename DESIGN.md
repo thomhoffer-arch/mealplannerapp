@@ -103,13 +103,13 @@ automatically re-theme.
 | `orange-50`     | Soft cream — page backgrounds, open-state card fills                |
 | `orange-100`    | Warm sand — subtle surfaces, member-chip fill, badge backgrounds    |
 | `orange-200`    | Muted peach — hair-thin dividers, second-tier borders               |
-| `orange-300`    | Clay — default tile borders, faded labels                           |
-| `orange-400`    | Amber clay — placeholder strokes, strikethrough text                |
-| `orange-500`    | Terracotta — primary accent, margin scribbles, links, CTA           |
-| `orange-600`    | Deep terracotta — hover states of primary                           |
-| `orange-700`    | Rich rust — body emphasis, sign-in link                             |
-| `orange-800`    | Mahogany — body copy                                                |
-| `orange-900`    | Deep coffee — display type, heading serif                           |
+| `orange-300`    | Soft warm clay — default tile borders, faded labels                 |
+| `orange-400`    | Warm stone — secondary text, placeholders, times, meta labels       |
+| `orange-500`    | Deep rust — brand primary (the "Together" rust from the hero), CTAs |
+| `orange-600`    | Richer rust — hover and pressed states of primary                   |
+| `orange-700`    | Dark rust — heavy accents, sign-in link                             |
+| `orange-800`    | Dark warm brown — body copy                                         |
+| `orange-900`    | Near-black with warmth — display type, heading serif                |
 | `amber-50`      | Lightest background tint for the hero gradient                      |
 | `amber-100`     | Slight background uplift in the hero radial                         |
 | `sage-100`      | Shared-with / success fill (chips, toast bg)                        |
