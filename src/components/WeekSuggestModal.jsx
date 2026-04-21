@@ -249,6 +249,27 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                   const dayServings = servings[key] || recipe?.servings || 2;
                   const totalTime = (recipe?.prepTime || day.prep_time || 0) + (recipe?.cookTime || day.cook_time || 0);
 
+                  // Skipped days — render a simple "free evening" placeholder.
+                  if (day.skip || !recipe) {
+                    return (
+                      <div
+                        key={day.day}
+                        id={`plan-day-${week.week}-${day.day}`}
+                        className="flex-shrink-0 w-full snap-start rounded-2xl border-2 border-dashed border-orange-100 bg-orange-50/40 overflow-hidden"
+                      >
+                        <div className="flex items-center gap-1.5 px-4 pt-4">
+                          <span className="text-[10px] font-bold uppercase bg-orange-100 text-orange-400 px-2 py-0.5 rounded-full tracking-wider">{day.day}</span>
+                        </div>
+                        <div className="px-4 pt-3 pb-4">
+                          <p className="font-display text-base font-semibold text-orange-400 italic">Free evening</p>
+                          {day.reason && (
+                            <p className="text-xs text-orange-400 mt-1 leading-snug">{day.reason}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
                       key={day.day}

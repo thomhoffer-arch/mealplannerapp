@@ -119,13 +119,25 @@ async function _handler(req, res) {
   const enrichedWeeks = (plan.weeks || []).map((week, wi) => ({
     week: wi + 1,
     days: (week.days || []).map((day) => {
+      // Skipped days (household not eating in) — return a null recipe so the
+      // UI renders them as "free evening" rather than a phantom dish.
+      if (day.skip || !day.name) {
+        return {
+          day: normalizeDay(day.day) || day.day,
+          recipe: null,
+          skip: true,
+          reason: day.reason || '',
+          leftover_for: null,
+          uses_pantry: [],
+        };
+      }
       let recipe;
       if (day.starred_id && starredMap[day.starred_id]) {
         recipe = { ...starredMap[day.starred_id], _fromStarred: true };
       } else {
         recipe = {
           id: `ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          name: day.name || 'Suggested recipe',
+          name: day.name,
           source: 'AI Suggestion',
           overview: day.overview || '',
           prepTime: day.prep_time || null,

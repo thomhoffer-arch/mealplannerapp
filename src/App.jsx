@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp,
+  Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, Settings,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
@@ -33,6 +33,33 @@ const SOURCE_COLORS = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function totalTime(r) { return (r.prepTime || 0) + (r.cookTime || 0); }
+
+// Returns the ISO date string (YYYY-MM-DD) of the Monday of the given date's week.
+function getWeekStart(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun … 6=Sat
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+function addWeeks(weekStart, n) {
+  const d = new Date(weekStart);
+  d.setDate(d.getDate() + n * 7);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatWeekLabel(weekStart) {
+  const start = new Date(weekStart);
+  const end = new Date(weekStart);
+  end.setDate(end.getDate() + 6);
+  const opts = { month: 'short' };
+  const sm = start.toLocaleDateString('en-GB', opts);
+  const em = end.toLocaleDateString('en-GB', opts);
+  const sd = start.getDate();
+  const ed = end.getDate();
+  return sm === em ? `${sd}–${ed} ${sm}` : `${sd} ${sm} – ${ed} ${em}`;
+}
 
 function consolidateIngredients(selectedRecipes, customIngredients) {
   const items = {};
@@ -656,6 +683,7 @@ export default function App() {
   const [templates, setTemplates] = useState([]);          // [{ id, name, recipes }]
   const [templateName, setTemplateName] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
+  const [viewWeek, setViewWeek] = useState(() => getWeekStart(new Date()));
 
   // ── Local UI state
   const [expandedRecipes, setExpandedRecipes] = useState({});
@@ -1287,7 +1315,7 @@ export default function App() {
     await supabase.from("meal_plan_items").insert({
       household_id: household.id,
       recipe_id: rid,
-      recipe_data: recipe,
+      recipe_data: { ...recipe, _weekStart: recipe._weekStart || viewWeek },
     });
   }
 
@@ -1375,6 +1403,13 @@ export default function App() {
   }
 
   // ── Derived values ────────────────────────────────────────────────────────
+  const currentWeekStart = getWeekStart(new Date());
+  // Items visible for the currently-viewed week. Legacy items (no _weekStart)
+  // are treated as belonging to the current week for backwards compatibility.
+  const viewItems = mealPlanItems.filter((i) => {
+    const iw = i.recipe_data?._weekStart;
+    return iw ? iw === viewWeek : viewWeek === currentWeekStart;
+  });
   const selectedRecipeObjects = mealPlanItems.map((i) => i.recipe_data);
   const selectedIds = new Set(mealPlanItems.map((i) => i.recipe_id));
   const starredIds = new Set(starredItems.map((s) => s.recipe_id));
@@ -1543,7 +1578,7 @@ export default function App() {
           planExtrasText={planExtrasText}
           onClose={() => setShowWeekSuggest(false)}
           onLoadPlan={async (recipes) => {
-            for (const recipe of recipes) await toggleSelectedRecipe(recipe);
+            for (const recipe of recipes) await toggleSelectedRecipe({ ...recipe, _weekStart: viewWeek });
             setActiveTab("week");
           }}
         />
@@ -1669,6 +1704,35 @@ export default function App() {
         {/* ── WEEK TAB ── */}
         {activeTab === "week" && (
           <div>
+            {/* Week navigator */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={() => setViewWeek((w) => addWeeks(w, -1))}
+                className="w-9 h-9 flex items-center justify-center rounded-full border border-orange-200 bg-white text-orange-400 hover:text-orange-600 hover:border-orange-300 transition"
+                aria-label="Previous week"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <div className="text-center">
+                <p className="text-sm font-semibold text-orange-900">{formatWeekLabel(viewWeek)}</p>
+                {viewWeek !== currentWeekStart && (
+                  <button
+                    onClick={() => setViewWeek(currentWeekStart)}
+                    className="text-[11px] text-orange-500 hover:text-orange-700 transition font-medium"
+                  >
+                    Back to this week
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => setViewWeek((w) => addWeeks(w, 1))}
+                className="w-9 h-9 flex items-center justify-center rounded-full border border-orange-200 bg-white text-orange-400 hover:text-orange-600 hover:border-orange-300 transition"
+                aria-label="Next week"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
             {/* Search bar + starred button */}
             <div className="flex gap-2 mb-4">
               <div className="relative flex-1">
@@ -1809,13 +1873,15 @@ export default function App() {
                   </div>
                 )}
               </div>
-            ) : mealPlanItems.length > 0 ? (
+            ) : viewItems.length > 0 ? (
               <>
                 {/* Header row */}
                 <div className="flex items-center justify-between mb-5">
                   <div>
-                    <h2 className="font-display text-xl font-semibold text-orange-900 leading-none">This week</h2>
-                    <p className="text-xs text-orange-400 mt-0.5">{mealPlanItems.length} meal{mealPlanItems.length !== 1 ? 's' : ''} planned</p>
+                    <h2 className="font-display text-xl font-semibold text-orange-900 leading-none">
+                      {viewWeek === currentWeekStart ? 'This week' : viewWeek < currentWeekStart ? 'Past week' : 'Upcoming week'}
+                    </h2>
+                    <p className="text-xs text-orange-400 mt-0.5">{viewItems.length} meal{viewItems.length !== 1 ? 's' : ''} planned</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setShowBagModal(true)}
@@ -1830,18 +1896,18 @@ export default function App() {
                   </div>
                 </div>
 
-                <WeeklyNutritionCard recipes={selectedRecipeObjects} />
+                <WeeklyNutritionCard recipes={viewItems.map((i) => i.recipe_data)} />
 
                 {/* Day-by-day calendar */}
                 <div className="space-y-3">
                   {DAYS.map((day) => {
-                    const dayItem = mealPlanItems.find((i) => {
+                    const dayItem = viewItems.find((i) => {
                       const pd = i.recipe_data?._plannedDay;
                       return pd && String(pd).toLowerCase().startsWith(day.toLowerCase().slice(0, 3));
                     });
                     const recipe = dayItem?.recipe_data;
                     const rid = recipe ? String(recipe.id) : null;
-                    const isToday = todayName === day;
+                    const isToday = viewWeek === currentWeekStart && todayName === day;
                     const isCooked = rid ? !!cookedRecipes[rid] : false;
 
                     return (
@@ -2020,7 +2086,7 @@ export default function App() {
                 </div>
 
                 {/* Unscheduled recipes (added from search without a day) */}
-                {mealPlanItems.filter((i) => {
+                {viewItems.filter((i) => {
                   const pd = i.recipe_data?._plannedDay;
                   if (!pd) return true;
                   const matches = DAYS.some((d) => String(pd).toLowerCase().startsWith(d.toLowerCase().slice(0, 3)));
@@ -2029,7 +2095,7 @@ export default function App() {
                   <div className="mt-6">
                     <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-3">Not assigned to a day</p>
                     <div className="space-y-3">
-                      {mealPlanItems.filter((i) => {
+                      {viewItems.filter((i) => {
                         const pd = i.recipe_data?._plannedDay;
                         if (!pd) return true;
                         const matches = DAYS.some((d) => String(pd).toLowerCase().startsWith(d.toLowerCase().slice(0, 3)));
@@ -2114,8 +2180,26 @@ export default function App() {
                   )}
                 </div>
               </>
+            ) : viewWeek !== currentWeekStart ? (
+              /* ── Empty state for past/future weeks ── */
+              <div className="py-10 text-center">
+                <Calendar size={36} className="mx-auto mb-3 text-orange-200" />
+                <p className="font-semibold text-orange-900 mb-1">
+                  {viewWeek < currentWeekStart ? 'No meals recorded for this week' : 'No plan yet for this week'}
+                </p>
+                <p className="text-sm text-orange-400 mb-5">
+                  {viewWeek < currentWeekStart
+                    ? 'Past plans you save in the future will appear here.'
+                    : 'Generate a plan and it will be saved here.'}
+                </p>
+                <button onClick={() => setShowWeekSuggest(true)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition shadow-sm">
+                  <Sparkles size={14} />
+                  Plan this week
+                </button>
+              </div>
             ) : (
-              /* ── Empty state ── */
+              /* ── Empty state for current week ── */
               <div className="py-6">
                 <p className="font-display italic text-orange-600/80 text-xs tracking-wide mb-2">— no plan yet</p>
                 <h3 className="font-display text-[2rem] sm:text-4xl font-semibold text-orange-900 leading-[0.95] mb-6 tracking-tight">
