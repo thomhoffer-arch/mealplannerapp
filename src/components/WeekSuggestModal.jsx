@@ -3,27 +3,108 @@ import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Wand2 }
 import { apiFetch } from '../lib/api';
 
 const SOURCE_COLORS = {
-  'My Recipes':     'bg-orange-100 text-orange-600',
-  'AI Suggestion':  'bg-orange-100 text-orange-600',
-  'Web import':     'bg-orange-50 text-orange-600',
+  'My Recipes':    'bg-orange-100 text-orange-600',
+  'AI Suggestion': 'bg-orange-100 text-orange-600',
+  'Web import':    'bg-orange-50 text-orange-600',
 };
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+// Single expandable meal row inside a day card
+function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor, usesPantry, sideDish, isExpanded, onToggle }) {
+  const label = mealType === 'dinner' ? 'Dinner'
+    : mealType === 'breakfast' ? 'Breakfast'
+    : mealType === 'lunch' ? 'Lunch'
+    : 'Snack';
+  const isDinner = mealType === 'dinner';
+
+  return (
+    <div className="border-b border-orange-50 last:border-b-0">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-orange-50/30 transition"
+      >
+        <span className={`text-[10px] font-bold uppercase tracking-wider w-14 flex-shrink-0 ${
+          isDinner ? 'text-orange-500' : 'text-orange-400'
+        }`}>
+          {label}
+        </span>
+        {photo?.thumbnail && !isDinner && (
+          <img src={photo.thumbnail} alt={name} className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-orange-900 truncate">{name}</p>
+          {time > 0 && <p className="text-[10px] text-orange-400">{time} min</p>}
+        </div>
+        {isExpanded
+          ? <ChevronUp size={14} className="text-orange-400 flex-shrink-0" />
+          : <ChevronDown size={14} className="text-orange-400 flex-shrink-0" />}
+      </button>
+
+      {isExpanded && (
+        <div className="px-4 pb-3 space-y-2 border-t border-orange-50">
+          {overview && (
+            <p className="text-xs text-orange-700 leading-relaxed pt-2">{overview}</p>
+          )}
+          {reason && (
+            <p className="font-display italic text-orange-600 text-xs leading-snug bg-orange-50/60 rounded-xl px-3 py-2">— {reason}</p>
+          )}
+          {(leftoverFor || (usesPantry || []).length > 0) && (
+            <div className="flex flex-wrap gap-1.5">
+              {leftoverFor && (
+                <span className="text-[10px] bg-amber-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
+                  → {leftoverFor}
+                </span>
+              )}
+              {(usesPantry || []).map((item) => (
+                <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full border border-orange-100">
+                  <span className="font-display italic">from pantry</span> · {item}
+                </span>
+              ))}
+            </div>
+          )}
+          {sideDish?.name && (
+            <div className="flex items-start gap-2 bg-orange-50/60 rounded-xl px-3 py-2">
+              <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-10 flex-shrink-0 mt-0.5">Side</span>
+              <div>
+                <p className="text-xs font-semibold text-orange-900">{sideDish.name}</p>
+                {sideDish.description && (
+                  <p className="text-[10px] text-orange-500 leading-snug">{sideDish.description}</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText }) {
-  const [numWeeks, setNumWeeks] = useState(1);
-  const [loading, setLoading]   = useState(false);
-  const [plan, setPlan]         = useState(null);
-  const [notes, setNotes]       = useState('');
-  const [error, setError]       = useState('');
-  const [selected, setSelected] = useState({});   // { "1-Monday": true }
-  const [servings, setServings] = useState({});   // { "1-Monday": 4 }  overrides per day
-  const [dayNotes, setDayNotes] = useState({});   // { "1-Monday": "skip lunch" }
-  const [swapInput, setSwapInput] = useState({}); // { "1-Monday": "too heavy" }
-  const [swappingKey, setSwappingKey] = useState(null);
+  const [numWeeks, setNumWeeks]         = useState(1);
+  const [loading, setLoading]           = useState(false);
+  const [plan, setPlan]                 = useState(null);
+  const [notes, setNotes]               = useState('');
+  const [error, setError]               = useState('');
+  const [selected, setSelected]         = useState({});   // { "1-Monday": true }
+  const [servings, setServings]         = useState({});   // { "1-Monday": 4 }
+  const [dayNotes, setDayNotes]         = useState({});
+  const [swapInput, setSwapInput]       = useState({});
+  const [swappingKey, setSwappingKey]   = useState(null);
   const [thisWeekWishes, setThisWeekWishes] = useState('');
-  const [showNotes, setShowNotes] = useState(false);
-  const [expandedDay, setExpandedDay] = useState(null); // key of day with controls open
+  const [showNotes, setShowNotes]       = useState(false);
+  // expandedMeals: { [weekNum-dayName]: { dinner: bool, "breakfast-0": bool, ... } }
+  const [expandedMeals, setExpandedMeals] = useState({});
+
+  function toggleMealPanel(dayKey, panelId) {
+    setExpandedMeals((prev) => ({
+      ...prev,
+      [dayKey]: {
+        ...prev[dayKey],
+        [panelId]: !(prev[dayKey]?.[panelId]),
+      },
+    }));
+  }
 
   async function generate() {
     setLoading(true);
@@ -32,7 +113,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     setSelected({});
     setServings({});
     setDayNotes({});
-    setExpandedDay(null);
+    setExpandedMeals({});
     try {
       const data = await apiFetch('/api/ai/suggest-week', {
         method: 'POST',
@@ -46,12 +127,18 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
       setPlan(data.weeks);
       setNotes(data.notes || '');
       const sel = {};
+      const defExpanded = {};
       data.weeks.forEach((week) => {
         week.days.forEach((day) => {
-          if (day.recipe) sel[`${week.week}-${day.day}`] = true;
+          if (day.recipe) {
+            sel[`${week.week}-${day.day}`] = true;
+            // Open dinner panel by default so the chosen dish is immediately visible
+            defExpanded[`${week.week}-${day.day}`] = { dinner: true };
+          }
         });
       });
       setSelected(sel);
+      setExpandedMeals(defExpanded);
     } catch (err) {
       setError(err.message || 'Something went wrong');
     } finally {
@@ -61,8 +148,6 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
 
   function toggleDay(key) {
     setSelected((prev) => ({ ...prev, [key]: !prev[key] }));
-    // Close expanded controls if deselecting
-    if (selected[key]) setExpandedDay(null);
   }
 
   function setDayServings(key, val) {
@@ -78,7 +163,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     try {
       const otherDays = plan
         .flatMap((w) => w.days)
-        .filter((d) => !(d.day === dayObj.day))
+        .filter((d) => d.day !== dayObj.day)
         .map((d) => d.recipe?.name)
         .filter(Boolean);
       const updated = await apiFetch('/api/ai/regenerate-day', {
@@ -90,21 +175,20 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           other_days_names: otherDays,
         },
       });
-      // Replace the day in the plan state, keep selected/servings/notes.
       setPlan((prev) => prev.map((w) => {
         if (w.week !== weekNum) return w;
         return {
           ...w,
-          days: w.days.map((d) => (d.day === dayObj.day ? {
+          days: w.days.map((d) => d.day !== dayObj.day ? d : {
             ...d,
-            recipe: updated.recipe,
-            name: updated.recipe?.name,
-            overview: updated.recipe?.overview,
-            reason: updated.reason,
+            recipe:       updated.recipe,
+            name:         updated.recipe?.name,
+            overview:     updated.recipe?.overview,
+            reason:       updated.reason,
             leftover_for: updated.leftover_for,
-            uses_pantry: updated.uses_pantry,
-            photo: updated.photo,
-          } : d)),
+            uses_pantry:  updated.uses_pantry,
+            photo:        updated.photo,
+          }),
         };
       }));
       setSwapInput((p) => ({ ...p, [key]: '' }));
@@ -127,22 +211,21 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           const base = override ? { ...day.recipe, servings: override } : day.recipe;
           recipes.push({
             ...base,
-            _plannedDay: day.day,
-            _plannedWeek: week.week,
-            _plannerReason: day.reason || null,
+            _plannedDay:        day.day,
+            _plannedWeek:       week.week,
+            _plannerReason:     day.reason || null,
             _plannerLeftoverFor: day.leftover_for || null,
             _plannerUsesPantry: Array.isArray(day.uses_pantry) ? day.uses_pantry : [],
-            _plannerPhoto: day.photo || null,
+            _plannerPhoto:      day.photo || null,
           });
         }
-        // Include extras (breakfast/lunch) for selected days
         (day.extras || []).forEach((extra) => {
           recipes.push({
             ...extra,
-            _plannedDay: day.day,
-            _plannedWeek: week.week,
-            _plannerReason: extra._extraReason || null,
-            _plannerPhoto: extra.photo || null,
+            _plannedDay:        day.day,
+            _plannedWeek:       week.week,
+            _plannerReason:     extra._extraReason || null,
+            _plannerPhoto:      extra.photo || null,
             _plannerUsesPantry: [],
           });
         });
@@ -169,7 +252,6 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-orange-50">
           <div className="flex items-center gap-2">
             <Sparkles size={17} className="text-orange-600" />
-            {/* TODO: replace "AI week planner" with app name */}
             <h2 className="font-display text-base font-bold text-orange-900">Week planner</h2>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-400 hover:bg-orange-50 transition">
@@ -204,7 +286,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           />
         </div>
 
-        {/* Content */}
+        {/* Scrollable content area */}
         <div className="overflow-y-auto flex-1 px-5 pb-6 safe-area-bottom">
           {error && (
             <div className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2 mb-3">{error}</div>
@@ -232,7 +314,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                 <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2 px-5">Week {week.week}</p>
               )}
 
-              {/* Day chip nav — tap to jump, shows include/exclude state at a glance */}
+              {/* Day chip nav */}
               <div className="flex gap-1.5 px-5 mb-3 overflow-x-auto scrollbar-hide">
                 {week.days.map((day) => {
                   const key = `${week.week}-${day.day}`;
@@ -263,9 +345,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                   const isAI = recipe?._aiSuggestion;
                   const isStarred = recipe?._fromStarred;
                   const dayServings = servings[key] || recipe?.servings || 2;
-                  const totalTime = (recipe?.prepTime || day.prep_time || 0) + (recipe?.cookTime || day.cook_time || 0);
+                  const dinnerTime = (recipe?.prepTime || day.prep_time || 0) + (recipe?.cookTime || day.cook_time || 0);
 
-                  // Skipped days — render a simple "free evening" placeholder.
+                  // Free-evening / skipped day
                   if (day.skip || !recipe) {
                     return (
                       <div
@@ -278,13 +360,17 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         </div>
                         <div className="px-4 pt-3 pb-4">
                           <p className="font-display text-base font-semibold text-orange-400 italic">Free evening</p>
-                          {day.reason && (
-                            <p className="text-xs text-orange-400 mt-1 leading-snug">{day.reason}</p>
-                          )}
+                          {day.reason && <p className="text-xs text-orange-400 mt-1 leading-snug">{day.reason}</p>}
                         </div>
                       </div>
                     );
                   }
+
+                  const dayExpanded = expandedMeals[key] || {};
+                  const extras = day.extras || [];
+                  const breakfastExtras = extras.filter((e) => e._mealType === 'breakfast');
+                  const lunchExtras    = extras.filter((e) => e._mealType === 'lunch');
+                  const otherExtras    = extras.filter((e) => !['breakfast', 'lunch'].includes(e._mealType));
 
                   return (
                     <div
@@ -294,26 +380,32 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         isSelected ? 'border-orange-400' : 'border-orange-100 opacity-75'
                       }`}
                     >
-                      {/* Hero photo (Pexels) */}
+                      {/* Hero photo — fixed, not scrolled */}
                       {day.photo?.url ? (
-                        <div className="relative h-40 w-full bg-orange-100">
+                        <div className="relative h-36 w-full bg-orange-100 flex-shrink-0">
                           <img
                             src={day.photo.url}
-                            alt={day.photo.alt || recipe?.name || day.name}
+                            alt={day.photo.alt || recipe?.name}
                             loading="lazy"
                             className="absolute inset-0 w-full h-full object-cover"
                           />
                           <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap">
                             <span className="text-[10px] font-bold uppercase bg-white/90 text-orange-600 px-2 py-0.5 rounded-full tracking-wider">{day.day}</span>
+<<<<<<< HEAD
                             {totalTime > 0 && (
                               <span className="text-[10px] font-semibold bg-black/40 text-white px-2 py-0.5 rounded-full">{totalTime} min</span>
+=======
+                            {extras.length > 0 && (
+                              <span className="text-[10px] bg-white/90 text-orange-500 px-2 py-0.5 rounded-full font-semibold">
+                                +{extras.length} extra meal{extras.length !== 1 ? 's' : ''}
+                              </span>
+>>>>>>> 72120bd (Fix extra meal generation + redesign week planner carousel UI)
                             )}
                           </div>
                           {day.photo.photographer && (
                             <a
                               href={day.photo.photographer_url || 'https://www.pexels.com'}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              target="_blank" rel="noopener noreferrer"
                               className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
                             >
                               {day.photo.photographer}
@@ -321,45 +413,104 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           )}
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5 px-4 pt-4">
+                        <div className="flex items-center gap-1.5 px-4 pt-4 pb-1 flex-shrink-0">
                           <span className="text-[10px] font-bold uppercase bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full tracking-wider">{day.day}</span>
+<<<<<<< HEAD
                           {totalTime > 0 && (
                             <span className="text-[10px] font-semibold bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">{totalTime} min</span>
+=======
+                          {extras.length > 0 && (
+                            <span className="text-[10px] bg-orange-100 text-orange-500 px-2 py-0.5 rounded-full font-semibold">
+                              +{extras.length} extra meal{extras.length !== 1 ? 's' : ''}
+                            </span>
+>>>>>>> 72120bd (Fix extra meal generation + redesign week planner carousel UI)
                           )}
                         </div>
                       )}
 
-                      {/* Body */}
-                      <div className="px-4 pt-3 pb-4 space-y-3">
-                        {/* Title row with selection toggle */}
-                        <div className="flex items-start gap-2">
+                      {/* Scrollable body — only this day scrolls */}
+                      <div className="overflow-y-auto max-h-72 scrollbar-hide">
+
+                        {/* Selection toggle + source badges */}
+                        <div className="flex items-center gap-2 px-4 pt-3 pb-2">
                           <button
                             onClick={() => toggleDay(key)}
-                            className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 transition ${
+                            className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition ${
                               isSelected ? 'bg-orange-500 border-orange-500' : 'border-orange-300'
                             }`}
                             title={isSelected ? 'Remove day' : 'Include day'}
                           >
                             {isSelected && <Check size={13} className="text-white" />}
                           </button>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                              {isStarred && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">Starred</span>}
-                              {isAI && <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">AI</span>}
-                              {recipe?.source && !isAI && !isStarred && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${SOURCE_COLORS[recipe.source] || 'bg-orange-50 text-orange-600'}`}>
-                                  {recipe.source}
-                                </span>
-                              )}
-                            </div>
-                            <p className="font-display text-base font-bold text-orange-900 leading-snug">{recipe?.name || day.name}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap flex-1">
+                            {isStarred && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">Starred</span>}
+                            {isAI && !isStarred && <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">AI</span>}
                           </div>
+                          {swappingKey === key && (
+                            <span className="text-[10px] text-orange-500 animate-pulse">Swapping…</span>
+                          )}
                         </div>
 
-                        {(recipe?.overview || day.overview) && (
-                          <p className="text-xs text-orange-700 leading-relaxed">{recipe?.overview || day.overview}</p>
-                        )}
+                        {/* Stacked expandable meal panels */}
+                        <div className="border-t border-orange-50">
+                          {/* Breakfast extras */}
+                          {breakfastExtras.map((extra, i) => (
+                            <MealPanel
+                              key={`bf-${i}`}
+                              mealType="breakfast"
+                              name={extra.name}
+                              time={(extra.prepTime || 0) + (extra.cookTime || 0)}
+                              photo={extra.photo}
+                              overview={extra.overview}
+                              reason={extra._extraReason}
+                              isExpanded={!!dayExpanded[`breakfast-${i}`]}
+                              onToggle={() => toggleMealPanel(key, `breakfast-${i}`)}
+                            />
+                          ))}
+                          {/* Lunch extras */}
+                          {lunchExtras.map((extra, i) => (
+                            <MealPanel
+                              key={`lu-${i}`}
+                              mealType="lunch"
+                              name={extra.name}
+                              time={(extra.prepTime || 0) + (extra.cookTime || 0)}
+                              photo={extra.photo}
+                              overview={extra.overview}
+                              reason={extra._extraReason}
+                              isExpanded={!!dayExpanded[`lunch-${i}`]}
+                              onToggle={() => toggleMealPanel(key, `lunch-${i}`)}
+                            />
+                          ))}
+                          {/* Other extras (snacks etc.) */}
+                          {otherExtras.map((extra, i) => (
+                            <MealPanel
+                              key={`ot-${i}`}
+                              mealType={extra._mealType || 'snack'}
+                              name={extra.name}
+                              time={(extra.prepTime || 0) + (extra.cookTime || 0)}
+                              photo={extra.photo}
+                              overview={extra.overview}
+                              reason={extra._extraReason}
+                              isExpanded={!!dayExpanded[`other-${i}`]}
+                              onToggle={() => toggleMealPanel(key, `other-${i}`)}
+                            />
+                          ))}
+                          {/* Dinner — always present */}
+                          <MealPanel
+                            mealType="dinner"
+                            name={recipe?.name || day.name}
+                            time={dinnerTime}
+                            overview={recipe?.overview || day.overview}
+                            reason={day.reason}
+                            leftoverFor={day.leftover_for}
+                            usesPantry={day.uses_pantry}
+                            sideDish={recipe?._sideDish}
+                            isExpanded={!!dayExpanded.dinner}
+                            onToggle={() => toggleMealPanel(key, 'dinner')}
+                          />
+                        </div>
 
+<<<<<<< HEAD
                         {day.reason && (
                           <p className="font-display italic text-orange-600 text-xs leading-snug bg-orange-50/60 rounded-xl px-3 py-2">— {day.reason}</p>
                         )}
@@ -411,8 +562,11 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         )}
 
                         {/* Options — always visible now, not behind an expand */}
+=======
+                        {/* Options bar — only when day is selected */}
+>>>>>>> 72120bd (Fix extra meal generation + redesign week planner carousel UI)
                         {isSelected && (
-                          <div className="pt-2 border-t border-orange-50 space-y-2">
+                          <div className="px-4 py-3 border-t border-orange-50 space-y-2">
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2 flex-1">
                                 <Users size={13} className="text-orange-400 flex-shrink-0" />
@@ -434,7 +588,6 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                                 onClick={() => swapDay(week.week, day, 'suggest something different')}
                                 disabled={!!swappingKey}
                                 className="flex items-center gap-1 text-xs text-orange-400 hover:text-orange-600 transition disabled:opacity-40"
-                                title="Suggest a different recipe for this day"
                               >
                                 <Wand2 size={13} />
                                 Another
@@ -477,11 +630,13 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             </div>
           ))}
 
-          {/* AI notes */}
+          {/* AI planner notes */}
           {notes && plan && !loading && (
             <div className="mt-2">
-              <button onClick={() => setShowNotes((v) => !v)}
-                className="flex items-center gap-1 text-xs text-orange-600 font-medium hover:text-orange-900 transition">
+              <button
+                onClick={() => setShowNotes((v) => !v)}
+                className="flex items-center gap-1 text-xs text-orange-600 font-medium hover:text-orange-900 transition"
+              >
                 {showNotes ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 Planner notes
               </button>
@@ -495,8 +650,11 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
         {/* Footer */}
         {plan && !loading && (
           <div className="px-5 py-4 border-t border-orange-50">
-            <button onClick={handleLoadPlan} disabled={selectedCount === 0}
-              className="w-full py-3 bg-orange-500 text-white rounded-full font-semibold text-sm hover:bg-orange-600 transition disabled:opacity-50">
+            <button
+              onClick={handleLoadPlan}
+              disabled={selectedCount === 0}
+              className="w-full py-3 bg-orange-500 text-white rounded-full font-semibold text-sm hover:bg-orange-600 transition disabled:opacity-50"
+            >
               Add {selectedMealCount} meal{selectedMealCount !== 1 ? 's' : ''} to my plan
             </button>
           </div>

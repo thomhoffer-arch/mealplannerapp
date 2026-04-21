@@ -291,6 +291,15 @@ P1. HONOUR USER INTENT FROM THIS WEEK'S NOTES — highest priority.
     Saturday and Sunday, "lunch on Monday" means populate extras for Monday.
     Plan both the extra and the dinner for each affected day.
 
+    !! CRITICAL — EXTRAS MUST BE IN THE ARRAY, NOT JUST IN "notes" !!
+    A very common failure is writing "I've planned breakfast for Monday" in the
+    "notes" field but leaving Monday's "extras" array empty. This makes the extra
+    meal completely invisible to the user. If an extra meal was requested, it MUST
+    have an entry in "extras" with a real name, overview, meal_type, prep_time,
+    and cook_time. The "notes" field is only for overall plan-level commentary.
+    Before finalising your JSON, re-read every day's "extras" array and confirm
+    that each requested extra appears there — not just in "notes".
+
     INTERPRETING SIDE DISH REQUESTS: when the user asks for a side dish alongside
     dinner on specific days — in any wording (a side, an accompaniment, a salad,
     a vegetable, "something to go with it") — populate that day's "side_dish" field
@@ -340,6 +349,8 @@ P7. PRACTICAL MEAL PLANNING.
 
 P8. REAL DISHES ONLY.
     Every suggestion must be a recognisable, real-world dish.
+
+SELF-CHECK BEFORE OUTPUT: For every day, verify (a) any requested extras appear in "extras" with a name/meal_type, NOT only in "notes"; (b) skipped days have skip=true and name=null; (c) the week has exactly 7 day entries.
 
 Return ONLY a JSON object, no markdown:
 {
