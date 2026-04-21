@@ -179,9 +179,14 @@ export default function AuthScreen() {
           window.history.replaceState({}, '', window.location.pathname);
         }
       } else {
-        const { data: { user }, error: authError } = await supabase.auth.signUp({ email, password });
+        const { data: { user, session }, error: authError } = await supabase.auth.signUp({ email, password });
         if (authError) throw authError;
-        if (!user) { setDone(true); setLoading(false); return; }
+        if (!session) {
+          // Email confirmation required — session won't exist until the link is clicked.
+          // Stash the invite token so loadHousehold() can pick it up after confirmation.
+          if (inviteToken) localStorage.setItem('mp:pendingInviteToken', inviteToken);
+          setDone(true); setLoading(false); return;
+        }
         if (inviteToken) {
           await supabase.rpc('join_household_by_token', { p_token: inviteToken, p_user_id: user.id });
           window.history.replaceState({}, '', window.location.pathname);

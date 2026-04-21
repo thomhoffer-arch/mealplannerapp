@@ -996,7 +996,8 @@ export default function App() {
     // a stray solo household. Also covers already-signed-in users who
     // paste an invite URL. Idempotent on the DB side (ON CONFLICT DO
     // NOTHING), so harmless if AuthScreen already ran it.
-    const inviteToken = new URLSearchParams(window.location.search).get('invite');
+    const inviteToken = new URLSearchParams(window.location.search).get('invite')
+      || localStorage.getItem('mp:pendingInviteToken');
     if (inviteToken) {
       const { error: joinErr } = await supabase.rpc('join_household_by_token', {
         p_token: inviteToken, p_user_id: user.id,
@@ -1004,6 +1005,7 @@ export default function App() {
       if (joinErr) {
         console.error('[auth] join_household_by_token failed:', joinErr.message);
       } else {
+        localStorage.removeItem('mp:pendingInviteToken');
         window.history.replaceState({}, '', window.location.pathname);
       }
     }
@@ -1151,6 +1153,10 @@ export default function App() {
       .on("postgres_changes", { event: "*", schema: "public", table: "starred_recipes",    filter: `household_id=eq.${household.id}` }, loadStarred)
       .on("postgres_changes", { event: "*", schema: "public", table: "pantry_items",       filter: `household_id=eq.${household.id}` }, loadPantry)
       .on("postgres_changes", { event: "*", schema: "public", table: "user_recipes",       filter: `household_id=eq.${household.id}` }, loadUserRecipes)
+      .on("postgres_changes", { event: "*", schema: "public", table: "household_members",  filter: `household_id=eq.${household.id}` }, () => {
+        supabase.from('household_members').select('display_name, user_id, personal_prefs').eq('household_id', household.id)
+          .then(({ data }) => setHouseholdMembers(data || []));
+      })
       .subscribe();
 
     return () => supabase.removeChannel(channel);
