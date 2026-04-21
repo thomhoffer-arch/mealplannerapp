@@ -219,39 +219,52 @@ ${pantry.length ? `  ${pantry.slice(0, 30).join(', ')}` : '  (empty)'}
 ${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED (standing instructions):\n${planExtrasText}` : ''}
 ${thisWeekWishes?.trim() ? `\nTHIS WEEK SPECIFICALLY (one-off wishes — weight these heavily):\n${thisWeekWishes.trim()}` : ''}
 ${dayNotesSection ? `\nPER-DAY NOTES:\n${dayNotesSection}` : ''}
-STRICT RULES:
-1. Never plan the same main ingredient two days in a row.
-2. Vary cuisine type every day.
-3. Mix weekday-friendly quick meals (Mon–Thu) with more elaborate weekend meals (Fri–Sun).
-4. Prioritise starred HIGH recipes — they should appear in week 1 if possible.
-5. Dietary rules work in two layers — apply both:
+RULES — ordered by priority. Higher rules override lower ones.
 
-   5a. ABSOLUTE AVOIDS (never include). Covers allergies (nut,
-       shellfish, sesame…), ethical / religious rules (halal, kosher,
-       no beef, no pork), AND any phrase from the household
-       preferences shaped like "no X", "avoid X", "X-free", "can't
-       eat X", "hate X", "allergic to X". If they wrote "no eggs",
-       zero eggs anywhere — not even in pasta or baking. If they
-       wrote "no veggies", no vegetables at all in any dish, not
-       even garnish. Read the preferences carefully and extract
-       every explicit avoid.
+P1. HONOUR USER INTENT FROM THIS WEEK'S NOTES.
+    Read "THIS WEEK SPECIFICALLY" and "PER-DAY NOTES" carefully. Whatever the
+    household has asked for this week takes precedence over every default below.
+    This includes time constraints, cuisines, moods, specific dishes, and any
+    indication that a day should be skipped. Apply it precisely — do not soften
+    or approximate the request.
 
-   5b. ADAPTIVE DIETS (keep the dish, adapt the ingredients). Covers
-       broad diets like gluten-free, dairy-free, low-carb,
-       vegetarian, vegan. Don't shrink the cuisine — adapt it. For
-       gluten-free, propose pasta dishes with gluten-free pasta and
-       name it explicitly ("Carbonara with gluten-free pasta"). For
-       vegetarian, adapt meat classics with plant-based substitutes
-       ("Mushroom bourguignon"). Variety within constraints, not
-       avoidance of entire cuisines.
-6. Every recipe must be a real, well-known dish.
-7. Never repeat the same lunch or side dish across the week.
-8. Optimise for ingredient reuse AND reach for pantry items where it works naturally.
-9. Plan exactly ONE "cook once, eat twice" recipe per week — pick something
-   that reheats well, cook 2x portions, and have that day's "leftover_for"
-   point at the next day it covers (e.g. Monday's leftover_for = "Tuesday lunch").
-10. Let the RATINGS HISTORY genuinely shape suggestions — echo patterns from
-    LOVED, steer away from DISLIKED. Be subtle; don't just reuse the same dishes.
+P2. SKIP DAYS WHEN THE HOUSEHOLD WON'T BE EATING IN.
+    If the notes convey — in any wording — that the household will not need a
+    home-cooked dinner on a specific day, set skip=true and name=null for that
+    day. Do not plan a meal for a day they've indicated they don't need one.
+    Use judgment: absence, dining out, busy evenings, and explicit skip requests
+    all qualify.
+
+P3. COOKING TIME — default limits, overridden by P1 if specified.
+    - Mon–Thu: total time (prep_time + cook_time) ≤ 40 minutes.
+    - Friday: ≤ 50 minutes.
+    - Sat–Sun: ≤ 90 minutes.
+    If P1 specifies different time limits, follow those exactly instead.
+
+P4. DIETARY CONSTRAINTS — two tiers, both mandatory.
+    Tier A — absolute avoids: anything the household says they cannot or will not
+    eat (allergies, ethics, religion, explicit dislikes). Extract every such item
+    from the preferences and exclude it entirely from every dish.
+    Tier B — adaptive diets (gluten-free, dairy-free, vegan, vegetarian, etc.):
+    keep the dish concept, adapt the ingredients. A dietary constraint is never
+    a reason to choose a different dish — it is a reason to reformulate the same
+    dish. Name the adaptation explicitly in the dish title.
+
+P5. PRIORITISE STARRED RECIPES.
+    HIGH-priority starred recipes should appear in week 1. Respect the rotation
+    priorities across the week.
+
+P6. VARIETY AND BALANCE.
+    No repeated main ingredient on consecutive days. Different cuisine each day.
+    Reflect the RATINGS HISTORY: lean toward loved patterns, avoid disliked ones.
+
+P7. PRACTICAL MEAL PLANNING.
+    One "cook once, eat twice" per week (leftover_for points at the meal it
+    covers). Favour ingredient reuse across the week. Draw from pantry items
+    where it fits naturally.
+
+P8. REAL DISHES ONLY.
+    Every suggestion must be a recognisable, real-world dish.
 
 Return ONLY a JSON object, no markdown:
 {
@@ -260,14 +273,15 @@ Return ONLY a JSON object, no markdown:
       "days": [
         {
           "day": "Monday",
+          "skip": false,
           "starred_id": "<exact recipe id from starred list, or null if new suggestion>",
-          "name": "<recipe name>",
-          "overview": "<one sentence description>",
-          "cuisine_type": "<Italian / Asian / etc.>",
+          "name": "<recipe name, or null if skip=true>",
+          "overview": "<one sentence description, or null if skip=true>",
+          "cuisine_type": "<Italian / Asian / etc., or null if skip=true>",
           "prep_time": <minutes or null>,
           "cook_time": <minutes or null>,
           "reason": "<one short sentence: why this dish, this day — reference ratings / pantry / starred when relevant>",
-          "leftover_for": "<e.g. 'Tuesday lunch', or null if this isn't the cook-once-eat-twice day>",
+          "leftover_for": "<e.g. 'Tuesday lunch', or null>",
           "uses_pantry": ["<pantry item this recipe uses>"]
         }
       ]
@@ -276,5 +290,5 @@ Return ONLY a JSON object, no markdown:
   "notes": "<2-3 sentences explaining the overall plan shape>"
 }
 
-Each week must have exactly 7 days: Monday through Sunday.${numWeeks === 2 ? ' Return exactly 2 week objects.' : ' Return exactly 1 week object.'}`;
+Each week must have exactly 7 day entries (Monday through Sunday). Skipped days still appear with skip=true and name=null.${numWeeks === 2 ? ' Return exactly 2 week objects.' : ' Return exactly 1 week object.'}`;
 }

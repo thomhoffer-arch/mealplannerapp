@@ -140,6 +140,7 @@ function SelectedRecipeCard({
   customIngredients, onAddCustom, onRemoveCustom, onRemove,
   newIngredientInput, onInputChange, preferences, starredRecipes, onAcceptSubstitution,
   rating, onGenerateRecipe, onShareRecipe,
+  inlineExpanded,
 }) {
   const [sharing, setSharing] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
@@ -207,6 +208,138 @@ function SelectedRecipeCard({
       setAiLoading(false);
     }
   }
+  // When used inside the expanded week-view day row, the day header above already
+  // shows the recipe name, source, and time — skip the card chrome entirely and
+  // just render the actions inline (no nested border, no duplicate title).
+  if (inlineExpanded) {
+    return (
+      <div className="px-4 pb-4 space-y-4">
+        {/* Minimal action row: cooked toggle + share */}
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            onClick={() => onToggleCooked(rid)}
+            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border-2 transition ${isCooked ? 'border-green-400 bg-green-50 text-green-700' : 'border-stone-200 text-stone-500 hover:border-green-300 hover:text-green-600'}`}
+          >
+            <Check size={12} />
+            {isCooked ? 'Cooked!' : 'Mark cooked'}
+          </button>
+          {rating && <p className="text-xs ml-1">{"⭐".repeat(rating)}</p>}
+          <button
+            onClick={async () => {
+              if (sharing) return;
+              setSharing(true);
+              try {
+                const url = await onShareRecipe(recipe);
+                await navigator.clipboard?.writeText(url);
+                setShareCopied(true);
+                setTimeout(() => setShareCopied(false), 2000);
+              } catch (err) {
+                window.alert(err.message || 'Could not create share link');
+              } finally {
+                setSharing(false);
+              }
+            }}
+            className="ml-auto flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:bg-stone-50 transition"
+            title={shareCopied ? 'Link copied!' : 'Share recipe'}
+          >
+            {shareCopied ? <Check size={15} className="text-orange-600" /> : <Link2 size={15} />}
+          </button>
+        </div>
+        {isStub ? (
+          <div className="text-center py-4">
+            <p className="text-sm text-orange-900 mb-1 font-display italic">Full recipe not written yet.</p>
+            <p className="text-xs text-stone-500 mb-4">The AI will write ingredients and steps now — takes about 10 seconds.</p>
+            {generateError && <p className="text-xs text-red-500 mb-3">{generateError}</p>}
+            <button onClick={generateFullRecipe} disabled={generating}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50">
+              <Sparkles size={14} />
+              {generating ? 'Writing recipe…' : 'Generate full recipe'}
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Macros */}
+            {(recipe.macros?.calories || recipe.macros?.protein) && (
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: "Protein",  value: recipe.macros?.protein,  unit: "g" },
+                  { label: "Carbs",    value: recipe.macros?.carbs,    unit: "g" },
+                  { label: "Fat",      value: recipe.macros?.fat,      unit: "g" },
+                  { label: "Cal",      value: recipe.macros?.calories, unit: "" },
+                ].map(({ label, value, unit }) => (
+                  <div key={label} className="bg-orange-50 rounded-lg p-2 text-center">
+                    <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>
+                    <p className="text-xs text-stone-500">{label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Steps */}
+            {(recipe.steps || []).length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Instructions</p>
+                <ol className="space-y-2">
+                  {recipe.steps.map((step, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-orange-900">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-100 text-orange-900 text-xs flex items-center justify-center font-semibold">{i + 1}</span>
+                      <span className="leading-snug">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            {/* Custom ingredients */}
+            <div>
+              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Add Extra Ingredients</p>
+              <div className="flex gap-2">
+                <input type="text" placeholder="e.g. 100g breadcrumbs"
+                  value={newIngredientInput[rid] || ""}
+                  onChange={(e) => onInputChange(rid, e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && onAddCustom(rid)}
+                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400"
+                />
+                <button onClick={() => onAddCustom(rid)}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition text-sm font-medium">Add</button>
+              </div>
+              {customs.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {customs.map((c) => (
+                    <li key={c.id} className="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2">
+                      <span className="text-sm text-orange-600">{c.amount ? `${c.amount} ${c.name}` : c.name}</span>
+                      <button onClick={() => onRemoveCustom(rid, c.id)} className="text-orange-600 hover:text-red-500 transition ml-2"><X size={14} /></button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {/* Tweak */}
+            <div>
+              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Tweak this recipe</p>
+              <div className="flex gap-2">
+                <input type="text" placeholder='e.g. use chicken breast, make it spicier…'
+                  value={adjustInput} onChange={(e) => setAdjustInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && adjustRecipe()}
+                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-stone-300"
+                />
+                <button onClick={adjustRecipe} disabled={adjusting || !adjustInput.trim()}
+                  className="flex-shrink-0 px-4 py-2 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-1.5">
+                  <PenLine size={13} />
+                  {adjusting ? 'Tweaking…' : 'Apply'}
+                </button>
+              </div>
+              {adjustError && <p className="text-xs text-red-500 mt-2">{adjustError}</p>}
+            </div>
+          </>
+        )}
+        <button onClick={() => onRemove(recipe)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-red-200 text-red-500 hover:bg-red-50 transition text-sm font-medium">
+          <Trash2 size={15} />
+          Remove from meal plan
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={`rounded-2xl border-2 transition-all ${isCooked ? "border-green-300 bg-green-50 opacity-80" : "border-orange-100 bg-white"}`}>
       <div className="p-4">
@@ -1201,7 +1334,16 @@ export default function App() {
 
   // ── Shopping list handlers ────────────────────────────────────────────────
   async function toggleItem(itemName) {
-    if (checkedItems[itemName]) {
+    // Optimistic update — flip state immediately so the UI responds without
+    // waiting for the Supabase realtime event.
+    const wasChecked = !!checkedItems[itemName];
+    setCheckedItems((prev) => {
+      const next = { ...prev };
+      if (wasChecked) delete next[itemName];
+      else next[itemName] = true;
+      return next;
+    });
+    if (wasChecked) {
       await supabase.from("shopping_checks").delete()
         .eq("household_id", household.id).eq("item_name", itemName);
     } else {
@@ -1293,8 +1435,8 @@ export default function App() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-white font-outfit">
-      {/* Top bar — household switcher (when 2+ households) and selection count */}
-      {(memberships.length >= 2 || selectedIds.size > 0) && (
+      {/* Top bar — household switcher (only when 2+ households) */}
+      {memberships.length >= 2 && (
         <div className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-2 flex items-center gap-2 max-w-2xl mx-auto">
           <HouseholdSwitcher
             memberships={memberships}
@@ -1303,11 +1445,6 @@ export default function App() {
             onLeave={leaveHousehold}
             variant="chip"
           />
-          {selectedIds.size > 0 && (
-            <span className="ml-auto bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-              {selectedIds.size} meals selected
-            </span>
-          )}
         </div>
       )}
 
@@ -2267,10 +2404,31 @@ export default function App() {
               onSwitch={switchHousehold}
             />
 
-            {/* Settings panel — expands below user card */}
+            {/* Settings overlay — covers the profile tab when open */}
             {showSettings && (
-              <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                <PreferencesModal household={household} section="settings" inline={true} onClose={loadPreferences} />
+              <div className="fixed inset-0 z-40 bg-white overflow-y-auto pb-24">
+                <div className="max-w-2xl mx-auto px-4 pt-4 space-y-4">
+                  {/* Keep user card visible at top */}
+                  <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                        <span className="font-display text-xl font-bold text-orange-600">
+                          {(memberProfile?.display_name || user?.email || '?')[0].toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
+                        <p className="text-xs text-stone-400 truncate">{user?.email}</p>
+                      </div>
+                      <button onClick={() => setShowSettings(false)}
+                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-orange-100 text-orange-600 hover:bg-orange-200 transition"
+                        title="Close settings">
+                        <X size={15} />
+                      </button>
+                    </div>
+                  </div>
+                  <PreferencesModal household={household} section="settings" inline={true} onClose={() => { loadPreferences(); setShowSettings(false); }} />
+                </div>
               </div>
             )}
 

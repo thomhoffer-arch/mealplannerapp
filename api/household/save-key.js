@@ -92,14 +92,25 @@ export default async function handler(req, res) {
       return res.json({ removed: true });
     }
 
-    const testRes = await fetch('https://api.puter.com/puterai/openai/v1/models', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (!testRes.ok) {
+    let puterOk = false;
+    try {
+      const testRes = await fetch('https://api.puter.com/puterai/openai/v1/models', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      puterOk = testRes.ok;
+    } catch {
+      return res.status(422).json({ error: 'Could not reach Puter to validate token — check your connection and try again.' });
+    }
+    if (!puterOk) {
       return res.status(422).json({ error: 'Invalid Puter token — please check and try again.' });
     }
 
-    const encrypted = encrypt(token);
+    let encrypted;
+    try { encrypted = encrypt(token); } catch (err) {
+      console.error('[save-key] encrypt failed:', err.message);
+      return res.status(500).json({ error: 'Server configuration error — ENCRYPTION_KEY is not set correctly.' });
+    }
     const hint = token.slice(-4);
     await supabase
       .from('household_preferences')
@@ -118,14 +129,25 @@ export default async function handler(req, res) {
     return res.json({ removed: true });
   }
 
-  const testRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`
-  );
-  if (!testRes.ok) {
-    return res.status(422).json({ error: 'Invalid Gemini API key — please check and try again.' });
+  let geminiOk = false;
+  try {
+    const testRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    geminiOk = testRes.ok;
+    if (!geminiOk) {
+      return res.status(422).json({ error: 'Invalid Gemini API key — please check and try again.' });
+    }
+  } catch {
+    return res.status(422).json({ error: 'Could not reach Google to validate the key — check your connection and try again.' });
   }
 
-  const encrypted = encrypt(key);
+  let encrypted;
+  try { encrypted = encrypt(key); } catch (err) {
+    console.error('[save-key] encrypt failed:', err.message);
+    return res.status(500).json({ error: 'Server configuration error — ENCRYPTION_KEY is not set correctly.' });
+  }
   const hint = key.slice(-4);
   await supabase
     .from('household_preferences')
