@@ -308,7 +308,12 @@ function mergeAmounts(rawAmounts, system = 'metric') {
 function consolidateIngredients(selectedRecipes, customIngredients, measurementSystem = 'metric') {
   const items = {};
 
+  // Ingredients that are purely plating/serving notes — not something to buy.
+  // "cooked rice, for serving" and similar should be omitted entirely.
+  const _SERVING_SUFFIX = /,\s*(for serving|to serve|for garnish|to garnish|for topping|for decoration|as needed)/i;
+
   const addSingle = (rawName, amount, extra = {}) => {
+    if (_SERVING_SUFFIX.test(rawName)) return;
     const key = ingredientKey(rawName);
     if (!key || key.startsWith('leftover')) return;
     if (items[key]) {
