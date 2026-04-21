@@ -368,7 +368,7 @@ export default function AuthScreen() {
               <motion.span layout transition={{ type: 'spring', damping: 30, stiffness: 400 }}>Give it a</motion.span>
               <TextRotate
                 texts={['week.', 'try.', 'go.', 'Monday.', 'dinner.']}
-                mainClassName="text-white px-3 bg-orange-500 overflow-hidden py-0.5 sm:py-1 justify-center rounded-full"
+                mainClassName="font-display italic font-normal text-orange-600 overflow-hidden justify-center"
                 staggerFrom="last"
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
