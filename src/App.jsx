@@ -1827,6 +1827,7 @@ export default function App() {
       {showPreferences && (
         <PreferencesModal
           household={household}
+          initialPrefs={preferences}
           onClose={() => { setShowPreferences(false); loadPreferences(); }}
         />
       )}
@@ -3003,7 +3004,7 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                  <PreferencesModal household={household} section="settings" inline={true} onClose={() => { loadPreferences(); setShowSettings(false); }} />
+                  <PreferencesModal household={household} section="settings" inline={true} initialPrefs={preferences} onClose={() => { loadPreferences(); setShowSettings(false); }} />
                 </div>
               </div>
             )}
@@ -3146,7 +3147,7 @@ export default function App() {
 
             {/* Dietary wishes — always visible */}
             <div className="bg-white rounded-2xl border border-orange-100 p-4">
-              <PreferencesModal household={household} section="dietary" inline={true} onClose={loadPreferences} />
+              <PreferencesModal household={household} section="dietary" inline={true} initialPrefs={preferences} onClose={loadPreferences} />
             </div>
 
             {/* Data export + account deletion */}
