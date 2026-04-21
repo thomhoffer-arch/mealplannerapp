@@ -189,13 +189,41 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
 
   const inner = (
     <div className={inline ? "space-y-5" : "px-5 pb-5 space-y-5"}>
-          {/* ── Appearance ── */}
+          {/* ── Appearance & units ── */}
           {showSettings && (
           <div className="space-y-2">
             <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Appearance</p>
             <div className="flex items-center justify-between">
               <span className="text-sm text-orange-900 font-medium">Theme</span>
               <ThemeToggle />
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <div>
+                <span className="text-sm text-orange-900 font-medium">Measurement system</span>
+                <p className="text-xs text-orange-400">Shopping list amounts and recipe suggestions</p>
+              </div>
+              <div className="flex gap-1">
+                {['metric', 'imperial'].map((sys) => (
+                  <button
+                    key={sys}
+                    disabled={savingMeasurement}
+                    onClick={async () => {
+                      if (sys === measurementSystem) return;
+                      setMeasurementSystem(sys);
+                      setSavingMeasurement(true);
+                      const { error } = await supabase.from('household_preferences').upsert(
+                        { household_id: household.id, measurement_system: sys },
+                        { onConflict: 'household_id' }
+                      );
+                      setSavingMeasurement(false);
+                      if (!error) onPrefsChange?.({ measurement_system: sys });
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition disabled:opacity-50 ${sys === measurementSystem ? 'bg-orange-500 text-white' : 'bg-white border border-orange-200 text-orange-700 hover:bg-orange-100'}`}
+                  >
+                    {sys === 'metric' ? 'Metric' : 'Imperial'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           )}
@@ -249,36 +277,6 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
                 >
                   <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${mealPrepMode ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
-              </div>
-
-              {/* Measurement system */}
-              <div className="flex items-start justify-between gap-3 bg-orange-50 rounded-xl px-3 py-3">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-orange-900">Measurement system</p>
-                  <p className="text-xs text-orange-400 mt-0.5">Affects shopping list amounts and recipe suggestions.</p>
-                </div>
-                <div className="flex gap-1 flex-shrink-0 mt-0.5">
-                  {['metric', 'imperial'].map((sys) => (
-                    <button
-                      key={sys}
-                      disabled={savingMeasurement}
-                      onClick={async () => {
-                        if (sys === measurementSystem) return;
-                        setMeasurementSystem(sys);
-                        setSavingMeasurement(true);
-                        const { error } = await supabase.from('household_preferences').upsert(
-                          { household_id: household.id, measurement_system: sys },
-                          { onConflict: 'household_id' }
-                        );
-                        setSavingMeasurement(false);
-                        if (!error) onPrefsChange?.({ measurement_system: sys });
-                      }}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition disabled:opacity-50 ${sys === measurementSystem ? 'bg-orange-500 text-white' : 'bg-white border border-orange-200 text-orange-700 hover:bg-orange-100'}`}
-                    >
-                      {sys === 'metric' ? 'Metric' : 'Imperial'}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <textarea
