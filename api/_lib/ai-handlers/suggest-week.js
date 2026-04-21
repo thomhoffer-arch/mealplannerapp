@@ -338,8 +338,16 @@ P5. PRIORITISE STARRED RECIPES.
 P6. VARIETY AND BALANCE.
     No repeated main ingredient on consecutive days. Different cuisine each day.
     Reflect the RATINGS HISTORY: lean toward loved patterns, avoid disliked ones.
+    Within a single day, dinner and any extras (breakfast, lunch, snacks) must be
+    meaningfully different — never the same dish concept or the same hero ingredient
+    (e.g. pancakes for breakfast AND pancakes for dinner on the same day is not
+    acceptable). Check every day where extras are planned and ensure the extras and
+    dinner are distinct dishes.
+    When the household requests or favours a specific meal type on certain days
+    (vegetarian day, fish day, etc.), distribute these naturally across the whole
+    week — do not default to placing them on Monday or Tuesday. Any day qualifies.
 
-P7. PRACTICAL MEAL PLANNING.
+P7. PRACTICAL MEAL PLANNING — think waste-first.
     One "cook once, eat twice" per week where natural. Set leftover_for only
     if the target meal was already going to be planned anyway (a dinner or an
     explicitly requested extra). NEVER create an extra meal entry just to give
@@ -347,6 +355,17 @@ P7. PRACTICAL MEAL PLANNING.
     at a dinner (e.g. "Wednesday dinner") or leave leftover_for null.
     Favour ingredient reuse across the week. Draw from pantry items where it
     fits naturally.
+
+    SIDE DISHES: when a day has a side_dish, design it to use an ingredient
+    that is already purchased for another dinner that week (e.g. if spinach
+    appears in Tuesday's curry, a wilted-spinach side on Wednesday costs
+    nothing extra). Note the shared ingredient in the side_dish description.
+
+    EXTRA MEALS (breakfast/lunch when requested): when planning an extra,
+    prefer ingredients already in the week's plan. A grain cooked for dinner
+    becomes a grain bowl at lunch; roasted veg becomes a frittata at
+    breakfast. This cuts waste and shopping cost — mention the connection
+    briefly in the extra's reason field.
 
 !! EXTRAS ONLY WHEN EXPLICITLY REQUESTED !!
     "extras" must be an empty array [] on every day UNLESS the user has
@@ -359,7 +378,7 @@ P7. PRACTICAL MEAL PLANNING.
 P8. REAL DISHES ONLY.
     Every suggestion must be a recognisable, real-world dish.
 
-SELF-CHECK BEFORE OUTPUT: For every day, verify (a) any requested extras appear in "extras" with a name/meal_type, NOT only in "notes"; (b) skipped days have skip=true and name=null; (c) the week has exactly 7 day entries; (d) every day's "extras" array is [] unless an extra meal was explicitly asked for by the user.
+SELF-CHECK BEFORE OUTPUT: For every day, verify (a) any requested extras appear in "extras" with a name/meal_type, NOT only in "notes"; (b) skipped days have skip=true and name=null; (c) the week has exactly 7 day entries; (d) every day's "extras" array is [] unless an extra meal was explicitly asked for by the user — leftover logic is NEVER a reason to add an extras entry; (e) every leftover_for value points at a dinner or an already-requested extra, never at a spontaneously invented meal.
 
 Return ONLY a JSON object, no markdown:
 {

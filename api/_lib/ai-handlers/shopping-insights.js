@@ -26,10 +26,12 @@ ${recipeList || '(no recipe names provided)'}
 Their shopping list:
 ${itemList}
 
-Identify up to 5 ingredients where the household will likely buy more than they need. For each, give a short practical tip on how to use up the rest.
+Identify up to 5 ingredients where the household will likely buy more than they need (e.g. a bunch of herbs when only a sprig is needed, a 250g bag of spinach when only a handful is used). For each:
+1. Give a short practical tip on how to use the rest.
+2. Suggest one specific simple dish — a side dish, a quick lunch, or a light breakfast — that would use that leftover ingredient. Keep the suggestion concrete (e.g. "spinach frittata", "herb butter on toast", "lemon yoghurt with honey").
 
 Return ONLY JSON, no markdown:
-{"insights":[{"ingredient":"spinach","tip":"Bags are usually 200–250g; toss the rest into scrambled eggs or a wrap."}]}
+{"insights":[{"ingredient":"spinach","tip":"Bags are usually 200–250g; toss the rest in tomorrow.","suggestion":"Quick spinach frittata for lunch"}]}
 
 Return an empty array if there are no meaningful waste opportunities.`;
 

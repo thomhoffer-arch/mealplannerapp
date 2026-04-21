@@ -279,14 +279,16 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           />
         </div>
 
-        {/* Scrollable content area */}
-        <div className="overflow-y-auto flex-1 px-5 pb-6 safe-area-bottom">
+        {/* Content area */}
+        <div className="flex-1 flex flex-col min-h-0">
           {error && (
-            <div className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2 mb-3">{error}</div>
+            <div className="px-5 pt-2 flex-shrink-0">
+              <div className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</div>
+            </div>
           )}
 
           {loading && (
-            <div className="flex flex-col items-center py-12 gap-3">
+            <div className="flex-1 flex flex-col items-center justify-center gap-3">
               <div className="w-8 h-8 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
               <p className="text-sm text-orange-600">Planning your week…</p>
               <p className="text-xs text-orange-400">Checking preferences and starred recipes</p>
@@ -294,43 +296,23 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           )}
 
           {!loading && !plan && !error && (
-            <div className="text-center py-10">
+            <div className="flex-1 flex flex-col items-center justify-center px-5 text-center">
               <Sparkles size={40} className="mx-auto mb-3 text-orange-400" />
               <p className="text-sm text-orange-600 font-medium">AI plans a varied week for you</p>
               <p className="text-xs text-orange-400 mt-1 leading-relaxed">Based on your preferences and starred recipes — no pasta two days in a row.</p>
             </div>
           )}
 
-          {plan && !loading && plan.map((week) => (
-            <div key={week.week} className="mb-4 -mx-5">
+          {plan && !loading && (
+            <div className="flex-1 flex flex-col min-h-0">
+          {plan.map((week) => (
+            <div key={week.week} className="flex-1 flex flex-col min-h-0 -mx-5">
               {plan.length > 1 && (
-                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2 px-5">Week {week.week}</p>
+                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2 px-5 flex-shrink-0">Week {week.week}</p>
               )}
 
-              {/* Day chip nav */}
-              <div className="flex gap-1.5 px-5 mb-3 overflow-x-auto scrollbar-hide">
-                {week.days.map((day) => {
-                  const key = `${week.week}-${day.day}`;
-                  const isSelected = !!selected[key];
-                  return (
-                    <button
-                      key={day.day}
-                      onClick={() => {
-                        const el = document.getElementById(`plan-day-${week.week}-${day.day}`);
-                        if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition ${
-                        isSelected ? 'bg-orange-500 text-white' : 'bg-orange-100 text-orange-400'
-                      }`}
-                    >
-                      {day.day.slice(0, 3)}
-                    </button>
-                  );
-                })}
-              </div>
-
               {/* Horizontal carousel — one day per swipe */}
-              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory px-5 scroll-px-5 pb-3 scrollbar-hide">
+              <div className="flex-1 flex gap-3 overflow-x-auto snap-x snap-mandatory px-5 scroll-px-5 pb-3 scrollbar-hide">
                 {week.days.map((day) => {
                   const key = `${week.week}-${day.day}`;
                   const isSelected = !!selected[key];
@@ -369,7 +351,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                     <div
                       key={day.day}
                       id={`plan-day-${week.week}-${day.day}`}
-                      className={`flex-shrink-0 w-full snap-start rounded-2xl border-2 overflow-hidden bg-white transition ${
+                      className={`flex-shrink-0 w-full snap-start rounded-2xl border-2 overflow-hidden flex flex-col bg-white transition ${
                         isSelected ? 'border-orange-400' : 'border-orange-100 opacity-75'
                       }`}
                     >
@@ -411,7 +393,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         </div>
                       )}
 
-                      <div>
+                      <div className="flex-1 overflow-y-auto">
 
                         {/* Selection toggle + source badges */}
                         <div className="flex items-center gap-2 px-4 pt-3 pb-2">
@@ -557,18 +539,20 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             </div>
           ))}
 
-          {/* AI planner notes */}
-          {notes && plan && !loading && (
-            <div className="mt-2">
-              <button
-                onClick={() => setShowNotes((v) => !v)}
-                className="flex items-center gap-1 text-xs text-orange-600 font-medium hover:text-orange-900 transition"
-              >
-                {showNotes ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                Planner notes
-              </button>
-              {showNotes && (
-                <p className="text-xs text-orange-600 bg-orange-50 rounded-xl px-3 py-2 mt-1 leading-relaxed">{notes}</p>
+              {/* AI planner notes */}
+              {notes && (
+                <div className="px-5 py-2 flex-shrink-0">
+                  <button
+                    onClick={() => setShowNotes((v) => !v)}
+                    className="flex items-center gap-1 text-xs text-orange-600 font-medium hover:text-orange-900 transition"
+                  >
+                    {showNotes ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    Planner notes
+                  </button>
+                  {showNotes && (
+                    <p className="text-xs text-orange-600 bg-orange-50 rounded-xl px-3 py-2 mt-1 leading-relaxed">{notes}</p>
+                  )}
+                </div>
               )}
             </div>
           )}

@@ -102,6 +102,10 @@ ${stepsList || '  (none listed)'}
 
 USER REQUEST: "${request}"
 
+If the request adds an ingredient (e.g. "add rice", "add potatoes"), weave it fully into the
+steps at the right moment — don't just list it in ingredients and append a side note at the end.
+Update prep_time / cook_time if the addition changes the total cooking time.
+
 Return ONLY a JSON object, no markdown:
 {
   "ingredients": [{ "name": "...", "amount": "..." }],

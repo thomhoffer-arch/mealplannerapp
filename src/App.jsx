@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, Settings,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, Settings, AlertTriangle,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { apiFetch, setActiveHouseholdId, getActiveHouseholdId } from "./lib/api";
@@ -87,11 +87,64 @@ function formatWeekLabel(weekStart) {
   return sm === em ? `${sd}–${ed} ${sm}` : `${sd} ${sm} – ${ed} ${em}`;
 }
 
+const ALLERGENS = [
+  { name: 'Gluten',     color: 'bg-amber-100 text-amber-700',   patterns: ['flour','wheat','pasta','bread','breadcrumb','soy sauce','barley','rye','oat','spelt','semolina','noodle','couscous','bulgur','pita','tortilla'] },
+  { name: 'Milk',       color: 'bg-blue-100 text-blue-700',     patterns: ['milk','cream','butter','cheese','yogurt','yoghurt','parmesan','mozzarella','ricotta','halloumi','pecorino','brie','cheddar','gouda','feta','mascarpone','crème fraîche','creme fraiche','ghee'] },
+  { name: 'Eggs',       color: 'bg-yellow-100 text-yellow-700', patterns: ['egg'] },
+  { name: 'Fish',       color: 'bg-cyan-100 text-cyan-700',     patterns: ['salmon','tuna','cod','bass','halibut','trout','flounder','anchovy','sardine','mackerel','herring','tilapia','snapper','fish sauce','fish stock','fish'] },
+  { name: 'Shellfish',  color: 'bg-teal-100 text-teal-700',     patterns: ['shrimp','prawn','crab','lobster','scallop','clam','oyster','mussel','squid','octopus','crayfish'] },
+  { name: 'Peanuts',    color: 'bg-orange-100 text-orange-700', patterns: ['peanut','groundnut','satay'] },
+  { name: 'Tree nuts',  color: 'bg-orange-100 text-orange-700', patterns: ['almond','cashew','walnut','pecan','pistachio','macadamia','hazelnut','pine nut','brazil nut'] },
+  { name: 'Soy',        color: 'bg-green-100 text-green-700',   patterns: ['soy','tofu','tempeh','edamame','miso','tamari'] },
+  { name: 'Sesame',     color: 'bg-stone-100 text-stone-600',   patterns: ['sesame','tahini'] },
+  { name: 'Mustard',    color: 'bg-yellow-100 text-yellow-700', patterns: ['mustard'] },
+  { name: 'Celery',     color: 'bg-lime-100 text-lime-700',     patterns: ['celery','celeriac'] },
+  { name: 'Sulphites',  color: 'bg-purple-100 text-purple-700', patterns: ['wine','vinegar','dried apricot','dried fruit','balsamic'] },
+];
+// Ingredients typically bought in larger units than a single recipe needs.
+// When checked off the shopping list these are auto-added to the pantry.
+const BULK_STAPLES = [
+  'olive oil','oil','butter','coconut oil','sesame oil','vegetable oil','sunflower oil',
+  'vinegar','balsamic','apple cider vinegar','white wine vinegar','red wine vinegar','rice vinegar',
+  'soy sauce','fish sauce','worcestershire','hot sauce','ketchup','mustard','mayonnaise',
+  'oyster sauce','hoisin','sriracha','tahini','miso','miso paste',
+  'salt','pepper','paprika','cumin','coriander','turmeric','oregano','thyme','basil',
+  'bay leaves','chili flakes','cayenne','cinnamon','nutmeg','cardamom','cloves','garam masala',
+  'canned tomatoes','tomato paste','coconut milk','tomato puree',
+  'pasta','rice','flour','sugar','honey','maple syrup',
+  'parmesan','pecorino','stock','broth','bouillon',
+  'dried herbs','dried spices',
+];
+function isBulkStaple(name) {
+  const n = (name || '').toLowerCase().trim();
+  return BULK_STAPLES.some((s) => n.includes(s));
+}
+
+function detectAllergens(ingredients = []) {
+  const text = ingredients.map((i) => `${i.name || ''} ${i.amount || ''}`).join(' ').toLowerCase();
+  return ALLERGENS.filter((a) => a.patterns.some((p) => text.includes(p)));
+}
+
+const PREP_WORDS = ['sliced','diced','chopped','minced','peeled','grated','shredded','torn','crushed','halved','quartered','julienned','roughly','finely','thinly','thickly','cut','trimmed','washed','rinsed','dried','softened','melted','beaten','whisked','to taste','at room temperature','room temperature'];
+function normalizeIngredientName(name) {
+  // Strip prep description after the first comma if it looks like a preparation instruction
+  const commaIdx = name.indexOf(',');
+  if (commaIdx > 0) {
+    const afterComma = name.slice(commaIdx + 1).trim().toLowerCase();
+    if (PREP_WORDS.some((p) => afterComma.startsWith(p))) {
+      name = name.slice(0, commaIdx).trim();
+    }
+  }
+  // Strip parenthetical prep notes like "(peeled and diced)"
+  return name.replace(/\s*\([^)]*\)/g, '').trim();
+}
+
 function consolidateIngredients(selectedRecipes, customIngredients) {
   const items = {};
   selectedRecipes.forEach((recipe) => {
     const rid = String(recipe.id);
-    (recipe.ingredients || []).forEach(({ name, amount }) => {
+    (recipe.ingredients || []).forEach(({ name: rawName, amount }) => {
+      const name = normalizeIngredientName(rawName);
       const key = name.toLowerCase().trim();
       if (items[key]) items[key].amounts.push(amount);
       else items[key] = { name, amounts: [amount] };
@@ -204,8 +257,10 @@ function SelectedRecipeCard({
   const [sharing, setSharing] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareError, setShareError] = useState(null);
+  const [showAllergens, setShowAllergens] = useState(false);
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
+  const detectedAllergens = detectAllergens([...(recipe.ingredients || []), ...customs]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
   const [aiError, setAiError] = useState(null);
@@ -274,8 +329,8 @@ function SelectedRecipeCard({
   if (inlineExpanded) {
     return (
       <div className="px-4 pb-4 space-y-4">
-        {/* Minimal action row: cooked toggle + share */}
-        <div className="flex items-center gap-2 pt-1">
+        {/* Minimal action row: cooked toggle + allergens + share */}
+        <div className="flex items-center gap-2 pt-1 flex-wrap">
           <button
             onClick={() => onToggleCooked(rid)}
             className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border-2 transition ${isCooked ? 'border-sage-400 bg-sage-100 text-sage-600' : 'border-orange-200 text-orange-400 hover:border-sage-300 hover:text-sage-600'}`}
@@ -284,6 +339,15 @@ function SelectedRecipeCard({
             {isCooked ? 'Cooked!' : 'Mark cooked'}
           </button>
           {rating && <p className="text-xs ml-1 text-orange-400">{'★'.repeat(rating)}</p>}
+          {detectedAllergens.length > 0 && (
+            <button
+              onClick={() => setShowAllergens((v) => !v)}
+              className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full border-2 border-amber-200 text-amber-600 hover:bg-amber-50 transition"
+            >
+              <AlertTriangle size={11} />
+              Allergens
+            </button>
+          )}
           <button
             onClick={async () => {
               if (sharing) return;
@@ -306,6 +370,19 @@ function SelectedRecipeCard({
             {shareError ? <X size={15} className="text-red-400" /> : shareCopied ? <Check size={15} className="text-orange-600" /> : <Link2 size={15} />}
           </button>
         </div>
+        {showAllergens && detectedAllergens.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+            <p className="text-xs font-semibold text-amber-700 mb-2 flex items-center gap-1.5">
+              <AlertTriangle size={12} /> Possible allergens
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {detectedAllergens.map((a) => (
+                <span key={a.name} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${a.color}`}>{a.name}</span>
+              ))}
+            </div>
+            <p className="text-[10px] text-amber-500 mt-2">Based on ingredient names — always check labels for your specific dietary needs.</p>
+          </div>
+        )}
         {isStub || recipe._quickEntry ? (
           <div className="py-3 space-y-3">
             {isStub && (
@@ -497,6 +574,29 @@ function SelectedRecipeCard({
 
       {expanded && (
         <div className="border-t border-orange-100 p-4 space-y-4">
+
+          {/* Allergen panel */}
+          {detectedAllergens.length > 0 && (
+            <div>
+              <button
+                onClick={() => setShowAllergens((v) => !v)}
+                className="flex items-center gap-1.5 text-xs font-medium text-amber-600 hover:text-amber-800 transition"
+              >
+                <AlertTriangle size={12} />
+                {showAllergens ? 'Hide allergens' : 'Show possible allergens'}
+              </button>
+              {showAllergens && (
+                <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                  <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    {detectedAllergens.map((a) => (
+                      <span key={a.name} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${a.color}`}>{a.name}</span>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-amber-500">Based on ingredient names — always check labels for your specific needs.</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* AI stub — offer to generate full recipe */}
           {isStub ? (
@@ -724,7 +824,7 @@ export default function App() {
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const todayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];
 
-  const [activeTab, setActiveTab] = useState("week");
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('mp:activeTab') || "week");
   const [basketSection, setBasketSection] = useState("shopping");
   const [householdMembers, setHouseholdMembers] = useState([]);
   const [editingHouseholdName, setEditingHouseholdName] = useState(false);
@@ -764,6 +864,8 @@ export default function App() {
   const [expandedRecipes, setExpandedRecipes] = useState({});
   const [newIngredientInput, setNewIngredientInput] = useState({});
   const [generatingExtra, setGeneratingExtra] = useState(null); // "Monday-breakfast" while generating
+
+  useEffect(() => { localStorage.setItem('mp:activeTab', activeTab); }, [activeTab]);
 
   // ── Auth setup ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1652,6 +1754,16 @@ export default function App() {
         .eq("household_id", household.id).eq("item_name", itemName);
     } else {
       await supabase.from("shopping_checks").insert({ household_id: household.id, item_name: itemName });
+      // Auto-add bulk staples to pantry — they'll have plenty left over after one use
+      if (isBulkStaple(itemName)) {
+        const alreadyInPantry = pantryItems.some((p) => p.name.toLowerCase().trim() === itemName.toLowerCase().trim());
+        if (!alreadyInPantry) {
+          const { data: inserted } = await supabase.from('pantry_items')
+            .insert({ household_id: household.id, name: itemName, amount: '' })
+            .select('id, name, amount').single();
+          if (inserted) setPantryItems((prev) => [...prev, inserted]);
+        }
+      }
     }
   }
 
@@ -1703,7 +1815,10 @@ export default function App() {
     if (error) {
       console.error('[saveHouseholdName]', error.message);
     } else {
+      // Optimistic update, then confirm from DB so the name survives a reload
       setHousehold((h) => ({ ...h, name }));
+      supabase.from('households').select('name').eq('id', household.id).single()
+        .then(({ data }) => { if (data?.name) setHousehold((h) => ({ ...h, name: data.name })); });
     }
     setEditingHouseholdName(false);
   }
@@ -1919,8 +2034,8 @@ export default function App() {
             const { data: inserted } = await supabase.from("meal_plan_items").insert(
               newRows.map(({ recipe_id, recipe_data }) => ({ household_id: household.id, recipe_id, recipe_data }))
             ).select('id, recipe_id');
+            const idMap = {};
             if (inserted) {
-              const idMap = {};
               inserted.forEach((r) => { idMap[r.recipe_id] = r.id; });
               setMealPlanItems((prev) => prev.map((item) =>
                 item.id.startsWith('optimistic-') && idMap[item.recipe_id]
@@ -1929,6 +2044,38 @@ export default function App() {
               ));
             }
             setActiveTab("week");
+            // Background: generate full ingredients for AI stubs one at a time
+            const aiStubs = recipes.filter((r) => r._aiSuggestion && !(r.ingredients?.length));
+            if (aiStubs.length) {
+              (async () => {
+                for (const stub of aiStubs) {
+                  try {
+                    const generated = await apiFetch('/api/ai/generate-recipe', {
+                      method: 'POST',
+                      body: { recipe: stub },
+                    });
+                    const enriched = {
+                      ...stub,
+                      ingredients: generated.ingredients || [],
+                      steps: generated.steps || [],
+                      prepTime: generated.prepTime || stub.prepTime,
+                      cookTime: generated.cookTime || stub.cookTime,
+                      macros: generated.macros || {},
+                      _weekStart: viewWeek,
+                    };
+                    setMealPlanItems((prev) => prev.map((item) =>
+                      item.recipe_id === String(stub.id)
+                        ? { ...item, recipe_data: enriched }
+                        : item
+                    ));
+                    const dbId = idMap[String(stub.id)];
+                    if (dbId) supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbId);
+                  } catch (err) {
+                    console.error('[bg-generate]', stub.name, err.message);
+                  }
+                }
+              })();
+            }
           }}
         />
       )}
@@ -2790,6 +2937,9 @@ export default function App() {
                             <div>
                               <p className="text-sm font-semibold text-sage-600 capitalize">{ins.ingredient}</p>
                               <p className="text-xs text-sage-600 mt-0.5 leading-relaxed">{ins.tip}</p>
+                              {ins.suggestion && (
+                                <p className="text-[11px] font-medium text-sage-500 mt-1 italic">→ {ins.suggestion}</p>
+                              )}
                             </div>
                           </div>
                         ))}
