@@ -306,16 +306,30 @@ function SelectedRecipeCard({
             {shareError ? <X size={15} className="text-red-400" /> : shareCopied ? <Check size={15} className="text-orange-600" /> : <Link2 size={15} />}
           </button>
         </div>
-        {isStub ? (
-          <div className="text-center py-4">
-            <p className="text-sm text-orange-900 mb-1 font-display italic">Full recipe not written yet.</p>
-            <p className="text-xs text-orange-400 mb-4">The AI will write ingredients and steps now — takes about 10 seconds.</p>
-            {generateError && <p className="text-xs text-red-500 mb-3">{generateError}</p>}
-            <button onClick={generateFullRecipe} disabled={generating}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50">
-              <Sparkles size={14} />
-              {generating ? 'Writing recipe…' : 'Generate full recipe'}
-            </button>
+        {isStub || recipe._quickEntry ? (
+          <div className="py-3 space-y-3">
+            {isStub && (
+              <p className="text-xs text-orange-400 text-center">Tap generate to get the full recipe — or adjust it first.</p>
+            )}
+            {/* Tweak before generating (or adjust a quick entry) */}
+            <div className="flex gap-2">
+              <input type="text"
+                placeholder={isStub ? 'Adjust before generating… (faster, use chicken…)' : 'Change something… (shorter, add ingredients…)'}
+                value={adjustInput} onChange={(e) => setAdjustInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (generating || adjusting ? null : adjustInput.trim() ? adjustRecipe() : generateFullRecipe())}
+                className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
+              />
+              <button
+                onClick={() => adjustInput.trim() ? adjustRecipe() : generateFullRecipe()}
+                disabled={generating || adjusting}
+                className="flex-shrink-0 px-4 py-2 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-1.5">
+                <Sparkles size={13} />
+                {generating || adjusting ? 'Writing…' : adjustInput.trim() ? 'Apply' : 'Generate'}
+              </button>
+            </div>
+            {(generateError || adjustError) && (
+              <p className="text-xs text-red-500">{generateError || adjustError}</p>
+            )}
           </div>
         ) : (
           <>
@@ -736,6 +750,8 @@ export default function App() {
   const [pantryItems, setPantryItems] = useState([]);      // [{ id, name, amount }]
   const [pantryInput, setPantryInput] = useState("");
   const [pantryNudge, setPantryNudge] = useState(null);   // { original, amount, suggestions, loading }
+  const [quickEntryDay, setQuickEntryDay] = useState(null);
+  const [quickEntryValue, setQuickEntryValue] = useState('');
   const [templates, setTemplates] = useState([]);          // [{ id, name, recipes }]
   const [templateName, setTemplateName] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -1220,6 +1236,25 @@ export default function App() {
     const { amount } = pantryNudge;
     setPantryNudge(null);
     await savePantryName(chosenName, amount);
+  }
+
+  async function submitQuickEntry(day) {
+    const name = quickEntryValue.trim();
+    if (!name) { setQuickEntryDay(null); return; }
+    setQuickEntryDay(null);
+    setQuickEntryValue('');
+    const stub = {
+      id: `quick-${Date.now()}`,
+      name,
+      _plannedDay: day,
+      _weekStart: viewWeek,
+      _quickEntry: true,
+      ingredients: [],
+      steps: [],
+      prepTime: 0,
+      cookTime: 0,
+    };
+    await toggleSelectedRecipe(stub);
   }
 
   async function removePantryItem(id) {
@@ -2203,7 +2238,7 @@ export default function App() {
                             )}
                             <div className="flex-1 min-w-0">
                               <p className={`text-sm font-semibold leading-snug truncate ${xIsCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>{xr.name}</p>
-                              <p className="text-xs text-orange-400 mt-0.5">{[xTime > 0 ? `${xTime} min` : null, xr._aiSuggestion && (!xr.ingredients || !xr.ingredients.length) ? '· tap to generate' : null].filter(Boolean).join(' ')}</p>
+                              <p className="text-xs text-orange-400 mt-0.5">{[xTime > 0 ? `${xTime} min` : null, (xr._aiSuggestion || xr._quickEntry) && (!xr.ingredients || !xr.ingredients.length) ? '· tap to fill in' : null].filter(Boolean).join(' ')}</p>
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
                               {xIsCooked && <Check size={14} className="text-sage-500" />}
@@ -2292,7 +2327,7 @@ export default function App() {
                                   <p className="text-xs text-orange-400 mt-0.5">
                                     {[(recipe.prepTime||0)+(recipe.cookTime||0) > 0 ? `${(recipe.prepTime||0)+(recipe.cookTime||0)} min` : null,
                                       recipe.servings ? `${recipe.servings} servings` : null,
-                                      recipe._aiSuggestion && (!recipe.ingredients || !recipe.ingredients.length) ? '· tap to generate' : null,
+                                      (recipe._aiSuggestion || recipe._quickEntry) && (!recipe.ingredients || !recipe.ingredients.length) ? '· tap to fill in' : null,
                                     ].filter(Boolean).join(' · ')}
                                   </p>
                                   {recipe._plannerLeftoverFor && (
@@ -2304,14 +2339,41 @@ export default function App() {
                                   {expandedRecipes[rid] ? <ChevronUp size={16} className="text-orange-400" /> : <ChevronDown size={16} className="text-orange-400" />}
                                 </div>
                               </>
+                            ) : quickEntryDay === day ? (
+                              // ── Quick free-text entry mode ──────────
+                              <div className="flex-1 flex items-center gap-2 mr-2" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  placeholder="What are you making?"
+                                  value={quickEntryValue}
+                                  onChange={(e) => setQuickEntryValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') submitQuickEntry(day);
+                                    if (e.key === 'Escape') { setQuickEntryDay(null); setQuickEntryValue(''); }
+                                  }}
+                                  className="flex-1 min-w-0 text-sm border-b border-orange-300 bg-transparent focus:outline-none focus:border-orange-500 text-orange-900 placeholder-orange-300 py-0.5"
+                                />
+                                <button onClick={() => submitQuickEntry(day)}
+                                  className="flex-shrink-0 text-xs px-3 py-1 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition disabled:opacity-50"
+                                  disabled={!quickEntryValue.trim()}>
+                                  Save
+                                </button>
+                                <button onClick={() => { setQuickEntryDay(null); setQuickEntryValue(''); }}
+                                  className="flex-shrink-0 text-orange-400 hover:text-orange-600 transition p-1">
+                                  <X size={14} />
+                                </button>
+                              </div>
                             ) : (
                               <>
                                 <p className="flex-1 text-sm text-orange-400 italic">Free evening</p>
                                 <div className="flex items-center gap-1.5">
+                                  <button onClick={(e) => { e.stopPropagation(); setQuickEntryDay(day); setQuickEntryValue(''); }}
+                                    className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Write it in</button>
                                   <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
                                     className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Leftovers</button>
                                   <button onClick={(e) => { e.stopPropagation(); setTimeout(() => searchInputRef.current?.focus(), 0); }}
-                                    className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">+ Add</button>
+                                    className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">+ Search</button>
                                   <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
                                     className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Away</button>
                                 </div>
