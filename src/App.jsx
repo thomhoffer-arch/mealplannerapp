@@ -2202,7 +2202,17 @@ export default function App() {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
+                    {preferences?.is_gifted && (
+                      <span
+                        className="text-[10px] font-semibold uppercase tracking-wider bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full"
+                        title="Gifted account — unlimited AI planning, no weekly cap"
+                      >
+                        ✨ Gifted
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-orange-400 truncate">{user?.email}</p>
                 </div>
                 <button onClick={() => setShowSettings((v) => !v)}
