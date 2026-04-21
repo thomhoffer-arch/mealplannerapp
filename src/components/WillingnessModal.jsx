@@ -54,7 +54,7 @@ export default function WillingnessModal({ household, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-warm-lg w-full max-w-sm">
 
         {/* Done */}
         {step === 'done' && (

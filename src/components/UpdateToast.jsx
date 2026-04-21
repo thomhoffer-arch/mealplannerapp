@@ -22,12 +22,12 @@ export default function UpdateToast() {
   };
 
   return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-orange-500 text-white rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 animate-slide-up">
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-orange-500 text-white rounded-full shadow-warm-lg px-4 py-3 flex items-center gap-3 animate-slide-up">
       <RefreshCw size={18} />
       <span className="text-sm font-medium">New version available</span>
       <button
         onClick={applyUpdate}
-        className="bg-white text-orange-600 px-3 py-1 rounded-md text-sm font-medium hover:bg-orange-50 transition"
+        className="bg-white text-orange-600 px-3 py-1 rounded-full text-sm font-medium hover:bg-orange-50 transition"
       >
         Refresh
       </button>

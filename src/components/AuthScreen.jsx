@@ -501,7 +501,7 @@ export default function AuthScreen() {
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <p className="font-display text-base font-semibold text-orange-900">Premium</p>
-                  <span className="text-[10px] font-medium bg-sage-100 text-sage-600 px-2 py-0.5 rounded-full">Coming soon</span>
+                  <span className="font-display italic text-sage-600 text-xs">— later this year</span>
                 </div>
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
                   selectedPlan === 'premium' ? 'bg-sage-500 border-sage-500' : 'border-orange-300'
