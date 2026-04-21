@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Wand2 } from 'lucide-react';
+import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Wand2, Tag } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 
@@ -80,6 +80,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [thisWeekWishes, setThisWeekWishes] = useState('');
   const [weeklyBudget, setWeeklyBudget]   = useState('');   // optional €/week
   const [simpleNight, setSimpleNight]     = useState(false); // include one easy night
+  const [deals, setDeals]               = useState([]);    // fetched supermarket deals
+  const [dealsLoading, setDealsLoading] = useState(false);
+  const [dealsError, setDealsError]     = useState('');
   const [showNotes, setShowNotes]       = useState(false);
   // expandedMeals: { [weekNum-dayName]: { dinner: bool, "breakfast-0": bool, ... } }
   const [expandedMeals, setExpandedMeals] = useState({});
@@ -112,6 +115,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           this_week_wishes: thisWeekWishes || '',
           weekly_budget: weeklyBudget ? Number(weeklyBudget) : null,
           simple_night: simpleNight,
+          deals: deals,
         },
       });
       setPlan(data.weeks);
@@ -133,6 +137,20 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
       setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchDeals() {
+    setDealsLoading(true);
+    setDealsError('');
+    try {
+      const data = await apiFetch('/api/ai/search-deals', { method: 'POST', body: {} });
+      setDeals(data.deals || []);
+      if (!data.deals?.length) setDealsError('No deals found for this week.');
+    } catch (err) {
+      setDealsError(err.message || 'Could not fetch deals');
+    } finally {
+      setDealsLoading(false);
     }
   }
 
@@ -298,6 +316,38 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             >
               {simpleNight ? '✓ ' : ''}Easy night
             </button>
+          </div>
+
+          {/* Deals row — premium, Gemini key required */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={fetchDeals}
+                disabled={dealsLoading}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-orange-200 text-orange-600 hover:border-orange-400 transition disabled:opacity-50"
+              >
+                <Tag size={12} />
+                {dealsLoading ? 'Finding deals…' : deals.length ? 'Refresh deals' : 'Include this week\'s deals'}
+              </button>
+              {dealsError && <span className="text-[11px] text-red-400">{dealsError}</span>}
+            </div>
+            {deals.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {deals.map((deal, i) => (
+                  <span key={i} className="flex items-center gap-1 text-[11px] bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full">
+                    {deal.item}{deal.price ? ` · ${deal.price}` : ''}
+                    <button
+                      type="button"
+                      onClick={() => setDeals((prev) => prev.filter((_, j) => j !== i))}
+                      className="text-green-400 hover:text-green-700 transition ml-0.5 flex-shrink-0"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

@@ -2102,16 +2102,23 @@ export default function App() {
               ));
             }
             setActiveTab("week");
-            // Background: generate full ingredients for AI stubs one at a time
+            // Background: generate full ingredients for all AI stubs in one batch call
+            // so the entire enrichment pass counts as a single rate-limit hit.
             const aiStubs = recipes.filter((r) => r._aiSuggestion && !(r.ingredients?.length));
             if (aiStubs.length) {
               (async () => {
-                for (const stub of aiStubs) {
-                  try {
-                    const generated = await apiFetch('/api/ai/generate-recipe', {
-                      method: 'POST',
-                      body: { recipe: stub },
-                    });
+                try {
+                  const { results } = await apiFetch('/api/ai/generate-recipes-batch', {
+                    method: 'POST',
+                    body: { recipes: aiStubs },
+                  });
+                  for (const generated of results) {
+                    if (!generated.success) {
+                      console.error('[bg-generate]', generated.id, generated.error);
+                      continue;
+                    }
+                    const stub = aiStubs.find((s) => String(s.id) === String(generated.id));
+                    if (!stub) continue;
                     const enriched = {
                       ...stub,
                       ingredients: generated.ingredients || [],
@@ -2131,9 +2138,9 @@ export default function App() {
                     ));
                     const dbId = idMap[String(stub.id)];
                     if (dbId) supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbId);
-                  } catch (err) {
-                    console.error('[bg-generate]', stub.name, err.message);
                   }
+                } catch (err) {
+                  console.error('[bg-generate-batch]', err.message);
                 }
               })();
             }
