@@ -53,7 +53,7 @@ async function _handler(req, res) {
   }
 
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }, { data: pantryData }] = await Promise.all([
-    supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_preferences').select('preferences_text, meal_prep_mode').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
@@ -63,6 +63,7 @@ async function _handler(req, res) {
   ]);
 
   const preferences = prefData?.preferences_text || '';
+  const mealPrepMode = prefData?.meal_prep_mode || false;
   const starred = starredData || [];
   const members = membersData || [];
 
@@ -95,7 +96,7 @@ async function _handler(req, res) {
   const recentNames = (recentPlanData || []).slice(0, 10).map((i) => i.recipe_data?.name).filter(Boolean);
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
 
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode);
 
   let rawText;
   try {
@@ -217,7 +218,7 @@ async function _handler(req, res) {
 // focuses on actual special ingredients the household has stocked.
 const _isKitchenBasic = (name) => /\boil\b|\bsalt\b|\bpepper\b|\bwater\b/i.test(name);
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = []) {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false) {
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -317,7 +318,21 @@ Users write casually. Read every input for intent, not literal words. Here are e
 EXTRAS IN THE ARRAY — A COMMON FAILURE
 When an extra meal is requested, it MUST appear in that day's "extras" array with a real name, meal_type, overview, prep_time and cook_time. Writing it only in "notes" makes it invisible. Check every day before finalising.
 
-PLANNING PRINCIPLES
+${mealPrepMode ? `MEAL PREP MODE IS ON
+This household batch-cooks. Replace the standard "varied dish each day" model with a meal-prep plan:
+
+BATCH COOKING RULES (override standard planning principles):
+  Choose 2–3 anchor dishes for the week. Each is cooked once in a large batch (4–6 servings) and eaten across multiple days. Set servings to 4–6 on these dishes and set leftover_for to the days that eat from the batch.
+  Pick prep days — typically the weekend (Saturday or Sunday) — for the main cooking. Weekday entries that eat from a batch should still have a name and overview describing the meal, but mark them as leftovers in leftover_for pointing back to the prep day.
+  Anchor dishes should reheat well: stews, curries, grain bowls, roasted trays, soups, pasta sauces, bean dishes, casseroles. Avoid dishes that don't keep (delicate fish, fried things, fresh salads as mains).
+  You may include 1 genuinely fresh weeknight dish (e.g. a quick stir-fry or eggs) to break up the week — but it's optional.
+  Vary proteins and cuisines across the 2–3 anchor dishes. Don't batch-cook chicken AND another chicken dish.
+  Dietary constraints still apply absolutely. Starred recipes still apply if they reheat well.
+  Extras (breakfast, lunch, snacks) still follow the "only when there is a clear basis" rule.
+
+COOKING TIME in meal prep mode:
+  Prep days (weekend): an hour or more is expected and fine.
+  Weekdays eating from batch: prep_time and cook_time reflect reheating only (5–10 min).` : `PLANNING PRINCIPLES
 
 Cooking time — read the day and context:
   Weeknights are busier for most households — something in the 30–40 min range tends to work. Weekends allow more space — an hour or more is fine. These are patterns, not rules. A user who says "I love slow cooking on Thursdays" overrides any default. Always let explicit instructions win; fall back on the day-of-week pattern only when nothing is said.
@@ -347,7 +362,7 @@ Extras — only when there is a clear basis:
   If there is no such signal, leave extras empty — including on weekends. Never invent extras that have no basis in anything the user has told you.
 
 Real dishes only:
-  Every suggestion must be a recognisable, real-world dish.
+  Every suggestion must be a recognisable, real-world dish.`}
 
 SELF-CHECK BEFORE OUTPUT
 For every day confirm: (a) requested extras are in the "extras" array, not just in "notes"; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) extras=[] on days where no extra was explicitly requested; (e) leftover_for never points at a spontaneously invented meal.
