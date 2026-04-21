@@ -839,6 +839,7 @@ export default function App() {
   // instead of the main app.
   const [memberProfile, setMemberProfile] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [showInviteSharePanel, setShowInviteSharePanel] = useState(false);
@@ -923,7 +924,14 @@ export default function App() {
       else document.documentElement.classList.remove('dark');
       if (!session?.user) setAuthLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        // User clicked a password-reset link — show the set-new-password form
+        // instead of loading the app. Normal auth flow resumes after they save.
+        setPasswordRecovery(true);
+        setAuthLoading(false);
+        return;
+      }
       setUser(session?.user ?? null);
       if (session?.user) {
         applyTheme();
@@ -1937,6 +1945,19 @@ export default function App() {
   }
 
   // ── Loading / auth gate ───────────────────────────────────────────────────
+  if (passwordRecovery) {
+    return (
+      <AuthScreen
+        recoveryMode
+        onRecoveryDone={() => {
+          setPasswordRecovery(false);
+          loadingForUser.current = null;
+          loadHousehold();
+        }}
+      />
+    );
+  }
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center">
