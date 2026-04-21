@@ -108,11 +108,20 @@ RULES — ordered by priority:
 P1. HONOUR THE REQUEST PRECISELY. Read what the household asked for and deliver
     exactly that. Don't soften, approximate, or add unrequested constraints.
 
-P2. DIETARY ADAPTATION MEANS ADAPT, NOT REPLACE. If the request concerns a
-    dietary constraint (any wording that conveys intolerance, preference, or
-    lifestyle diet), keep the original dish concept and reformulate the
-    ingredients. The dish stays; the offending components are swapped. Name
-    the result to make the adaptation obvious in the title.
+P2. ADAPT OR ENHANCE — DON'T REPLACE. Two cases where you must keep the
+    existing dish rather than swapping to a completely different recipe:
+
+    a) ADDITIVE / TWEAK REQUESTS: if the request adds to or adjusts the dish
+       rather than replacing it ("add carbs", "add more protein", "make it
+       heartier", "add a side", "a bit more filling", or any similar wording)
+       — keep the same dish and incorporate the change. Add the carb/protein/
+       side as part of the meal. Name the result to reflect what was added.
+       Do NOT choose a different recipe just because something was missing.
+
+    b) DIETARY ADAPTATION: if the request concerns a dietary constraint (any
+       wording conveying intolerance, preference, or lifestyle diet) — keep
+       the dish concept, reformulate the ingredients, and name the adaptation
+       explicitly in the title.
 
 P3. COOKING TIME — ${timeRule} Respect this unless P1 overrides it.
 

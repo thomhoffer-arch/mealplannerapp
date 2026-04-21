@@ -338,6 +338,14 @@ P5. PRIORITISE STARRED RECIPES.
 P6. VARIETY AND BALANCE.
     No repeated main ingredient on consecutive days. Different cuisine each day.
     Reflect the RATINGS HISTORY: lean toward loved patterns, avoid disliked ones.
+    Within a single day, dinner and any extras (breakfast, lunch, snacks) must be
+    meaningfully different — never the same dish concept or the same hero ingredient
+    (e.g. pancakes for breakfast AND pancakes for dinner on the same day is not
+    acceptable). Check every day where extras are planned and ensure the extras and
+    dinner are distinct dishes.
+    When the household requests or favours a specific meal type on certain days
+    (vegetarian day, fish day, etc.), distribute these naturally across the whole
+    week — do not default to placing them on Monday or Tuesday. Any day qualifies.
 
 P7. PRACTICAL MEAL PLANNING.
     One "cook once, eat twice" per week where natural. Set leftover_for only
