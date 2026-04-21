@@ -132,17 +132,19 @@ function GoogleMark() {
   );
 }
 
-export default function AuthScreen() {
+export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null }) {
   const [view, setView] = useState('landing');
   const [selectedPlan, setSelectedPlan] = useState('free');
   const [premiumOwnKey, setPremiumOwnKey] = useState(false);
   const [mode, setMode] = useState('register');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   const inviteToken = new URLSearchParams(window.location.search).get('invite');
   const initialView = inviteToken ? 'auth' : view;
@@ -151,17 +153,50 @@ export default function AuthScreen() {
     setError('');
     setOauthLoading(true);
     try {
-      const redirectTo = inviteToken
-        ? `${window.location.origin}/?invite=${encodeURIComponent(inviteToken)}`
-        : window.location.origin;
+      // Store invite token in localStorage BEFORE the OAuth redirect so it
+      // survives the round-trip regardless of whether Supabase preserves the
+      // redirectTo query params (it often doesn't for OAuth providers).
+      if (inviteToken) localStorage.setItem('mp:pendingInviteToken', inviteToken);
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo },
+        options: { redirectTo: window.location.origin },
       });
       if (oauthError) throw oauthError;
     } catch (err) {
       setError(err.message);
       setOauthLoading(false);
+    }
+  }
+
+  async function handleForgotPassword(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      if (resetErr) throw resetErr;
+      setForgotSent(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSetNewPassword(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateErr) throw updateErr;
+      onRecoveryDone?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -182,22 +217,78 @@ export default function AuthScreen() {
         const { data: { user, session }, error: authError } = await supabase.auth.signUp({ email, password });
         if (authError) throw authError;
         if (!session) {
-          // Email confirmation required — session won't exist until the link is clicked.
-          // Stash the invite token so loadHousehold() can pick it up after confirmation.
+          // Email confirmation required — no active session yet.
           if (inviteToken) localStorage.setItem('mp:pendingInviteToken', inviteToken);
           setDone(true); setLoading(false); return;
         }
+        // Immediate session — store invite token in localStorage so loadHousehold()
+        // can pick it up reliably without racing against this function completing.
         if (inviteToken) {
-          await supabase.rpc('join_household_by_token', { p_token: inviteToken, p_user_id: user.id });
+          localStorage.setItem('mp:pendingInviteToken', inviteToken);
           window.history.replaceState({}, '', window.location.pathname);
         }
-        // household creation handled by loadHousehold() in App.jsx once onAuthStateChange fires
+        // household creation / invite join handled by loadHousehold() in App.jsx
       }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  }
+
+  // ── Password recovery (user clicked reset link in email) ──────────────────
+  if (recoveryMode) {
+    return (
+      <div className="min-h-screen bg-paper flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-warm-lg border border-orange-100 p-8 w-full max-w-sm">
+          <h1 className="font-display text-3xl font-semibold text-orange-900 leading-none mb-1.5">New password</h1>
+          <p className="text-xs text-orange-600 mb-6 leading-relaxed">Choose a new password for your account.</p>
+          <form onSubmit={handleSetNewPassword} className="space-y-3">
+            <input
+              type="password"
+              autoComplete="new-password"
+              placeholder="New password (min. 6 characters)"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full border border-orange-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 placeholder-orange-300 bg-white"
+            />
+            {error && <p className="text-sm text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition disabled:opacity-50 text-sm mt-1 shadow-warm"
+            >
+              {loading ? 'Saving…' : 'Set new password'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Forgot password sent ───────────────────────────────────────────────────
+  if (forgotSent) {
+    return (
+      <div className="min-h-screen bg-paper flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-warm-lg border border-orange-100 p-10 w-full max-w-sm text-center">
+          <div className="w-14 h-14 bg-sage-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <Check className="w-7 h-7 text-sage-600" />
+          </div>
+          <h2 className="font-display text-2xl font-semibold text-orange-900 mb-2">Check your email</h2>
+          <p className="text-sm text-orange-600 leading-relaxed">
+            We sent a reset link to <strong className="text-orange-900">{email}</strong>. Click it to set a new password.
+          </p>
+          <button
+            onClick={() => { setForgotSent(false); setMode('login'); }}
+            className="mt-6 text-sm text-orange-600 hover:text-orange-900 transition underline underline-offset-4"
+          >
+            Back to sign in
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // ── Email confirmation sent ────────────────────────────────────────────────
@@ -627,43 +718,75 @@ export default function AuthScreen() {
           <div className="h-px bg-orange-100 flex-1" />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            type="email"
-            name="email"
-            autoComplete="email"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full border border-orange-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 placeholder-orange-300 bg-white"
-          />
-          <input
-            type="password"
-            name="password"
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            placeholder="Password (min. 6 characters)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className="w-full border border-orange-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 placeholder-orange-300 bg-white"
-          />
-          {error && <p className="text-sm text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+        {mode === 'forgot' ? (
+          <form onSubmit={handleForgotPassword} className="space-y-3">
+            <input
+              type="email"
+              name="email"
+              autoComplete="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full border border-orange-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 placeholder-orange-300 bg-white"
+            />
+            {error && <p className="text-sm text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition disabled:opacity-50 text-sm mt-1 shadow-warm"
+            >
+              {loading ? 'Sending…' : 'Send reset link'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <input
+              type="email"
+              name="email"
+              autoComplete="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full border border-orange-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 placeholder-orange-300 bg-white"
+            />
+            <input
+              type="password"
+              name="password"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              placeholder="Password (min. 6 characters)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full border border-orange-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 placeholder-orange-300 bg-white"
+            />
+            {error && <p className="text-sm text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition disabled:opacity-50 text-sm mt-1 shadow-warm"
+            >
+              {loading ? 'Loading…' : mode === 'login' ? 'Sign in' : 'Create account'}
+            </button>
+          </form>
+        )}
+
+        {mode === 'login' && (
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition disabled:opacity-50 text-sm mt-1 shadow-warm"
+            onClick={() => { setMode('forgot'); setError(''); }}
+            className="w-full text-center text-xs text-orange-400 hover:text-orange-600 mt-3 transition"
           >
-            {loading ? 'Loading…' : mode === 'login' ? 'Sign in' : 'Create account'}
+            Forgot your password?
           </button>
-        </form>
+        )}
 
         <button
-          onClick={() => { setMode((m) => (m === 'login' ? 'register' : 'login')); setError(''); }}
-          className="w-full text-center text-sm text-orange-600 hover:text-orange-900 mt-5 transition"
+          onClick={() => { setMode((m) => (m === 'login' || m === 'forgot' ? 'register' : 'login')); setError(''); }}
+          className="w-full text-center text-sm text-orange-600 hover:text-orange-900 mt-4 transition"
         >
-          {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+          {mode === 'login' || mode === 'forgot' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
         </button>
       </div>
     </div>

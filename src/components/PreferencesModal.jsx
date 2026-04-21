@@ -21,6 +21,8 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
   const [reminderDay, setReminderDay] = useState('sunday');
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [savingNotifications, setSavingNotifications] = useState(false);
+  const [showWeeklyMacros, setShowWeeklyMacros] = useState(true);
+  const [savingMacros, setSavingMacros] = useState(false);
   const [extrasText, setExtrasText] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [keyError, setKeyError] = useState('');
@@ -40,6 +42,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
     setReminderEnabled(initialPrefs.reminder_enabled || false);
     setReminderDay(initialPrefs.reminder_day || 'sunday');
     setNotificationsEnabled(initialPrefs.notifications_enabled !== false);
+    setShowWeeklyMacros(initialPrefs.show_weekly_macros !== false);
     setKeyHint(initialPrefs.gemini_api_key_hint || null);
     setPuterHint(initialPrefs.puter_token_hint || null);
   }, [initialPrefs]);
@@ -255,6 +258,29 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 flex-shrink-0 ${notificationsEnabled ? 'bg-orange-500' : 'bg-orange-200'}`}
               >
                 <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <div>
+                <span className="text-sm text-orange-900 font-medium">Weekly macros</span>
+                <p className="text-xs text-orange-400">Show nutrition totals on the week view</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const next = !showWeeklyMacros;
+                  setShowWeeklyMacros(next);
+                  setSavingMacros(true);
+                  const { error } = await supabase.from('household_preferences').upsert(
+                    { household_id: household.id, show_weekly_macros: next },
+                    { onConflict: 'household_id' }
+                  );
+                  setSavingMacros(false);
+                  if (!error) onPrefsChange?.({ show_weekly_macros: next });
+                }}
+                disabled={savingMacros}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 flex-shrink-0 ${showWeeklyMacros ? 'bg-orange-500' : 'bg-orange-200'}`}
+              >
+                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${showWeeklyMacros ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
           </div>

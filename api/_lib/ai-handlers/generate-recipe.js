@@ -97,6 +97,11 @@ function buildAdjustPrompt(recipe, request) {
     .map((s, i) => `  ${i + 1}. ${s}`)
     .join('\n');
 
+  const existingMacros = recipe.macros || {};
+  const macroHint = existingMacros.calories
+    ? `(original was approx. calories: ${existingMacros.calories}, protein: ${existingMacros.protein}g, carbs: ${existingMacros.carbs}g, fat: ${existingMacros.fat}g — recalculate based on what changed)`
+    : '(estimate from the adjusted ingredients — do not return zeros)';
+
   return `${VOICE_GUIDE}
 
 ---
@@ -122,6 +127,8 @@ Return ONLY a JSON object, no markdown:
   "servings": ${recipe.servings || 2},
   "prepTime": <minutes as integer>,
   "cookTime": <minutes as integer>,
-  "macros": { "calories": 0, "protein": 0, "carbs": 0, "fat": 0 }
-}`;
+  "macros": { "calories": 520, "protein": 38, "carbs": 22, "fat": 28 }
+}
+
+For macros ${macroHint}.`;
 }

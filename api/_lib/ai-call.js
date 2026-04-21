@@ -3,6 +3,26 @@ import { decrypt } from './crypto.js';
 const PUTER_ENDPOINT = 'https://api.puter.com/puterai/openai/v1/chat/completions';
 const PUTER_MODEL = process.env.PUTER_MODEL || 'claude-sonnet-4-5';
 
+// Retry transient failures with exponential backoff.
+// Retryable: network errors, 429 (rate limit), 5xx (server errors).
+async function withRetry(fn, maxAttempts = 3) {
+  let lastError;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const msg = err.message || '';
+      const isTransient = /429|5[0-9]{2}|timeout|ECONNRESET|ETIMEDOUT|fetch failed|network/i.test(msg);
+      if (!isTransient || attempt === maxAttempts - 1) throw err;
+      const delay = 1000 * Math.pow(2, attempt); // 1s, 2s
+      console.warn(`[ai-call] transient error (attempt ${attempt + 1}), retrying in ${delay}ms:`, msg);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastError;
+}
+
 // Gemini model fallback chain. Flash-Lite has the most generous free-tier
 // rate limits, so we hit it first. On 429 (quota/rate) or 503 (upstream
 // unavailable) we fall back to Flash, then Pro. Any other error bubbles.
@@ -80,38 +100,42 @@ export async function callGemini(apiKey, body) {
 
 export async function callAi(provider, token, prompt) {
   if (provider === 'puter') {
-    const res = await fetch(PUTER_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: PUTER_MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-      }),
+    return withRetry(async () => {
+      const res = await fetch(PUTER_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: PUTER_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' },
+        }),
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`Puter AI error (${res.status}): ${detail.slice(0, 200)}`);
+      }
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+      // Puter may return content as an already-parsed object rather than a string
+      if (content && typeof content === 'object') return JSON.stringify(content);
+      const text = (content || '').trim();
+      // Strip markdown code fences that some model/proxy combos add
+      const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+      return fenced ? fenced[1] : text;
     });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => '');
-      throw new Error(`Puter AI error (${res.status}): ${detail.slice(0, 200)}`);
-    }
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content;
-    // Puter may return content as an already-parsed object rather than a string
-    if (content && typeof content === 'object') return JSON.stringify(content);
-    const text = (content || '').trim();
-    // Strip markdown code fences that some model/proxy combos add
-    const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-    return fenced ? fenced[1] : text;
   }
 
-  // Gemini (default) — with lite → flash → pro fallback.
-  const { data } = await callGemini(token, {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: 'application/json' },
+  // Gemini (default) — with lite → flash → pro fallback, plus transient retry.
+  return withRetry(async () => {
+    const { data } = await callGemini(token, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    });
+    // Use the last part — thinking-enabled models prepend a thought part before the response
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    return parts[parts.length - 1]?.text || '';
   });
-  // Use the last part — thinking-enabled models prepend a thought part before the response
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  return parts[parts.length - 1]?.text || '';
 }
