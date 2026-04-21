@@ -289,7 +289,13 @@ P1. HONOUR USER INTENT FROM THIS WEEK'S NOTES — highest priority.
     Standing instructions in EXTRAS THE HOUSEHOLD WANTS PLANNED apply to every
     applicable day every week — "breakfast on weekends" means populate extras for
     Saturday and Sunday, "lunch on Monday" means populate extras for Monday.
-    Plan both the extra and the dinner for each affected day.
+
+    Requesting an extra meal never removes dinner from that day — both are planned.
+    Examples:
+      • "Sunday waffles for breakfast" → breakfast extra (waffles) + dinner on Sunday
+      • "Monday lunch with leftovers" → lunch extra + dinner on Monday
+      • "breakfast on weekends" → breakfast extra + dinner on Saturday AND Sunday
+    The only exception is when the user also signals they won't be home (see P2).
 
     !! CRITICAL — EXTRAS MUST BE IN THE ARRAY, NOT JUST IN "notes" !!
     A very common failure is writing "I've planned breakfast for Monday" in the
@@ -311,11 +317,14 @@ P1. HONOUR USER INTENT FROM THIS WEEK'S NOTES — highest priority.
     "make it lighter/heavier" language all have obvious meanings — use good judgment.
 
 P2. SKIP DAYS WHEN THE HOUSEHOLD WON'T BE EATING IN.
-    If the notes convey — in any wording — that the household will not need a
-    home-cooked dinner on a specific day, set skip=true and name=null for that
-    day. Do not plan a meal for a day they've indicated they don't need one.
-    Use judgment: absence, dining out, busy evenings, and explicit skip requests
-    all qualify.
+    If the notes convey — in any wording — that the household will not be home
+    or will not need home-cooked food on a specific day, set skip=true, name=null,
+    and extras=[] for that day. Standing extras (e.g. "breakfast on weekends") do
+    not apply to a skipped day.
+    Examples:
+      • "Not home Tuesday" → Tuesday: skip=true, extras=[], dinner=null
+      • "Eating out Saturday" → Saturday: skip=true, extras=[] — even if Saturday normally gets a weekend breakfast
+      • "Long day at work Thursday, keep it quick" → NOT a skip — plan a fast dinner (≤ 40 min)
 
 P3. COOKING TIME — default limits, only used when P1 specifies nothing for that day.
     - Mon–Fri (weekdays): total time (prep_time + cook_time) ≤ 40 minutes.
@@ -378,7 +387,7 @@ P7. PRACTICAL MEAL PLANNING — think waste-first.
 P8. REAL DISHES ONLY.
     Every suggestion must be a recognisable, real-world dish.
 
-SELF-CHECK BEFORE OUTPUT: For every day, verify (a) any requested extras appear in "extras" with a name/meal_type, NOT only in "notes"; (b) skipped days have skip=true and name=null; (c) the week has exactly 7 day entries; (d) every day's "extras" array is [] unless an extra meal was explicitly asked for by the user — leftover logic is NEVER a reason to add an extras entry; (e) every leftover_for value points at a dinner or an already-requested extra, never at a spontaneously invented meal.
+SELF-CHECK BEFORE OUTPUT: For every day, verify (a) any requested extras appear in "extras" with a name/meal_type, NOT only in "notes"; (b) skipped days have skip=true, name=null, AND extras=[]; (c) the week has exactly 7 day entries; (d) every day's "extras" array is [] unless an extra meal was explicitly asked for by the user — leftover logic is NEVER a reason to add an extras entry; (e) every leftover_for value points at a dinner or an already-requested extra, never at a spontaneously invented meal; (f) every day where an extra meal was requested also has a dinner planned (name is non-null) unless the user separately indicated they won't be home for dinner.
 
 Return ONLY a JSON object, no markdown:
 {

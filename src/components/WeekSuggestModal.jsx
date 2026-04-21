@@ -305,7 +305,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
               )}
 
               {/* Horizontal carousel — one day per swipe */}
-              <div className="flex-1 flex gap-3 overflow-x-auto snap-x snap-mandatory px-5 scroll-px-5 pb-3 scrollbar-hide">
+              <div className="flex-1 min-h-0 flex gap-3 overflow-x-auto overflow-y-hidden snap-x snap-mandatory px-5 scroll-px-5 pb-3 scrollbar-hide">
                 {week.days.map((day) => {
                   const key = `${week.week}-${day.day}`;
                   const isSelected = !!selected[key];
@@ -386,7 +386,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         </div>
                       )}
 
-                      <div className="flex-1 overflow-y-auto">
+                      <div className="flex-1 min-h-0 overflow-y-auto">
 
                         {/* Selection toggle + source badges */}
                         <div className="flex items-center gap-2 px-4 pt-3 pb-2">
