@@ -567,30 +567,6 @@ function SelectedRecipeCard({
                 )}
               </div>
             )}
-            {/* Custom ingredients */}
-            <div>
-              <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2">Add Extra Ingredients</p>
-              <div className="flex gap-2">
-                <input type="text" placeholder="e.g. 100g breadcrumbs"
-                  value={newIngredientInput[rid] || ""}
-                  onChange={(e) => onInputChange(rid, e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && onAddCustom(rid)}
-                  className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400"
-                />
-                <button onClick={() => onAddCustom(rid)}
-                  className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition text-sm font-medium">Add</button>
-              </div>
-              {customs.length > 0 && (
-                <ul className="mt-2 space-y-1">
-                  {customs.map((c) => (
-                    <li key={c.id} className="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2">
-                      <span className="text-sm text-orange-600">{c.amount ? `${c.amount} ${c.name}` : c.name}</span>
-                      <button onClick={() => onRemoveCustom(rid, c.id)} className="text-orange-600 hover:text-red-500 transition ml-2"><X size={14} /></button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
             {/* Tweak */}
             <div>
               <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2">Tweak this recipe</p>
@@ -756,41 +732,6 @@ function SelectedRecipeCard({
             </div>
           )}
 
-          {/* Custom ingredients */}
-          <div>
-            <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Add Extra Ingredients</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="e.g. 100g breadcrumbs"
-                value={newIngredientInput[rid] || ""}
-                onChange={(e) => onInputChange(rid, e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && onAddCustom(rid)}
-                className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400"
-              />
-              <button
-                onClick={() => onAddCustom(rid)}
-                className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition text-sm font-medium"
-              >
-                Add
-              </button>
-            </div>
-            {customs.length > 0 && (
-              <ul className="mt-2 space-y-1">
-                {customs.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2">
-                    <span className="text-sm text-orange-600">{c.amount ? `${c.amount} ${c.name}` : c.name}</span>
-                    <button
-                      onClick={() => onRemoveCustom(rid, c.id)}
-                      className="text-orange-600 hover:text-red-500 transition ml-2"
-                    >
-                      <X size={14} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
 
           {/* AI adaptation */}
           <div className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4">
@@ -1559,6 +1500,15 @@ export default function App() {
     });
   }
 
+  const [basketToast, setBasketToast] = useState(null);
+  const basketToastTimer = useRef(null);
+
+  function showBasketToast(recipeName) {
+    clearTimeout(basketToastTimer.current);
+    setBasketToast(recipeName);
+    basketToastTimer.current = setTimeout(() => setBasketToast(null), 4000);
+  }
+
   async function generateAndSaveRecipe(rid, fullData) {
     const item = mealPlanItems.find((i) => i.recipe_id === rid);
     if (!item) return;
@@ -1567,11 +1517,12 @@ export default function App() {
       .update({ recipe_data: updatedRecipe })
       .eq("id", item.id);
     if (error) { console.error('[generateAndSaveRecipe] update failed:', error); return; }
-    // Update local state directly so the expanded card rerenders with the
-    // full ingredients/steps immediately — don't wait for realtime.
     setMealPlanItems((prev) => prev.map((i) =>
       i.id === item.id ? { ...i, recipe_data: updatedRecipe } : i
     ));
+    if ((fullData.ingredients || []).length > 0) {
+      showBasketToast(updatedRecipe.name);
+    }
   }
 
   const [swappingRecipeId, setSwappingRecipeId] = useState(null);
@@ -2170,7 +2121,7 @@ export default function App() {
     <div className="min-h-screen bg-white font-outfit">
       {/* Top bar — household switcher (only when 2+ households) */}
       {memberships.length >= 2 && (
-        <div className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-2 flex items-center gap-2 max-w-2xl mx-auto">
+        <div className="sticky top-0 z-30 bg-orange-50 border-b border-orange-100 px-4 py-2 flex items-center gap-2 max-w-2xl mx-auto">
           <HouseholdSwitcher
             memberships={memberships}
             activeId={household?.id}
@@ -3609,6 +3560,7 @@ export default function App() {
                     </form>
                   </div>
                 )}
+              </div>
             </div>
 
             {/* Dietary wishes — always visible */}
@@ -3633,9 +3585,20 @@ export default function App() {
 
       <InstallBanner />
       <UpdateToast />
+      {basketToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-orange-900 text-white rounded-full shadow-warm-lg px-4 py-3 flex items-center gap-2.5 animate-slide-up whitespace-nowrap">
+          <ShoppingCart size={15} className="flex-shrink-0" />
+          <span className="text-sm font-medium">
+            {basketToast} added to shopping list
+          </span>
+          <button onClick={() => setBasketToast(null)} className="text-white/60 hover:text-white transition ml-1">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/90 backdrop-blur-md border-t border-orange-100 safe-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-orange-100 safe-bottom">
         <div className="max-w-2xl mx-auto flex items-stretch">
           {[
             { id: "week",    icon: Calendar,     label: "Week" },
