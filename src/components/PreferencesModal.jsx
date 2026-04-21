@@ -7,7 +7,7 @@ import PuterConnect from './PuterConnect';
 
 // section: 'dietary' | 'settings' | undefined (all)
 // initialPrefs: the preferences object from App.jsx state (avoids a second DB round-trip)
-export default function PreferencesModal({ household, onClose, inline = false, section, initialPrefs }) {
+export default function PreferencesModal({ household, onClose, onPrefsChange, inline = false, section, initialPrefs }) {
   const [text, setText] = useState('');
   const [keyInput, setKeyInput] = useState('');
   const [keyHint, setKeyHint] = useState(null);
@@ -75,6 +75,8 @@ export default function PreferencesModal({ household, onClose, inline = false, s
         { onConflict: 'household_id' }
       );
       if (error) throw error;
+      // Push saved values directly into App.jsx state — no re-query needed.
+      onPrefsChange?.({ preferences_text: text, plan_extras_text: extrasText });
       setSavedPrefs(true);
       setTimeout(() => setSavedPrefs(false), 2000);
       onClose?.();
@@ -97,6 +99,7 @@ export default function PreferencesModal({ household, onClose, inline = false, s
       setKeyInput('');
       setSavedKey(true);
       setTimeout(() => setSavedKey(false), 2000);
+      onPrefsChange?.({ gemini_api_key_hint: data.hint || null });
     } catch (err) {
       setKeyError(err.message || 'Could not save key');
     } finally {
@@ -105,10 +108,11 @@ export default function PreferencesModal({ household, onClose, inline = false, s
   }
 
   async function handleSaveReminder(enabled, day) {
-    await supabase.from('household_preferences').upsert(
+    const { error } = await supabase.from('household_preferences').upsert(
       { household_id: household.id, reminder_enabled: enabled, reminder_day: day, updated_at: new Date().toISOString() },
       { onConflict: 'household_id' }
     );
+    if (!error) onPrefsChange?.({ reminder_enabled: enabled, reminder_day: day });
   }
 
   async function handleRemoveKey() {
@@ -133,6 +137,7 @@ export default function PreferencesModal({ household, onClose, inline = false, s
       setPuterInput('');
       setSavedPuter(true);
       setTimeout(() => setSavedPuter(false), 2000);
+      onPrefsChange?.({ puter_token_hint: data.hint || null });
     } catch (err) {
       setPuterError(err.message || 'Could not save token');
     } finally {
@@ -239,11 +244,12 @@ export default function PreferencesModal({ household, onClose, inline = false, s
                   const next = !notificationsEnabled;
                   setNotificationsEnabled(next);
                   setSavingNotifications(true);
-                  await supabase.from('household_preferences').upsert(
+                  const { error } = await supabase.from('household_preferences').upsert(
                     { household_id: household.id, notifications_enabled: next },
                     { onConflict: 'household_id' }
                   );
                   setSavingNotifications(false);
+                  if (!error) onPrefsChange?.({ notifications_enabled: next });
                 }}
                 disabled={savingNotifications}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 flex-shrink-0 ${notificationsEnabled ? 'bg-orange-500' : 'bg-orange-200'}`}
