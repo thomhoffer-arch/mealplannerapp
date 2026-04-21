@@ -125,8 +125,30 @@ function detectAllergens(ingredients = []) {
   return ALLERGENS.filter((a) => a.patterns.some((p) => text.includes(p)));
 }
 
-const PREP_WORDS = ['sliced','diced','chopped','minced','peeled','grated','shredded','torn','crushed','halved','quartered','julienned','roughly','finely','thinly','thickly','cut','trimmed','washed','rinsed','dried','softened','melted','beaten','whisked','to taste','at room temperature','room temperature','for serving','to serve','for garnish','to garnish','for topping','to top','for decoration','for drizzling','cooked','boiled','steamed'];
-// Trailing phrases that get appended without a comma but still indicate prep/serving notes
+// Text that can appear after a comma in an ingredient name and signals a prep/serving note
+// that should be stripped — leaving only the ingredient itself.
+// Rule: only add a word here if it *always* describes HOW to prepare or serve, never the ingredient itself.
+// Examples of what belongs: "finely chopped", "for serving", "to taste"
+// Examples of what does NOT belong: "fresh" (could be "fresh thyme" as the actual ingredient name)
+const PREP_WORDS = [
+  // Cutting & shaping
+  'sliced','diced','chopped','minced','julienned','shredded','torn','crushed',
+  'halved','quartered','cut',
+  // Surface / quantity modifiers that prefix a cut word ("finely chopped", "roughly sliced")
+  'roughly','finely','thinly','thickly','coarsely',
+  // Cleaning & trimming
+  'peeled','grated','trimmed','washed','rinsed',
+  // Heat / texture state
+  'softened','melted','beaten','whisked','cooked','boiled','steamed',
+  // Taste / serving notes
+  'to taste','at room temperature','room temperature',
+  'for serving','to serve','for garnish','to garnish',
+  'for topping','to top','for decoration','for drizzling',
+  // Dryness state (strips "dried" only when it follows a comma, e.g. "herbs, dried")
+  'dried',
+];
+// Trailing phrases that follow the ingredient name WITHOUT a comma — also stripped.
+// Keep this list shorter: only phrases where even a bare trailing occurrence is always a note.
 const _TRAILING_PREP = /\s+(to taste|for serving|to serve|for garnish|to garnish|for topping|as needed)$/i;
 function normalizeIngredientName(name) {
   // Strip prep description after the first comma if it looks like a preparation instruction
