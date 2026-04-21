@@ -367,7 +367,7 @@ P7. PRACTICAL MEAL PLANNING.
 P8. REAL DISHES ONLY.
     Every suggestion must be a recognisable, real-world dish.
 
-SELF-CHECK BEFORE OUTPUT: For every day, verify (a) any requested extras appear in "extras" with a name/meal_type, NOT only in "notes"; (b) skipped days have skip=true and name=null; (c) the week has exactly 7 day entries; (d) every day's "extras" array is [] unless an extra meal was explicitly asked for by the user.
+SELF-CHECK BEFORE OUTPUT: For every day, verify (a) any requested extras appear in "extras" with a name/meal_type, NOT only in "notes"; (b) skipped days have skip=true and name=null; (c) the week has exactly 7 day entries; (d) every day's "extras" array is [] unless an extra meal was explicitly asked for by the user — leftover logic is NEVER a reason to add an extras entry; (e) every leftover_for value points at a dinner or an already-requested extra, never at a spontaneously invented meal.
 
 Return ONLY a JSON object, no markdown:
 {

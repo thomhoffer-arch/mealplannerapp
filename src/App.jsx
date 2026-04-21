@@ -724,7 +724,7 @@ export default function App() {
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const todayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];
 
-  const [activeTab, setActiveTab] = useState("week");
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('mp:activeTab') || "week");
   const [basketSection, setBasketSection] = useState("shopping");
   const [householdMembers, setHouseholdMembers] = useState([]);
   const [editingHouseholdName, setEditingHouseholdName] = useState(false);
@@ -764,6 +764,8 @@ export default function App() {
   const [expandedRecipes, setExpandedRecipes] = useState({});
   const [newIngredientInput, setNewIngredientInput] = useState({});
   const [generatingExtra, setGeneratingExtra] = useState(null); // "Monday-breakfast" while generating
+
+  useEffect(() => { localStorage.setItem('mp:activeTab', activeTab); }, [activeTab]);
 
   // ── Auth setup ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1703,7 +1705,10 @@ export default function App() {
     if (error) {
       console.error('[saveHouseholdName]', error.message);
     } else {
+      // Optimistic update, then confirm from DB so the name survives a reload
       setHousehold((h) => ({ ...h, name }));
+      supabase.from('households').select('name').eq('id', household.id).single()
+        .then(({ data }) => { if (data?.name) setHousehold((h) => ({ ...h, name: data.name })); });
     }
     setEditingHouseholdName(false);
   }
@@ -1919,8 +1924,8 @@ export default function App() {
             const { data: inserted } = await supabase.from("meal_plan_items").insert(
               newRows.map(({ recipe_id, recipe_data }) => ({ household_id: household.id, recipe_id, recipe_data }))
             ).select('id, recipe_id');
+            const idMap = {};
             if (inserted) {
-              const idMap = {};
               inserted.forEach((r) => { idMap[r.recipe_id] = r.id; });
               setMealPlanItems((prev) => prev.map((item) =>
                 item.id.startsWith('optimistic-') && idMap[item.recipe_id]
@@ -1929,6 +1934,38 @@ export default function App() {
               ));
             }
             setActiveTab("week");
+            // Background: generate full ingredients for AI stubs one at a time
+            const aiStubs = recipes.filter((r) => r._aiSuggestion && !(r.ingredients?.length));
+            if (aiStubs.length) {
+              (async () => {
+                for (const stub of aiStubs) {
+                  try {
+                    const generated = await apiFetch('/api/ai/generate-recipe', {
+                      method: 'POST',
+                      body: { recipe: stub },
+                    });
+                    const enriched = {
+                      ...stub,
+                      ingredients: generated.ingredients || [],
+                      steps: generated.steps || [],
+                      prepTime: generated.prepTime || stub.prepTime,
+                      cookTime: generated.cookTime || stub.cookTime,
+                      macros: generated.macros || {},
+                      _weekStart: viewWeek,
+                    };
+                    setMealPlanItems((prev) => prev.map((item) =>
+                      item.recipe_id === String(stub.id)
+                        ? { ...item, recipe_data: enriched }
+                        : item
+                    ));
+                    const dbId = idMap[String(stub.id)];
+                    if (dbId) supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbId);
+                  } catch (err) {
+                    console.error('[bg-generate]', stub.name, err.message);
+                  }
+                }
+              })();
+            }
           }}
         />
       )}
