@@ -203,6 +203,7 @@ function SelectedRecipeCard({
 }) {
   const [sharing, setSharing] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareError, setShareError] = useState(null);
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
   const [aiLoading, setAiLoading] = useState(false);
@@ -293,27 +294,42 @@ function SelectedRecipeCard({
                 setShareCopied(true);
                 setTimeout(() => setShareCopied(false), 2000);
               } catch (err) {
-                window.alert(err.message || 'Could not create share link');
+                setShareError(err.message || 'Could not create share link');
+                setTimeout(() => setShareError(null), 4000);
               } finally {
                 setSharing(false);
               }
             }}
             className="ml-auto flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"
-            title={shareCopied ? 'Link copied!' : 'Share recipe'}
+            title={shareError ? shareError : shareCopied ? 'Link copied!' : 'Share recipe'}
           >
-            {shareCopied ? <Check size={15} className="text-orange-600" /> : <Link2 size={15} />}
+            {shareError ? <X size={15} className="text-red-400" /> : shareCopied ? <Check size={15} className="text-orange-600" /> : <Link2 size={15} />}
           </button>
         </div>
-        {isStub ? (
-          <div className="text-center py-4">
-            <p className="text-sm text-orange-900 mb-1 font-display italic">Full recipe not written yet.</p>
-            <p className="text-xs text-orange-400 mb-4">The AI will write ingredients and steps now — takes about 10 seconds.</p>
-            {generateError && <p className="text-xs text-red-500 mb-3">{generateError}</p>}
-            <button onClick={generateFullRecipe} disabled={generating}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50">
-              <Sparkles size={14} />
-              {generating ? 'Writing recipe…' : 'Generate full recipe'}
-            </button>
+        {isStub || recipe._quickEntry ? (
+          <div className="py-3 space-y-3">
+            {isStub && (
+              <p className="text-xs text-orange-400 text-center">Tap generate to get the full recipe — or adjust it first.</p>
+            )}
+            {/* Tweak before generating (or adjust a quick entry) */}
+            <div className="flex gap-2">
+              <input type="text"
+                placeholder={isStub ? 'Adjust before generating… (faster, use chicken…)' : 'Change something… (shorter, add ingredients…)'}
+                value={adjustInput} onChange={(e) => setAdjustInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (generating || adjusting ? null : adjustInput.trim() ? adjustRecipe() : generateFullRecipe())}
+                className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
+              />
+              <button
+                onClick={() => adjustInput.trim() ? adjustRecipe() : generateFullRecipe()}
+                disabled={generating || adjusting}
+                className="flex-shrink-0 px-4 py-2 bg-orange-600 text-white rounded-full text-sm font-medium hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-1.5">
+                <Sparkles size={13} />
+                {generating || adjusting ? 'Writing…' : adjustInput.trim() ? 'Apply' : 'Generate'}
+              </button>
+            </div>
+            {(generateError || adjustError) && (
+              <p className="text-xs text-red-500">{generateError || adjustError}</p>
+            )}
           </div>
         ) : (
           <>
@@ -712,6 +728,7 @@ export default function App() {
   const [editingHouseholdName, setEditingHouseholdName] = useState(false);
   const [householdNameDraft, setHouseholdNameDraft] = useState('');
   const searchInputRef = useRef(null);
+  const fetchedPhotoIds = useRef(new Set()); // prevents re-fetching on realtime updates
   const [searchQuery, setSearchQuery] = useState("");
   const [recipes, setRecipes] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -732,6 +749,9 @@ export default function App() {
   const [shareOffer, setShareOffer] = useState(null);       // { recipe, stars } after a 4-5★ cook
   const [pantryItems, setPantryItems] = useState([]);      // [{ id, name, amount }]
   const [pantryInput, setPantryInput] = useState("");
+  const [pantryNudge, setPantryNudge] = useState(null);   // { original, amount, suggestions, loading }
+  const [quickEntryDay, setQuickEntryDay] = useState(null);
+  const [quickEntryValue, setQuickEntryValue] = useState('');
   const [templates, setTemplates] = useState([]);          // [{ id, name, recipes }]
   const [templateName, setTemplateName] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -990,6 +1010,33 @@ export default function App() {
     setMealPlanItems(data || []);
   }
 
+  // Backfill Pexels photos for any plan item that doesn't have one yet.
+  // Uses a ref to ensure each item is only fetched once per session even if
+  // loadMealPlan is called multiple times via the realtime subscription.
+  useEffect(() => {
+    if (!household) return;
+    mealPlanItems.forEach((item) => {
+      const rd = item.recipe_data;
+      if (!rd || rd._plannerPhoto || rd._notAtHome || rd._isLeftovers) return;
+      const key = item.id || rd.id;
+      if (!key || fetchedPhotoIds.current.has(String(key))) return;
+      if (!rd.name) return;
+      fetchedPhotoIds.current.add(String(key));
+      apiFetch(`/api/photo?name=${encodeURIComponent(rd.name)}`)
+        .then(({ photo }) => {
+          if (!photo) return;
+          const withPhoto = { ...rd, _plannerPhoto: photo };
+          setMealPlanItems((prev) => prev.map((i) =>
+            (i.id === item.id) ? { ...i, recipe_data: withPhoto } : i
+          ));
+          if (item.id && !String(item.id).startsWith('optimistic-')) {
+            supabase.from('meal_plan_items').update({ recipe_data: withPhoto }).eq('id', item.id);
+          }
+        })
+        .catch(() => {});
+    });
+  }, [mealPlanItems, household]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function loadCustomIngredients() {
     const { data } = await supabase
       .from("custom_ingredients").select("*").eq("household_id", household.id);
@@ -1151,10 +1198,63 @@ export default function App() {
     const match = raw.match(/^([\d.]+\s*(?:g|kg|ml|l|tsp|tbsp|cup|cups|oz|lb|pieces?|slices?|handful|pinch)\s*)/i);
     let amount = "", name = raw;
     if (match) { amount = match[0].trim(); name = raw.slice(match[0].length).trim() || raw; }
+
+    // Premium/gifted: ask AI if the name is ambiguous before saving.
+    const hasUnlimitedAi = !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+    if (hasUnlimitedAi && name.split(/\s+/).length <= 2) {
+      setPantryInput("");
+      setPantryNudge({ original: name, amount, suggestions: [], loading: true });
+      try {
+        const data = await apiFetch('/api/ai/normalize-pantry-item', { method: 'POST', body: { name } });
+        if (data.ambiguous && data.alternatives?.length > 0) {
+          setPantryNudge({ original: name, amount, suggestions: [data.canonical, ...data.alternatives], loading: false });
+          return; // wait for user to pick
+        }
+        // Unambiguous — save canonical name directly
+        await savePantryName(data.canonical || name, amount);
+      } catch {
+        // AI unavailable — fall back to raw name
+        await savePantryName(name, amount);
+      } finally {
+        setPantryNudge(null);
+      }
+      return;
+    }
+
+    await savePantryName(name, amount);
+    setPantryInput("");
+  }
+
+  async function savePantryName(name, amount) {
     const tempId = `optimistic-${Date.now()}`;
     setPantryItems((prev) => [...prev, { id: tempId, name, amount }]);
-    setPantryInput("");
     await supabase.from("pantry_items").insert({ household_id: household.id, name, amount });
+  }
+
+  async function confirmPantryNudge(chosenName) {
+    if (!pantryNudge) return;
+    const { amount } = pantryNudge;
+    setPantryNudge(null);
+    await savePantryName(chosenName, amount);
+  }
+
+  async function submitQuickEntry(day) {
+    const name = quickEntryValue.trim();
+    if (!name) { setQuickEntryDay(null); return; }
+    setQuickEntryDay(null);
+    setQuickEntryValue('');
+    const stub = {
+      id: `quick-${Date.now()}`,
+      name,
+      _plannedDay: day,
+      _weekStart: viewWeek,
+      _quickEntry: true,
+      ingredients: [],
+      steps: [],
+      prepTime: 0,
+      cookTime: 0,
+    };
+    await toggleSelectedRecipe(stub);
   }
 
   async function removePantryItem(id) {
@@ -1869,15 +1969,17 @@ export default function App() {
                   const url = await shareRecipe(shareOffer.recipe);
                   await navigator.clipboard?.writeText(url);
                   setShareOffer(null);
-                  window.alert('Link copied to clipboard');
                 } catch (err) {
-                  window.alert(err.message || 'Could not create share link');
+                  setShareOffer((o) => o ? { ...o, error: err.message || 'Could not create share link' } : null);
                 }
               }}
               className="w-full py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition mb-2"
             >
               Create share link
             </button>
+            {shareOffer?.error && (
+              <p className="text-xs text-red-500 mt-2 mb-1">{shareOffer.error}</p>
+            )}
             <button onClick={() => setShareOffer(null)}
               className="text-xs text-orange-400 hover:text-orange-600 transition">
               Not this time
@@ -2136,7 +2238,7 @@ export default function App() {
                             )}
                             <div className="flex-1 min-w-0">
                               <p className={`text-sm font-semibold leading-snug truncate ${xIsCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>{xr.name}</p>
-                              <p className="text-xs text-orange-400 mt-0.5">{[xTime > 0 ? `${xTime} min` : null, xr._aiSuggestion && (!xr.ingredients || !xr.ingredients.length) ? '· tap to generate' : null].filter(Boolean).join(' ')}</p>
+                              <p className="text-xs text-orange-400 mt-0.5">{[xTime > 0 ? `${xTime} min` : null, (xr._aiSuggestion || xr._quickEntry) && (!xr.ingredients || !xr.ingredients.length) ? '· tap to fill in' : null].filter(Boolean).join(' ')}</p>
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
                               {xIsCooked && <Check size={14} className="text-sage-500" />}
@@ -2225,7 +2327,7 @@ export default function App() {
                                   <p className="text-xs text-orange-400 mt-0.5">
                                     {[(recipe.prepTime||0)+(recipe.cookTime||0) > 0 ? `${(recipe.prepTime||0)+(recipe.cookTime||0)} min` : null,
                                       recipe.servings ? `${recipe.servings} servings` : null,
-                                      recipe._aiSuggestion && (!recipe.ingredients || !recipe.ingredients.length) ? '· tap to generate' : null,
+                                      (recipe._aiSuggestion || recipe._quickEntry) && (!recipe.ingredients || !recipe.ingredients.length) ? '· tap to fill in' : null,
                                     ].filter(Boolean).join(' · ')}
                                   </p>
                                   {recipe._plannerLeftoverFor && (
@@ -2237,14 +2339,41 @@ export default function App() {
                                   {expandedRecipes[rid] ? <ChevronUp size={16} className="text-orange-400" /> : <ChevronDown size={16} className="text-orange-400" />}
                                 </div>
                               </>
+                            ) : quickEntryDay === day ? (
+                              // ── Quick free-text entry mode ──────────
+                              <div className="flex-1 flex items-center gap-2 mr-2" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  placeholder="What are you making?"
+                                  value={quickEntryValue}
+                                  onChange={(e) => setQuickEntryValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') submitQuickEntry(day);
+                                    if (e.key === 'Escape') { setQuickEntryDay(null); setQuickEntryValue(''); }
+                                  }}
+                                  className="flex-1 min-w-0 text-sm border-b border-orange-300 bg-transparent focus:outline-none focus:border-orange-500 text-orange-900 placeholder-orange-300 py-0.5"
+                                />
+                                <button onClick={() => submitQuickEntry(day)}
+                                  className="flex-shrink-0 text-xs px-3 py-1 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition disabled:opacity-50"
+                                  disabled={!quickEntryValue.trim()}>
+                                  Save
+                                </button>
+                                <button onClick={() => { setQuickEntryDay(null); setQuickEntryValue(''); }}
+                                  className="flex-shrink-0 text-orange-400 hover:text-orange-600 transition p-1">
+                                  <X size={14} />
+                                </button>
+                              </div>
                             ) : (
                               <>
                                 <p className="flex-1 text-sm text-orange-400 italic">Free evening</p>
                                 <div className="flex items-center gap-1.5">
+                                  <button onClick={(e) => { e.stopPropagation(); setQuickEntryDay(day); setQuickEntryValue(''); }}
+                                    className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Write it in</button>
                                   <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
                                     className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Leftovers</button>
                                   <button onClick={(e) => { e.stopPropagation(); setTimeout(() => searchInputRef.current?.focus(), 0); }}
-                                    className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">+ Add</button>
+                                    className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">+ Search</button>
                                   <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
                                     className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Away</button>
                                 </div>
@@ -2652,6 +2781,32 @@ export default function App() {
                     </button>
                   </div>
                   <p className="text-xs text-orange-400 mt-2">Items here are skipped (greyed out) in your shopping list.</p>
+                  {pantryNudge && (
+                    <div className="mt-3 p-3 bg-orange-50 rounded-xl border border-orange-200">
+                      {pantryNudge.loading ? (
+                        <p className="text-xs text-orange-400 flex items-center gap-2">
+                          <span className="inline-block w-3 h-3 border-2 border-orange-300 border-t-orange-500 rounded-full animate-spin" />
+                          Checking ingredient…
+                        </p>
+                      ) : (
+                        <>
+                          <p className="text-xs font-medium text-orange-700 mb-2">Which type of <em>{pantryNudge.original}</em>?</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {pantryNudge.suggestions.map((s) => (
+                              <button key={s} onClick={() => confirmPantryNudge(s)}
+                                className="text-xs px-3 py-1 bg-white border border-orange-300 text-orange-700 rounded-full hover:bg-orange-100 transition capitalize">
+                                {s}
+                              </button>
+                            ))}
+                            <button onClick={() => confirmPantryNudge(pantryNudge.original)}
+                              className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 transition">
+                              Keep "{pantryNudge.original}"
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {pantryItems.length > 0 ? (
                   <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">

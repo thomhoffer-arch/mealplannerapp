@@ -150,6 +150,25 @@ async function _handler(req, res) {
           _aiSuggestion: true,
         };
       }
+      // Parse extra meals (breakfast/lunch/snacks requested for this day)
+      const extras = (day.extras || [])
+        .filter((e) => e.name && e.meal_type)
+        .map((e) => ({
+          id: `ai-extra-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          name: e.name,
+          source: 'AI Suggestion',
+          overview: e.overview || '',
+          prepTime: e.prep_time || null,
+          cookTime: e.cook_time || null,
+          servings: 2,
+          ingredients: [],
+          steps: [],
+          macros: {},
+          _aiSuggestion: true,
+          _mealType: e.meal_type,
+          _extraReason: e.reason || '',
+        }));
+
       // Surface per-day reasoning + leftover chaining directly on the day so the UI
       // can show "why this?" and the cook-once-eat-twice pairing.
       return {
@@ -160,18 +179,22 @@ async function _handler(req, res) {
         reason: day.reason || '',
         leftover_for: day.leftover_for || null,
         uses_pantry: Array.isArray(day.uses_pantry) ? day.uses_pantry : [],
+        extras,
       };
     }),
   }));
 
-  // Fire all Pexels lookups in parallel; fails soft per day if PEXELS_API_KEY
-  // isn't set or the service is flaky — the card simply renders without a
-  // photo rather than blocking the whole plan.
+  // Fire all Pexels lookups in parallel (dinner + extras); fails soft per item.
   await Promise.all(enrichedWeeks.flatMap((week) =>
-    week.days.map(async (day) => {
-      if (!day.recipe?.name) return;
-      const photo = await searchPhoto(day.recipe.name);
-      if (photo) day.photo = photo;
+    week.days.flatMap((day) => {
+      const tasks = [];
+      if (day.recipe?.name) {
+        tasks.push((async () => { const p = await searchPhoto(day.recipe.name); if (p) day.photo = p; })());
+      }
+      (day.extras || []).forEach((extra, i) => {
+        tasks.push((async () => { const p = await searchPhoto(extra.name); if (p) day.extras[i].photo = p; })());
+      });
+      return tasks;
     })
   ));
 
@@ -208,7 +231,7 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, pl
 
 ---
 
-You plan weeknight dinners for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinner meals for this household.
+You plan meals for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinner meals for this household. When the user requests extra meals (breakfast, lunch, etc.) for specific days, include them in the "extras" array for that day.
 
 HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}
@@ -233,12 +256,30 @@ ${thisWeekWishes?.trim() ? `\nTHIS WEEK SPECIFICALLY (one-off wishes — weight 
 ${dayNotesSection ? `\nPER-DAY NOTES:\n${dayNotesSection}` : ''}
 RULES — ordered by priority. Higher rules override lower ones.
 
-P1. HONOUR USER INTENT FROM THIS WEEK'S NOTES.
-    Read "THIS WEEK SPECIFICALLY" and "PER-DAY NOTES" carefully. Whatever the
-    household has asked for this week takes precedence over every default below.
-    This includes time constraints, cuisines, moods, specific dishes, and any
-    indication that a day should be skipped. Apply it precisely — do not soften
-    or approximate the request.
+P1. HONOUR USER INTENT FROM THIS WEEK'S NOTES — highest priority.
+    Read "THIS WEEK SPECIFICALLY" and "PER-DAY NOTES" carefully and interpret
+    them flexibly — users write casually, not in structured commands. Whatever
+    the household has asked for this week takes precedence over every default below.
+    Apply it precisely — do not soften, approximate or reinterpret the request.
+
+    INTERPRETING TIME CONSTRAINTS: extract duration limits from any natural phrasing.
+    Users may write things like a number followed by minutes, phrases about being
+    quick or slow, references to a busy or relaxed day, or general adjectives about
+    effort level. Map these to prep_time + cook_time totals. When they qualify which
+    days (e.g. a group of days, a single named day, or days that share a pattern like
+    work days vs. rest days), apply the limit to exactly those days and no others.
+    "Weekdays" = Monday through Friday inclusive. "Weekends" = Saturday and Sunday.
+    Once you've identified a P1 time limit for a day, discard the P3 default for it.
+
+    INTERPRETING EXTRA MEALS: when the user asks for a meal that isn't dinner on a
+    specific day — regardless of how they phrase it (a dish name, a mood, a tradition,
+    a craving, a type of meal) — add it to that day's "extras" array with the
+    appropriate meal_type. Plan both the extra and the dinner for that day.
+
+    INTERPRETING ANYTHING ELSE: if the request doesn't fit a clear category, reason
+    about what the household most plausibly wants and honour that spirit. Preference
+    lists, cuisine themes, mood words, ingredient-based requests, portion notes, and
+    "make it lighter/heavier" language all have obvious meanings — use good judgment.
 
 P2. SKIP DAYS WHEN THE HOUSEHOLD WON'T BE EATING IN.
     If the notes convey — in any wording — that the household will not need a
@@ -247,11 +288,10 @@ P2. SKIP DAYS WHEN THE HOUSEHOLD WON'T BE EATING IN.
     Use judgment: absence, dining out, busy evenings, and explicit skip requests
     all qualify.
 
-P3. COOKING TIME — default limits, overridden by P1 if specified.
-    - Mon–Thu: total time (prep_time + cook_time) ≤ 40 minutes.
-    - Friday: ≤ 50 minutes.
-    - Sat–Sun: ≤ 90 minutes.
-    If P1 specifies different time limits, follow those exactly instead.
+P3. COOKING TIME — default limits, only used when P1 specifies nothing for that day.
+    - Mon–Fri (weekdays): total time (prep_time + cook_time) ≤ 40 minutes.
+    - Sat–Sun (weekends): ≤ 90 minutes.
+    These are defaults only. Any P1 time constraint overrides these completely.
 
 P4. DIETARY CONSTRAINTS — two tiers, both mandatory.
     Tier A — absolute avoids: anything the household says they cannot or will not
@@ -287,20 +327,32 @@ Return ONLY a JSON object, no markdown:
           "day": "Monday",
           "skip": false,
           "starred_id": "<exact recipe id from starred list, or null if new suggestion>",
-          "name": "<recipe name, or null if skip=true>",
+          "name": "<dinner recipe name, or null if skip=true>",
           "overview": "<one sentence description, or null if skip=true>",
           "cuisine_type": "<Italian / Asian / etc., or null if skip=true>",
           "prep_time": <minutes or null>,
           "cook_time": <minutes or null>,
-          "reason": "<one short sentence: why this dish, this day — reference ratings / pantry / starred when relevant>",
+          "reason": "<one short sentence: why this dish, this day>",
           "leftover_for": "<e.g. 'Tuesday lunch', or null>",
-          "uses_pantry": ["<pantry item this recipe uses>"]
+          "uses_pantry": ["<pantry item this recipe uses>"],
+          "extras": [
+            {
+              "meal_type": "<breakfast|lunch|snack>",
+              "name": "<recipe name>",
+              "overview": "<one sentence>",
+              "prep_time": <minutes or null>,
+              "cook_time": <minutes or null>,
+              "reason": "<why this extra meal>"
+            }
+          ]
         }
       ]
     }
   ],
   "notes": "<2-3 sentences explaining the overall plan shape>"
 }
+
+"extras" is an empty array [] on days with no requested extras. Only populate it when the user explicitly asked for a specific extra meal on that day.
 
 Each week must have exactly 7 day entries (Monday through Sunday). Skipped days still appear with skip=true and name=null.${numWeeks === 2 ? ' Return exactly 2 week objects.' : ' Return exactly 1 week object.'}`;
 }

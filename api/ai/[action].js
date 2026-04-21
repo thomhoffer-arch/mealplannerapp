@@ -6,6 +6,7 @@ import handleGenerateRecipe from '../_lib/ai-handlers/generate-recipe.js';
 import handleShoppingInsights from '../_lib/ai-handlers/shopping-insights.js';
 import handleModerate from '../_lib/ai-handlers/moderate.js';
 import handleRegenerateDay from '../_lib/ai-handlers/regenerate-day.js';
+import handleNormalizePantryItem from '../_lib/ai-handlers/normalize-pantry-item.js';
 import { applyCors } from '../_lib/cors.js';
 import { getUserAndHousehold } from '../_lib/auth.js';
 import { checkRateLimits } from '../_lib/rate-limit.js';
@@ -23,7 +24,8 @@ const HANDLERS = {
   'generate-recipe':   handleGenerateRecipe,
   'shopping-insights': handleShoppingInsights,
   'moderate':          handleModerate,
-  'regenerate-day':    handleRegenerateDay,
+  'regenerate-day':        handleRegenerateDay,
+  'normalize-pantry-item': handleNormalizePantryItem,
 };
 
 export default async function handler(req, res) {
