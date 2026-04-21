@@ -41,13 +41,22 @@ function pantryMatchesItem(pantryName, itemName) {
   const p = pantryName.toLowerCase().trim();
   const i = itemName.toLowerCase().trim();
   if (p === i) return true;
-  // Whole-word match: "butter" matches "unsalted butter", "brown butter", etc.
+
+  // Whole-word match: "butter" matches "unsalted butter" but NOT "peanut butter"
+  // (leftover "peanut" is not a qualifier). "pepper" must NOT match "chili pepper"
+  // because "chili" is a type specifier, not a descriptor.
   const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  if (new RegExp(`\\b${escaped}\\b`).test(i)) return true;
-  // Core match: strip qualifiers from both sides and compare.
+  if (new RegExp(`\\b${escaped}\\b`).test(i)) {
+    const leftover = i.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
+    if (!leftover || !leftover.replace(FOOD_QUALIFIERS, '').replace(/\s+/g, ' ').trim()) return true;
+  }
+
+  // Core match: strip qualifiers from both sides and compare exactly.
+  // Substring checks are intentionally removed — after stripping qualifiers any
+  // remaining difference means a genuinely different ingredient type.
   const coreP = p.replace(FOOD_QUALIFIERS, '').replace(/\s+/g, ' ').trim();
   const coreI = i.replace(FOOD_QUALIFIERS, '').replace(/\s+/g, ' ').trim();
-  if (coreP && coreI && (coreP === coreI || coreI.includes(coreP) || coreP.includes(coreI))) return true;
+  if (coreP && coreI && coreP === coreI) return true;
   return false;
 }
 
@@ -1429,16 +1438,41 @@ export default function App() {
   }
 
   async function toggleNotAtHome(day) {
+    const dayPrefix = day.toLowerCase().slice(0, 3);
     const existing = mealPlanItems.find(
       (i) => i.recipe_data?._notAtHome &&
-        String(i.recipe_data._plannedDay).toLowerCase().startsWith(day.toLowerCase().slice(0, 3)) &&
+        String(i.recipe_data._plannedDay).toLowerCase().startsWith(dayPrefix) &&
         i.recipe_data._weekStart === viewWeek
     );
     if (existing) {
+      // Undo: remove the marker; shopping list items auto-restore via viewRecipeObjects
       setMealPlanItems((prev) => prev.filter((i) => i.id !== existing.id));
       await supabase.from('meal_plan_items').delete().eq('id', existing.id);
       return;
     }
+
+    // If shopping already happened for this day, move checked items to pantry
+    // so they're available for future weeks instead of being wasted.
+    const dayRecipes = mealPlanItems.filter(
+      (i) => !i.recipe_data?._notAtHome &&
+        String(i.recipe_data?._plannedDay).toLowerCase().startsWith(dayPrefix) &&
+        i.recipe_data?._weekStart === viewWeek
+    );
+    const existingPantryNames = new Set(pantryItems.map((p) => p.name.toLowerCase()));
+    const toAddToPantry = [];
+    dayRecipes.forEach((item) => {
+      const rd = item.recipe_data;
+      [...(rd?.ingredients || []), ...(rd?._sideDish?.ingredients || [])].forEach(({ name }) => {
+        const key = name.toLowerCase().trim();
+        if (checkedItems[name] && !existingPantryNames.has(key) && !toAddToPantry.includes(name)) {
+          toAddToPantry.push(name);
+        }
+      });
+    });
+    for (const name of toAddToPantry) {
+      await supabase.from('pantry_items').insert({ household_id: household.id, name, amount: '' });
+    }
+
     const markerData = { id: `not-at-home-${day}`, _notAtHome: true, _plannedDay: day, _weekStart: viewWeek, name: 'Not at home' };
     const tempId = `optimistic-not-at-home-${day}`;
     setMealPlanItems((prev) => [...prev, { id: tempId, recipe_id: 'not-at-home', recipe_data: markerData, household_id: household.id }]);
@@ -1555,7 +1589,20 @@ export default function App() {
   const starredIds = new Set(starredItems.map((s) => s.recipe_id));
   const starredRecipes = starredItems.map((s) => s.recipe_data);
   // Shopping list is scoped to the viewed week so users get a per-week list.
-  const viewRecipeObjects = viewItems.map((i) => i.recipe_data);
+  // Days marked as "not at home" are excluded — no point buying ingredients for them.
+  const notAtHomeDaySet = new Set(
+    viewItems
+      .filter((i) => i.recipe_data?._notAtHome)
+      .map((i) => String(i.recipe_data._plannedDay).toLowerCase().slice(0, 3))
+  );
+  const viewRecipeObjects = viewItems
+    .filter((i) => {
+      if (i.recipe_data?._notAtHome) return false;
+      const pd = i.recipe_data?._plannedDay;
+      if (!pd) return true;
+      return !notAtHomeDaySet.has(String(pd).toLowerCase().slice(0, 3));
+    })
+    .map((i) => i.recipe_data);
   const shoppingList = consolidateIngredients(viewRecipeObjects, customIngredients)
     .map((item) => ({ ...item, inPantry: pantryItems.some((p) => pantryMatchesItem(p.name, item.name)) }));
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
@@ -2141,33 +2188,11 @@ export default function App() {
                         'border-dashed border-orange-100 bg-white/50'
                       }`}>
 
-                        {/* ── Breakfast slot ───────────────────────── */}
-                        {!isNotAtHome && (hasBreakfast
-                          ? extraItems.filter((i) => i.recipe_data._mealType === 'breakfast').map(renderExtraRow)
-                          : recipe && (
-                            <div className="px-4 py-2 border-b border-orange-50">
-                              <button onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'breakfast', ''); }}
-                                disabled={generatingExtra === `${day}-breakfast`}
-                                className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50">
-                                {generatingExtra === `${day}-breakfast` ? 'Adding…' : '+ Breakfast'}
-                              </button>
-                            </div>
-                          )
-                        )}
+                        {/* ── Breakfast slot — only if one exists ── */}
+                        {!isNotAtHome && hasBreakfast && extraItems.filter((i) => i.recipe_data._mealType === 'breakfast').map(renderExtraRow)}
 
-                        {/* ── Lunch slot ───────────────────────────── */}
-                        {!isNotAtHome && (hasLunch
-                          ? extraItems.filter((i) => i.recipe_data._mealType === 'lunch').map(renderExtraRow)
-                          : recipe && (
-                            <div className="px-4 py-2 border-b border-orange-50">
-                              <button onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'lunch', ''); }}
-                                disabled={generatingExtra === `${day}-lunch`}
-                                className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50">
-                                {generatingExtra === `${day}-lunch` ? 'Adding…' : '+ Lunch'}
-                              </button>
-                            </div>
-                          )
-                        )}
+                        {/* ── Lunch slot — only if one exists ──────── */}
+                        {!isNotAtHome && hasLunch && extraItems.filter((i) => i.recipe_data._mealType === 'lunch').map(renderExtraRow)}
 
                         {/* ── Other extras (snacks etc.) ───────────── */}
                         {!isNotAtHome && extraItems.filter((i) => !['breakfast','lunch'].includes(i.recipe_data._mealType)).map(renderExtraRow)}
@@ -2227,9 +2252,9 @@ export default function App() {
                             )}
                           </div>
 
-                          {/* Side dish + away toggle */}
+                          {/* Side dish + meal add buttons + away toggle */}
                           {!isNotAtHome && recipe && (
-                            <div className="px-4 pb-2 -mt-1 flex items-center gap-2">
+                            <div className="px-4 pb-2 -mt-1 flex items-center flex-wrap gap-1.5">
                               {recipe._sideDish ? (
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">+ {recipe._sideDish.name}</span>
@@ -2239,6 +2264,20 @@ export default function App() {
                               ) : (
                                 <button onClick={(e) => { e.stopPropagation(); const p = { key: `${day}-side`, mainRecipe: recipe, rid, input: '', loading: true, suggestions: [], error: '' }; setSideDishPanel(p); fetchSideSuggestions(p.key, recipe, ''); }}
                                   className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400">+ Add a side</button>
+                              )}
+                              {!hasBreakfast && (
+                                <button onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'breakfast', ''); }}
+                                  disabled={generatingExtra === `${day}-breakfast`}
+                                  className="text-xs text-orange-300 hover:text-orange-500 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1 disabled:opacity-50">
+                                  {generatingExtra === `${day}-breakfast` ? 'Adding…' : '+ Breakfast'}
+                                </button>
+                              )}
+                              {!hasLunch && (
+                                <button onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'lunch', ''); }}
+                                  disabled={generatingExtra === `${day}-lunch`}
+                                  className="text-xs text-orange-300 hover:text-orange-500 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1 disabled:opacity-50">
+                                  {generatingExtra === `${day}-lunch` ? 'Adding…' : '+ Lunch'}
+                                </button>
                               )}
                               <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
                                 className="text-xs text-orange-300 hover:text-orange-500 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">Away</button>
