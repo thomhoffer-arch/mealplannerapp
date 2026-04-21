@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import handleSuggestWeek from '../_lib/ai-handlers/suggest-week.js';
 import handleSuggest from '../_lib/ai-handlers/suggest.js';
 import handleSuggestSide from '../_lib/ai-handlers/suggest-side.js';
@@ -6,6 +7,8 @@ import handleShoppingInsights from '../_lib/ai-handlers/shopping-insights.js';
 import handleModerate from '../_lib/ai-handlers/moderate.js';
 import handleRegenerateDay from '../_lib/ai-handlers/regenerate-day.js';
 import { applyCors } from '../_lib/cors.js';
+import { getUserAndHousehold } from '../_lib/auth.js';
+import { checkRateLimits } from '../_lib/rate-limit.js';
 
 // Single entry point for all AI operations.
 //
@@ -32,6 +35,26 @@ export default async function handler(req, res) {
 
   const impl = HANDLERS[action];
   if (!impl) return res.status(404).json({ error: `Unknown AI action: ${action}`, known_actions: Object.keys(HANDLERS) });
+
+  // Central rate limit check — runs before every AI handler.
+  // Uses allowAmbiguous so multi-household users aren't blocked; if we can
+  // resolve a householdId we apply per-household burst/hourly limits. Fails
+  // open (never blocks) if auth is absent or the rate_limit table isn't
+  // migrated yet.
+  if (req.method === 'POST') {
+    try {
+      const authResult = await getUserAndHousehold(req, { allowAmbiguous: true });
+      const householdId = authResult?.ctx?.householdId;
+      if (householdId) {
+        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+        const limitErr = await checkRateLimits(supabase, householdId);
+        if (limitErr) return res.status(429).json({ error: limitErr });
+      }
+    } catch {
+      // Auth/rate-limit errors must never prevent the handler from running.
+    }
+  }
+
   try {
     return await impl(req, res);
   } catch (err) {
