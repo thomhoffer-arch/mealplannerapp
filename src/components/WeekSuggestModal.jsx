@@ -2,13 +2,6 @@ import React, { useState } from 'react';
 import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Wand2 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
-const SOURCE_COLORS = {
-  'My Recipes':    'bg-orange-100 text-orange-600',
-  'AI Suggestion': 'bg-orange-100 text-orange-600',
-  'Web import':    'bg-orange-50 text-orange-600',
-};
-
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 // Single expandable meal row inside a day card
 function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor, sideDish, isExpanded, onToggle }) {
