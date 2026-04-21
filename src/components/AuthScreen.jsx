@@ -322,7 +322,7 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
       <div className="min-h-screen bg-paper">
 
         {/* Nav */}
-        <nav className="sticky top-0 z-20 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-6 py-3.5 flex items-center justify-end">
+        <nav className="sticky top-0 z-20 bg-orange-50 border-b border-orange-100 px-6 py-3.5 flex items-center justify-end">
           <button
             onClick={() => { setMode('login'); setView('auth'); }}
             className="text-sm text-orange-900 font-medium hover:text-orange-900 transition"

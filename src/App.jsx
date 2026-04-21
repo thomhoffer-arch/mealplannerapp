@@ -2121,7 +2121,7 @@ export default function App() {
     <div className="min-h-screen bg-white font-outfit">
       {/* Top bar — household switcher (only when 2+ households) */}
       {memberships.length >= 2 && (
-        <div className="sticky top-0 z-30 bg-orange-50/80 backdrop-blur-md border-b border-orange-100 px-4 py-2 flex items-center gap-2 max-w-2xl mx-auto">
+        <div className="sticky top-0 z-30 bg-orange-50 border-b border-orange-100 px-4 py-2 flex items-center gap-2 max-w-2xl mx-auto">
           <HouseholdSwitcher
             memberships={memberships}
             activeId={household?.id}
@@ -3598,7 +3598,7 @@ export default function App() {
       )}
 
       {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/90 backdrop-blur-md border-t border-orange-100 safe-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-orange-100 safe-bottom">
         <div className="max-w-2xl mx-auto flex items-stretch">
           {[
             { id: "week",    icon: Calendar,     label: "Week" },
