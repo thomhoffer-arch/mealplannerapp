@@ -53,7 +53,7 @@ async function _handler(req, res) {
   }
 
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }, { data: pantryData }] = await Promise.all([
-    supabase.from('household_preferences').select('preferences_text, meal_prep_mode').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_preferences').select('preferences_text, meal_prep_mode, measurement_system').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
@@ -64,6 +64,7 @@ async function _handler(req, res) {
 
   const preferences = prefData?.preferences_text || '';
   const mealPrepMode = prefData?.meal_prep_mode || false;
+  const measurementSystem = prefData?.measurement_system || 'metric';
   const starred = starredData || [];
   const members = membersData || [];
 
@@ -96,7 +97,7 @@ async function _handler(req, res) {
   const recentNames = (recentPlanData || []).slice(0, 10).map((i) => i.recipe_data?.name).filter(Boolean);
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
 
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem);
 
   let rawText;
   try {
@@ -218,7 +219,7 @@ async function _handler(req, res) {
 // focuses on actual special ingredients the household has stocked.
 const _isKitchenBasic = (name) => /\boil\b|\bsalt\b|\bpepper\b|\bwater\b/i.test(name);
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false) {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric') {
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -253,6 +254,9 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, pl
 ---
 
 You plan meals for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinners, plus any extra meals (breakfast, lunch, snacks) the household has asked for.
+
+MEASUREMENT SYSTEM: ${measurementSystem === 'imperial' ? 'Imperial (oz, lb, cups, tsp, tbsp, fl oz)' : 'Metric (g, kg, ml, L, tsp, tbsp)'}
+Use this system for all ingredient amounts in the plan.
 
 HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}
