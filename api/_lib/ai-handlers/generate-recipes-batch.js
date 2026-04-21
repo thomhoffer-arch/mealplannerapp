@@ -4,13 +4,16 @@ import { VOICE_GUIDE } from '../voice.js';
 import { resolveAiProvider, callAi } from '../ai-call.js';
 import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../usage.js';
 
-export default async function handleGenerateRecipe(req, res) {
+// Generates full recipe details for multiple AI stubs in one request.
+// The central rate limiter counts this as a single call regardless of batch size,
+// so loading a week plan doesn't consume N rate-limit slots for N AI recipes.
+export default async function handleGenerateRecipesBatch(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { recipe, request } = req.body || {};
-  if (!recipe?.name) return res.status(400).json({ error: 'recipe.name is required' });
-
-  const isAdjust = typeof request === 'string' && request.trim().length > 0;
+  const { recipes } = req.body || {};
+  if (!Array.isArray(recipes) || recipes.length === 0) {
+    return res.status(400).json({ error: 'recipes array is required' });
+  }
 
   const ctx = await requireAuth(req, res);
   if (!ctx) return;
@@ -20,6 +23,7 @@ export default async function handleGenerateRecipe(req, res) {
   const { provider, token, usingSharedKey } = await resolveAiProvider(supabase, ctx.householdId);
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
+  // One usage check for the entire batch — fair for users on shared free-tier key.
   if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId))) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
@@ -29,22 +33,20 @@ export default async function handleGenerateRecipe(req, res) {
     }
   }
 
-  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim()) : buildGeneratePrompt(recipe);
+  const results = await Promise.all(
+    recipes.map(async (recipe) => {
+      if (!recipe?.name) return { id: recipe?.id, success: false, error: 'missing name' };
+      try {
+        const rawText = await callAi(provider, token, buildGeneratePrompt(recipe));
+        const result = JSON.parse(rawText);
+        return { id: recipe.id, success: true, ...result };
+      } catch (err) {
+        return { id: recipe.id, success: false, error: err.message };
+      }
+    })
+  );
 
-  let rawText;
-  try {
-    rawText = await callAi(provider, token, prompt);
-  } catch (err) {
-    return res.status(502).json({ error: err.message || 'AI service error' });
-  }
-  if (!rawText) return res.status(502).json({ error: 'Empty AI response' });
-
-  let result;
-  try { result = JSON.parse(rawText); } catch {
-    return res.status(502).json({ error: 'Could not parse AI response' });
-  }
-
-  res.json(result);
+  res.json({ results });
 }
 
 function buildGeneratePrompt(recipe) {
@@ -85,43 +87,5 @@ Return ONLY a JSON object, no markdown:
   "prepTime": <minutes as integer>,
   "cookTime": <minutes as integer>,
   "macros": { "calories": 520, "protein": 38, "carbs": 22, "fat": 28 }${sideSchema}
-}`;
-}
-
-function buildAdjustPrompt(recipe, request) {
-  const ingredientsList = (recipe.ingredients || [])
-    .map((i) => `  - ${i.amount ? `${i.amount} ` : ''}${i.name}`)
-    .join('\n');
-
-  const stepsList = (recipe.steps || [])
-    .map((s, i) => `  ${i + 1}. ${s}`)
-    .join('\n');
-
-  return `${VOICE_GUIDE}
-
----
-
-Adjust this recipe based on the user request. Change only what the request asks for.
-
-RECIPE: ${recipe.name}
-INGREDIENTS:
-${ingredientsList || '  (none listed)'}
-STEPS:
-${stepsList || '  (none listed)'}
-
-USER REQUEST: "${request}"
-
-If the request adds an ingredient (e.g. "add rice", "add potatoes"), weave it fully into the
-steps at the right moment — don't just list it in ingredients and append a side note at the end.
-Update prep_time / cook_time if the addition changes the total cooking time.
-
-Return ONLY a JSON object, no markdown:
-{
-  "ingredients": [{ "name": "...", "amount": "..." }],
-  "steps": ["..."],
-  "servings": ${recipe.servings || 2},
-  "prepTime": <minutes as integer>,
-  "cookTime": <minutes as integer>,
-  "macros": { "calories": 0, "protein": 0, "carbs": 0, "fat": 0 }
 }`;
 }

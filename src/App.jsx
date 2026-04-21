@@ -139,6 +139,45 @@ function normalizeIngredientName(name) {
   return name.replace(/\s*\([^)]*\)/g, '').trim();
 }
 
+const _FRACS = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1/3, '⅔': 2/3, '⅛': 0.125 };
+const _NUM_RE = /^([\d½¼¾⅓⅔⅛][^a-zA-Z]*?)\s*([a-zA-Z]+\.?)?$/;
+function mergeAmounts(rawAmounts) {
+  const amounts = rawAmounts.map((a) => (a || '').trim()).filter(Boolean);
+  if (!amounts.length) return '';
+  // Deduplicate identical strings (handles "to taste × N" → "to taste")
+  const deduped = amounts.filter(
+    (a, i) => amounts.findIndex((b) => b.toLowerCase() === a.toLowerCase()) === i
+  );
+  if (deduped.length === 1) return deduped[0];
+  // Try to sum numeric amounts sharing a unit
+  const byUnit = new Map();
+  const misc = [];
+  for (const a of deduped) {
+    const m = a.trim().match(_NUM_RE);
+    if (m) {
+      const numStr = m[1].trim();
+      const unit = (m[2] || '').toLowerCase().replace(/\.$/, '');
+      let qty = 0;
+      for (const part of numStr.replace(/,/g, '.').split(/\s+/)) {
+        if (_FRACS[part]) { qty += _FRACS[part]; continue; }
+        if (part.includes('/')) { const [n, d] = part.split('/').map(Number); if (d) qty += n / d; continue; }
+        const n = parseFloat(part); if (!isNaN(n)) qty += n;
+      }
+      if (qty > 0) {
+        const key = unit || '__bare__';
+        byUnit.set(key, { total: (byUnit.get(key)?.total || 0) + qty, unit: m[2] || '' });
+        continue;
+      }
+    }
+    misc.push(a);
+  }
+  const numParts = [...byUnit.values()].map(({ total, unit }) => {
+    const fmt = Number.isInteger(total) ? String(total) : parseFloat(total.toFixed(2)).toString().replace(/\.?0+$/, '');
+    return unit ? `${fmt} ${unit}` : fmt;
+  });
+  return [...numParts, ...misc].join(' + ');
+}
+
 function consolidateIngredients(selectedRecipes, customIngredients) {
   const items = {};
   selectedRecipes.forEach((recipe) => {
@@ -149,7 +188,6 @@ function consolidateIngredients(selectedRecipes, customIngredients) {
       if (items[key]) items[key].amounts.push(amount);
       else items[key] = { name, amounts: [amount] };
     });
-    // Include side dish ingredients if present.
     (recipe._sideDish?.ingredients || []).forEach(({ name, amount }) => {
       const key = name.toLowerCase().trim();
       if (items[key]) items[key].amounts.push(amount || '');
@@ -163,7 +201,7 @@ function consolidateIngredients(selectedRecipes, customIngredients) {
   });
   return Object.values(items).map((item) => ({
     name: item.name,
-    amount: item.amounts.filter(Boolean).join(" + "),
+    amount: mergeAmounts(item.amounts),
     isCustom: item.isCustom || false,
   }));
 }
@@ -456,6 +494,16 @@ function SelectedRecipeCard({
                       </li>
                     ))}
                   </ul>
+                )}
+                {(recipe._sideDish.steps || []).length > 0 && (
+                  <ol className="pt-2 space-y-1.5 border-t border-orange-100 mt-1">
+                    {recipe._sideDish.steps.map((step, idx) => (
+                      <li key={idx} className="text-xs text-orange-700 flex gap-1.5">
+                        <span className="flex-shrink-0 font-semibold text-orange-400 w-4">{idx + 1}.</span>
+                        <span className="leading-snug">{step}</span>
+                      </li>
+                    ))}
+                  </ol>
                 )}
               </div>
             )}
@@ -1704,6 +1752,15 @@ export default function App() {
     }
   }
 
+  async function toggleMealSkip(itemId) {
+    setMealPlanItems((prev) => prev.map((item) => {
+      if (item.id !== itemId) return item;
+      const updated = { ...item.recipe_data, _skipped: !item.recipe_data._skipped };
+      supabase.from('meal_plan_items').update({ recipe_data: updated }).eq('id', itemId);
+      return { ...item, recipe_data: updated };
+    }));
+  }
+
   async function saveRating(rid, stars) {
     setRatingPrompt(null);
     setRecipeRatings((prev) => ({ ...prev, [rid]: stars }));
@@ -1845,6 +1902,7 @@ export default function App() {
   const viewRecipeObjects = viewItems
     .filter((i) => {
       if (i.recipe_data?._notAtHome) return false;
+      if (i.recipe_data?._skipped) return false;
       const pd = i.recipe_data?._plannedDay;
       if (!pd) return true;
       return !notAtHomeDaySet.has(String(pd).toLowerCase().slice(0, 3));
@@ -2044,16 +2102,23 @@ export default function App() {
               ));
             }
             setActiveTab("week");
-            // Background: generate full ingredients for AI stubs one at a time
+            // Background: generate full ingredients for all AI stubs in one batch call
+            // so the entire enrichment pass counts as a single rate-limit hit.
             const aiStubs = recipes.filter((r) => r._aiSuggestion && !(r.ingredients?.length));
             if (aiStubs.length) {
               (async () => {
-                for (const stub of aiStubs) {
-                  try {
-                    const generated = await apiFetch('/api/ai/generate-recipe', {
-                      method: 'POST',
-                      body: { recipe: stub },
-                    });
+                try {
+                  const { results } = await apiFetch('/api/ai/generate-recipes-batch', {
+                    method: 'POST',
+                    body: { recipes: aiStubs },
+                  });
+                  for (const generated of results) {
+                    if (!generated.success) {
+                      console.error('[bg-generate]', generated.id, generated.error);
+                      continue;
+                    }
+                    const stub = aiStubs.find((s) => String(s.id) === String(generated.id));
+                    if (!stub) continue;
                     const enriched = {
                       ...stub,
                       ingredients: generated.ingredients || [],
@@ -2062,6 +2127,9 @@ export default function App() {
                       cookTime: generated.cookTime || stub.cookTime,
                       macros: generated.macros || {},
                       _weekStart: viewWeek,
+                      ...(stub._sideDish && {
+                        _sideDish: { ...stub._sideDish, steps: generated.side_dish_steps || [] },
+                      }),
                     };
                     setMealPlanItems((prev) => prev.map((item) =>
                       item.recipe_id === String(stub.id)
@@ -2070,9 +2138,9 @@ export default function App() {
                     ));
                     const dbId = idMap[String(stub.id)];
                     if (dbId) supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbId);
-                  } catch (err) {
-                    console.error('[bg-generate]', stub.name, err.message);
                   }
+                } catch (err) {
+                  console.error('[bg-generate-batch]', err.message);
                 }
               })();
             }
@@ -2213,14 +2281,12 @@ export default function App() {
               </button>
               <div className="text-center">
                 <p className="text-sm font-semibold text-orange-900">{formatWeekLabel(viewWeek)}</p>
-                {viewWeek !== currentWeekStart && (
-                  <button
-                    onClick={() => setViewWeek(currentWeekStart)}
-                    className="text-[11px] text-orange-600 hover:text-orange-900 transition font-medium"
-                  >
-                    Back to this week
-                  </button>
-                )}
+                <button
+                  onClick={() => setViewWeek(currentWeekStart)}
+                  className={`text-[11px] text-orange-600 hover:text-orange-900 transition font-medium ${viewWeek === currentWeekStart ? 'invisible' : ''}`}
+                >
+                  Back to this week
+                </button>
               </div>
               <button
                 onClick={() => setViewWeek((w) => addWeeks(w, 1))}
@@ -2453,28 +2519,45 @@ export default function App() {
                       const xTime = (xr.prepTime || 0) + (xr.cookTime || 0);
                       const xIsCooked = !!cookedRecipes[xrid];
                       const xExpanded = !!expandedRecipes[xrid];
+                      const xIsSkipped = !!xr._skipped;
                       return (
-                        <div key={xrid} className={`border-b border-orange-50 transition-all ${xIsCooked ? 'bg-sage-100/20' : ''}`}>
+                        <div key={xrid} className={`border-b border-orange-50 transition-all ${xIsCooked ? 'bg-sage-100/20' : ''} ${xIsSkipped ? 'opacity-50' : ''}`}>
                           <div
                             className="flex items-center gap-3 px-4 py-2.5 cursor-pointer"
-                            onClick={() => toggleDayMeal(xrid)}
+                            onClick={() => !xIsSkipped && toggleDayMeal(xrid)}
                           >
                             <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-16 flex-shrink-0">{typeLabel}</span>
-                            {xr._plannerPhoto?.url && (
+                            {xr._plannerPhoto?.url && !xIsSkipped && (
                               <img src={xr._plannerPhoto.thumbnail || xr._plannerPhoto.url} alt={xr._plannerPhoto.alt || xr.name}
                                 loading="lazy" className="w-9 h-9 rounded-[10px] object-cover flex-shrink-0" />
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-semibold leading-snug truncate ${xIsCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>{xr.name}</p>
-                              <p className="text-xs text-orange-400 mt-0.5">{[xTime > 0 ? `${xTime} min` : null, (xr._aiSuggestion || xr._quickEntry) && (!xr.ingredients || !xr.ingredients.length) ? '· tap to fill in' : null].filter(Boolean).join(' ')}</p>
+                              <p className={`text-sm font-semibold leading-snug truncate ${xIsSkipped || xIsCooked ? 'line-through text-orange-300' : 'text-orange-900'}`}>{xr.name}</p>
+                              {!xIsSkipped && <p className="text-xs text-orange-400 mt-0.5">{[xTime > 0 ? `${xTime} min` : null, (xr._aiSuggestion || xr._quickEntry) && (!xr.ingredients || !xr.ingredients.length) ? '· tap to fill in' : null].filter(Boolean).join(' ')}</p>}
+                              {xIsSkipped && <p className="text-xs text-orange-300 mt-0.5 font-display italic">not happening</p>}
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
-                              {xIsCooked && <Check size={14} className="text-sage-500" />}
-                              <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(xr); }} className="text-orange-300 hover:text-red-400 transition p-1"><X size={13} /></button>
-                              {xExpanded ? <ChevronUp size={16} className="text-orange-400" /> : <ChevronDown size={16} className="text-orange-400" />}
+                              {xIsSkipped ? (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); toggleMealSkip(item.id); }}
+                                  className="text-xs text-orange-400 hover:text-orange-600 transition px-2 py-0.5 border border-dashed border-orange-200 hover:border-orange-400 rounded-full">
+                                  Restore
+                                </button>
+                              ) : (
+                                <>
+                                  {xIsCooked && <Check size={14} className="text-sage-500" />}
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleMealSkip(item.id); }}
+                                    className="text-orange-300 hover:text-orange-500 transition p-1" title="Skip this meal">
+                                    <MinusCircle size={13} />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(xr); }} className="text-orange-300 hover:text-red-400 transition p-1"><X size={13} /></button>
+                                  {xExpanded ? <ChevronUp size={16} className="text-orange-400" /> : <ChevronDown size={16} className="text-orange-400" />}
+                                </>
+                              )}
                             </div>
                           </div>
-                          {xExpanded && (
+                          {xExpanded && !xIsSkipped && (
                             <div className="border-t border-orange-50">
                               {(xr._plannerPhoto?.url || xr._plannerReason || xr._plannerLeftoverFor || (xr._plannerUsesPantry || []).length > 0) && (
                                 <div className="bg-orange-50/50 border-b border-orange-100">
@@ -2518,14 +2601,14 @@ export default function App() {
                         'border-dashed border-orange-100 bg-white/50'
                       }`}>
 
-                        {/* ── Breakfast slot — only if one exists ── */}
-                        {!isNotAtHome && hasBreakfast && extraItems.filter((i) => i.recipe_data._mealType === 'breakfast').map(renderExtraRow)}
+                        {/* ── Breakfast slot — always show if planned ── */}
+                        {hasBreakfast && extraItems.filter((i) => i.recipe_data._mealType === 'breakfast').map(renderExtraRow)}
 
-                        {/* ── Lunch slot — only if one exists ──────── */}
-                        {!isNotAtHome && hasLunch && extraItems.filter((i) => i.recipe_data._mealType === 'lunch').map(renderExtraRow)}
+                        {/* ── Lunch slot — always show if planned ──────── */}
+                        {hasLunch && extraItems.filter((i) => i.recipe_data._mealType === 'lunch').map(renderExtraRow)}
 
-                        {/* ── Other extras (snacks etc.) ───────────── */}
-                        {!isNotAtHome && extraItems.filter((i) => !['breakfast','lunch'].includes(i.recipe_data._mealType)).map(renderExtraRow)}
+                        {/* ── Other extras (snacks etc.) ───────────────── */}
+                        {extraItems.filter((i) => !['breakfast','lunch'].includes(i.recipe_data._mealType)).map(renderExtraRow)}
 
                         {/* ── Dinner slot (primary) ─────────────────── */}
                         <div>
@@ -2533,7 +2616,7 @@ export default function App() {
                             onClick={() => !isNotAtHome && recipe && toggleDayMeal(rid)}>
                             <div className="w-16 flex-shrink-0">
                               <p className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-orange-600' : 'text-orange-400'}`}>{day.slice(0, 3)}</p>
-                              {isToday && <p className="text-[10px] text-orange-400 font-medium">today</p>}
+                              <p className={`text-[10px] font-medium text-orange-400 ${isToday ? '' : 'invisible'}`}>today</p>
                             </div>
                             {isNotAtHome ? (
                               <>

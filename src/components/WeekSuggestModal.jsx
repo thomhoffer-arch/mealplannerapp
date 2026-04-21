@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Wand2 } from 'lucide-react';
+import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Wand2, Tag } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
-const SOURCE_COLORS = {
-  'My Recipes':    'bg-orange-100 text-orange-600',
-  'AI Suggestion': 'bg-orange-100 text-orange-600',
-  'Web import':    'bg-orange-50 text-orange-600',
-};
-
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 // Single expandable meal row inside a day card
 function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor, sideDish, isExpanded, onToggle }) {
@@ -85,6 +78,11 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [swapInput, setSwapInput]       = useState({});
   const [swappingKey, setSwappingKey]   = useState(null);
   const [thisWeekWishes, setThisWeekWishes] = useState('');
+  const [weeklyBudget, setWeeklyBudget]   = useState('');   // optional €/week
+  const [simpleNight, setSimpleNight]     = useState(false); // include one easy night
+  const [deals, setDeals]               = useState([]);    // fetched supermarket deals
+  const [dealsLoading, setDealsLoading] = useState(false);
+  const [dealsError, setDealsError]     = useState('');
   const [showNotes, setShowNotes]       = useState(false);
   // expandedMeals: { [weekNum-dayName]: { dinner: bool, "breakfast-0": bool, ... } }
   const [expandedMeals, setExpandedMeals] = useState({});
@@ -115,6 +113,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           plan_extras_text: planExtrasText || '',
           day_notes: dayNotes,
           this_week_wishes: thisWeekWishes || '',
+          weekly_budget: weeklyBudget ? Number(weeklyBudget) : null,
+          simple_night: simpleNight,
+          deals: deals,
         },
       });
       setPlan(data.weeks);
@@ -136,6 +137,20 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
       setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchDeals() {
+    setDealsLoading(true);
+    setDealsError('');
+    try {
+      const data = await apiFetch('/api/ai/search-deals', { method: 'POST', body: {} });
+      setDeals(data.deals || []);
+      if (!data.deals?.length) setDealsError('No deals found for this week.');
+    } catch (err) {
+      setDealsError(err.message || 'Could not fetch deals');
+    } finally {
+      setDealsLoading(false);
     }
   }
 
@@ -272,11 +287,68 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           </div>
           <textarea
             rows={2}
-            placeholder='Anything on your mind for this week — the AI reads this first…'
+            placeholder='Anything specific this week? Dietary requests, events, ingredients to use up…'
             value={thisWeekWishes}
             onChange={(e) => setThisWeekWishes(e.target.value)}
             className="w-full text-xs border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
           />
+          {/* Budget + simple night row */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-orange-600">€</span>
+              <input
+                type="number"
+                min="0"
+                placeholder="Budget/week"
+                value={weeklyBudget}
+                onChange={(e) => setWeeklyBudget(e.target.value)}
+                className="w-28 text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setSimpleNight((v) => !v)}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition ${
+                simpleNight
+                  ? 'bg-orange-500 text-white border-orange-500'
+                  : 'border-orange-200 text-orange-600 hover:border-orange-400'
+              }`}
+            >
+              {simpleNight ? '✓ ' : ''}Easy night
+            </button>
+          </div>
+
+          {/* Deals row — premium, Gemini key required */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={fetchDeals}
+                disabled={dealsLoading}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-orange-200 text-orange-600 hover:border-orange-400 transition disabled:opacity-50"
+              >
+                <Tag size={12} />
+                {dealsLoading ? 'Finding deals…' : deals.length ? 'Refresh deals' : 'Include this week\'s deals'}
+              </button>
+              {dealsError && <span className="text-[11px] text-red-400">{dealsError}</span>}
+            </div>
+            {deals.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {deals.map((deal, i) => (
+                  <span key={i} className="flex items-center gap-1 text-[11px] bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full">
+                    {deal.item}{deal.price ? ` · ${deal.price}` : ''}
+                    <button
+                      type="button"
+                      onClick={() => setDeals((prev) => prev.filter((_, j) => j !== i))}
+                      className="text-green-400 hover:text-green-700 transition ml-0.5 flex-shrink-0"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Content area */}
@@ -312,7 +384,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
               )}
 
               {/* Horizontal carousel — one day per swipe */}
-              <div className="flex-1 flex gap-3 overflow-x-auto snap-x snap-mandatory px-5 scroll-px-5 pb-3 scrollbar-hide">
+              <div className="flex-1 min-h-0 flex gap-3 overflow-x-auto overflow-y-hidden snap-x snap-mandatory px-5 scroll-px-5 pb-3 scrollbar-hide">
                 {week.days.map((day) => {
                   const key = `${week.week}-${day.day}`;
                   const isSelected = !!selected[key];
@@ -393,7 +465,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         </div>
                       )}
 
-                      <div className="flex-1 overflow-y-auto">
+                      <div className="flex-1 min-h-0 overflow-y-auto">
 
                         {/* Selection toggle + source badges */}
                         <div className="flex items-center gap-2 px-4 pt-3 pb-2">
