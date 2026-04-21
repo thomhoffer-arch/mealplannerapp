@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, Settings, AlertTriangle, MinusCircle,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, Settings, AlertTriangle, MinusCircle, Mail,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { apiFetch, setActiveHouseholdId, getActiveHouseholdId } from "./lib/api";
@@ -903,6 +903,9 @@ export default function App() {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [showInviteSharePanel, setShowInviteSharePanel] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [sendingEmailInvite, setSendingEmailInvite] = useState(false);
+  const [emailInviteSent, setEmailInviteSent] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
@@ -2025,6 +2028,23 @@ export default function App() {
     setInviteCopied(true);
     setShowInviteSharePanel(false);
     setTimeout(() => setInviteCopied(false), 2000);
+  }
+
+  async function sendEmailInvite(e) {
+    e.preventDefault();
+    const addr = inviteEmail.trim();
+    if (!addr) return;
+    setSendingEmailInvite(true);
+    try {
+      await apiFetch('/api/household/invite-email', { method: 'POST', body: { email: addr } });
+      setEmailInviteSent(true);
+      setInviteEmail('');
+      setTimeout(() => setEmailInviteSent(false), 4000);
+    } catch (err) {
+      console.error('[invite-email]', err.message);
+    } finally {
+      setSendingEmailInvite(false);
+    }
   }
 
   async function saveHouseholdName() {
@@ -3562,6 +3582,24 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                {/* Email invite */}
+                <form onSubmit={sendEmailInvite} className="flex gap-2">
+                  <input
+                    type="email"
+                    placeholder="Invite by email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="flex-1 text-xs border border-orange-200 rounded-xl px-3 py-2 bg-orange-50 text-orange-900 placeholder:text-orange-300 focus:outline-none focus:border-orange-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sendingEmailInvite || !inviteEmail.trim()}
+                    className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    {emailInviteSent ? <Check size={12} /> : <Mail size={12} />}
+                    {emailInviteSent ? 'Sent!' : sendingEmailInvite ? 'Sending…' : 'Send'}
+                  </button>
+                </form>
               </div>
             </div>
 
