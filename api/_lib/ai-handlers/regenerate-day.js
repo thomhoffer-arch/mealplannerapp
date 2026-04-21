@@ -20,10 +20,11 @@ export default async function handleRegenerateDay(req, res) {
     current_recipe_name,    // "Pasta carbonara"
     change_request,         // "too heavy, give me something lighter"
     other_days_names = [],  // Names of other days in the plan, to avoid collisions
+    meal_type,              // "breakfast" | "lunch" | undefined (= dinner)
   } = req.body || {};
 
   if (!day_name) return res.status(400).json({ error: 'day_name is required' });
-  if (!change_request?.trim()) return res.status(400).json({ error: 'change_request is required' });
+  if (!change_request?.trim() && !meal_type) return res.status(400).json({ error: 'change_request is required' });
 
   const ctx = await requireAuth(req, res);
   if (!ctx) return;
@@ -78,16 +79,27 @@ export default async function handleRegenerateDay(req, res) {
     })
     .join('\n');
 
+  const isMealType = !!meal_type && meal_type !== 'dinner';
+  const mealLabel = meal_type || 'dinner';
+  const timeRule = isMealType
+    ? `${mealLabel}: keep it simple and quick — total time (prep + cook) ≤ 20 minutes.`
+    : ['Monday','Tuesday','Wednesday','Thursday'].includes(day_name)
+      ? 'weekday: total time (prep + cook) must stay at or under 40 minutes.'
+      : day_name === 'Friday' ? 'Friday: aim for under 50 minutes.'
+      : 'weekend: up to 90 minutes is fine.';
+
+  const taskLine = isMealType
+    ? `Suggest a ${mealLabel} for ${day_name}.${change_request?.trim() ? ` Household preference: "${change_request.trim()}"` : ''}`
+    : `The household had "${current_recipe_name}" planned for ${day_name}. They want to swap it.\n\nTheir request: "${change_request.trim()}"`;
+
   const prompt = `${VOICE_GUIDE}
 
 ---
 
-The household had "${current_recipe_name}" planned for ${day_name}. They want to swap it.
+${taskLine}
 
-Their request: "${change_request.trim()}"
-
-Replace the dish with something that:
-- satisfies the request above
+${isMealType ? `Suggest a ${mealLabel} dish that:` : 'Replace the dish with something that:'}
+- satisfies the ${isMealType ? 'household context' : 'request'} above
 - still respects the rules below
 - doesn't duplicate what's already on other days this week: ${other_days_names.join(', ') || '(no other days specified)'}
 
@@ -102,7 +114,7 @@ P2. DIETARY ADAPTATION MEANS ADAPT, NOT REPLACE. If the request concerns a
     ingredients. The dish stays; the offending components are swapped. Name
     the result to make the adaptation obvious in the title.
 
-P3. COOKING TIME — ${['Monday','Tuesday','Wednesday','Thursday'].includes(day_name) ? 'weekday: total time (prep + cook) must stay at or under 40 minutes.' : day_name === 'Friday' ? 'Friday: aim for under 50 minutes.' : 'weekend: up to 90 minutes is fine.'} Respect this unless P1 overrides it.
+P3. COOKING TIME — ${timeRule} Respect this unless P1 overrides it.
 
 P4. NO DUPLICATION. Do not suggest a dish already on other days this week.
 

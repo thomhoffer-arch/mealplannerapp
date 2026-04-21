@@ -30,10 +30,10 @@ export default async function handleSuggestSide(req, res) {
   let prompt;
   if (isBag) {
     const dietPart = dietary_prefs ? ` Dietary notes: ${dietary_prefs}.` : '';
-    prompt = `A home cook just got a surprise food bag with these ingredients: ${bag_ingredients}.${dietPart}${pantryHint} Suggest 2-3 complete meals they can cook with what they have. Return ONLY JSON: {"suggestions":[{"name":"...","description":"one sentence"}]}`;
+    prompt = `A home cook just got a surprise food bag with these ingredients: ${bag_ingredients}.${dietPart}${pantryHint} Suggest 2-3 complete meals they can cook with what they have. Return ONLY JSON: {"suggestions":[{"name":"...","description":"one sentence","ingredients":[{"name":"ingredient name","amount":"quantity e.g. 200g"}]}]}`;
   } else {
     const prefPart = preference ? ` ${preference}.` : '';
-    prompt = `Suggest 2-3 quick side dishes to go with ${recipe.name}.${prefPart}${pantryHint} Each side should be simple (under 15 min). Return ONLY JSON: {"suggestions":[{"name":"...","description":"one line"}]}`;
+    prompt = `Suggest 2-3 quick side dishes to go with ${recipe.name}.${prefPart}${pantryHint} Each side should be simple (under 15 min). Return ONLY JSON: {"suggestions":[{"name":"...","description":"one line","ingredients":[{"name":"ingredient name","amount":"quantity e.g. 2 cups"}]}]}`;
   }
 
   let rawText;
