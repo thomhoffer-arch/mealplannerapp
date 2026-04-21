@@ -1160,11 +1160,11 @@ export default function App() {
 
   async function saveTemplate() {
     const name = templateName.trim();
-    if (!name || selectedRecipeObjects.length === 0) return;
+    if (!name || viewRecipeObjects.length === 0) return;
     await supabase.from("plan_templates").insert({
       household_id: household.id,
       name,
-      recipes: selectedRecipeObjects,
+      recipes: viewRecipeObjects,
     });
     setTemplateName("");
     setShowTemplates(false);
@@ -2101,22 +2101,124 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* Extra meal rows (breakfast / lunch) */}
+                        {/* Extra meal rows (breakfast / lunch) — fully expandable */}
                         {extraItems.map((item) => {
                           const xr = item.recipe_data;
                           const xrid = String(xr.id);
-                          const typeLabel = xr._mealType === 'breakfast' ? 'Breakfast' : xr._mealType === 'lunch' ? 'Lunch' : xr._mealType;
+                          const typeLabel = xr._mealType === 'breakfast' ? 'Breakfast' : xr._mealType === 'lunch' ? 'Lunch' : (xr._mealType || 'Extra');
                           const xTime = (xr.prepTime || 0) + (xr.cookTime || 0);
+                          const xIsCooked = !!cookedRecipes[xrid];
+                          const xExpanded = !!expandedRecipes[xrid];
                           return (
-                            <div key={xrid} className="border-t border-orange-50 mx-4 py-2 flex items-center gap-3">
-                              <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-16 flex-shrink-0">{typeLabel}</span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-orange-900 leading-snug truncate">{xr.name}</p>
-                                {xTime > 0 && <p className="text-xs text-orange-400">{xTime} min</p>}
+                            <div key={xrid} className={`border-t-2 transition-all ${xIsCooked ? 'border-green-100' : 'border-orange-50'}`}>
+                              {/* Extra meal header — clickable to expand */}
+                              <div
+                                className="flex items-center gap-3 px-4 py-2.5 cursor-pointer"
+                                onClick={() => setExpandedRecipes((p) => ({ ...p, [xrid]: !p[xrid] }))}
+                              >
+                                <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-16 flex-shrink-0">{typeLabel}</span>
+                                {xr._plannerPhoto?.url && (
+                                  <img
+                                    src={xr._plannerPhoto.thumbnail || xr._plannerPhoto.url}
+                                    alt={xr._plannerPhoto.alt || xr.name}
+                                    loading="lazy"
+                                    className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-semibold leading-snug truncate ${xIsCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>
+                                    {xr.name}
+                                  </p>
+                                  <p className="text-xs text-orange-400 mt-0.5">
+                                    {[
+                                      xTime > 0 ? `${xTime} min` : null,
+                                      xr._aiSuggestion && (!xr.ingredients || !xr.ingredients.length) ? '· tap to generate' : null,
+                                    ].filter(Boolean).join(' ')}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {xIsCooked && <Check size={14} className="text-sage-500" />}
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(xr); }}
+                                    className="text-orange-300 hover:text-red-400 transition p-1"
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                  {xExpanded
+                                    ? <ChevronUp size={16} className="text-orange-400" />
+                                    : <ChevronDown size={16} className="text-orange-400" />}
+                                </div>
                               </div>
-                              <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(xr); }} className="text-orange-300 hover:text-red-400 transition flex-shrink-0 p-1">
-                                <X size={13} />
-                              </button>
+
+                              {/* Expanded full recipe view for extra meal */}
+                              {xExpanded && (
+                                <div className="border-t border-orange-50">
+                                  {(xr._plannerPhoto?.url || xr._plannerReason || xr._plannerLeftoverFor || (xr._plannerUsesPantry || []).length > 0) && (
+                                    <div className="bg-orange-50/50 border-b border-orange-100">
+                                      {xr._plannerPhoto?.url && (
+                                        <div className="relative h-40 w-full bg-orange-100 overflow-hidden">
+                                          <img
+                                            src={xr._plannerPhoto.url}
+                                            alt={xr._plannerPhoto.alt || xr.name}
+                                            loading="lazy"
+                                            className="absolute inset-0 w-full h-full object-cover"
+                                          />
+                                          {xr._plannerPhoto.photographer && (
+                                            <a
+                                              href={xr._plannerPhoto.photographer_url || 'https://www.pexels.com'}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              📷 {xr._plannerPhoto.photographer}
+                                            </a>
+                                          )}
+                                        </div>
+                                      )}
+                                      <div className="px-4 py-3 space-y-2">
+                                        {xr._plannerReason && (
+                                          <p className="text-xs text-orange-700 italic leading-snug">✨ {xr._plannerReason}</p>
+                                        )}
+                                        {((xr._plannerUsesPantry || []).length > 0 || xr._plannerLeftoverFor) && (
+                                          <div className="flex flex-wrap gap-1">
+                                            {xr._plannerLeftoverFor && (
+                                              <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">
+                                                → {xr._plannerLeftoverFor}
+                                              </span>
+                                            )}
+                                            {(xr._plannerUsesPantry || []).map((pi) => (
+                                              <span key={pi} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100">
+                                                🥫 {pi}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  <SelectedRecipeCard
+                                    recipe={xr}
+                                    expanded={true}
+                                    onToggleExpand={() => {}}
+                                    onToggleCooked={toggleCookedRecipe}
+                                    isCooked={xIsCooked}
+                                    customIngredients={customIngredients}
+                                    onAddCustom={addCustomIngredient}
+                                    onRemoveCustom={removeCustomIngredient}
+                                    onRemove={toggleSelectedRecipe}
+                                    newIngredientInput={newIngredientInput}
+                                    onInputChange={(id, val) => setNewIngredientInput((p) => ({ ...p, [id]: val }))}
+                                    preferences={preferences}
+                                    starredRecipes={starredRecipes}
+                                    onAcceptSubstitution={acceptSubstitution}
+                                    onGenerateRecipe={generateAndSaveRecipe}
+                                    onShareRecipe={shareRecipe}
+                                    rating={recipeRatings[xrid] || null}
+                                    inlineExpanded
+                                  />
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -2295,7 +2397,7 @@ export default function App() {
                           ))}
                         </div>
                       )}
-                      {selectedRecipeObjects.length > 0 && (
+                      {viewRecipeObjects.length > 0 && (
                         <div className="flex gap-2 pt-1">
                           <input type="text" placeholder="Name this week…"
                             value={templateName} onChange={(e) => setTemplateName(e.target.value)}
@@ -2308,7 +2410,7 @@ export default function App() {
                           </button>
                         </div>
                       )}
-                      {templates.length === 0 && selectedRecipeObjects.length === 0 && (
+                      {templates.length === 0 && viewRecipeObjects.length === 0 && (
                         <p className="text-xs text-orange-400">Plan a week first, then save it here to reuse.</p>
                       )}
                     </div>
