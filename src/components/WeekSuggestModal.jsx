@@ -306,7 +306,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap">
                             <span className="text-[10px] font-bold uppercase bg-white/90 text-orange-600 px-2 py-0.5 rounded-full tracking-wider">{day.day}</span>
                             {totalTime > 0 && (
-                              <span className="text-[10px] font-semibold bg-black/40 text-white px-2 py-0.5 rounded-full">⏱ {totalTime} min</span>
+                              <span className="text-[10px] font-semibold bg-black/40 text-white px-2 py-0.5 rounded-full">{totalTime} min</span>
                             )}
                           </div>
                           {day.photo.photographer && (
@@ -316,7 +316,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                               rel="noopener noreferrer"
                               className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
                             >
-                              📷 {day.photo.photographer}
+                              {day.photo.photographer}
                             </a>
                           )}
                         </div>
@@ -324,7 +324,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         <div className="flex items-center gap-1.5 px-4 pt-4">
                           <span className="text-[10px] font-bold uppercase bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full tracking-wider">{day.day}</span>
                           {totalTime > 0 && (
-                            <span className="text-[10px] font-semibold bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">⏱ {totalTime} min</span>
+                            <span className="text-[10px] font-semibold bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">{totalTime} min</span>
                           )}
                         </div>
                       )}
@@ -361,7 +361,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         )}
 
                         {day.reason && (
-                          <p className="text-xs text-orange-500 italic leading-snug bg-orange-50/60 rounded-xl px-3 py-2">✨ {day.reason}</p>
+                          <p className="font-display italic text-orange-600 text-xs leading-snug bg-orange-50/60 rounded-xl px-3 py-2">— {day.reason}</p>
                         )}
 
                         {((day.uses_pantry || []).length > 0 || day.leftover_for) && (
@@ -373,7 +373,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                             )}
                             {(day.uses_pantry || []).map((item) => (
                               <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full border border-orange-100">
-                                🥫 {item}
+                                <span className="font-display italic">from pantry</span> · {item}
                               </span>
                             ))}
                           </div>
@@ -398,7 +398,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                                 <div key={i} className="flex items-center gap-2 bg-orange-50/60 rounded-xl px-3 py-2">
                                   <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-14 flex-shrink-0">{extra._mealType || 'Extra'}</span>
                                   {extra.photo?.thumbnail && (
-                                    <img src={extra.photo.thumbnail} alt={extra.name} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                                    <img src={extra.photo.thumbnail} alt={extra.name} className="w-8 h-8 rounded-[10px] object-cover flex-shrink-0" />
                                   )}
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-semibold text-orange-900 truncate">{extra.name}</p>

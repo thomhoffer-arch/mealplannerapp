@@ -77,7 +77,7 @@ export default function CreateRecipeModal({ household, onClose, onAddToPlan }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[92vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-warm-lg w-full max-w-sm max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 pt-5 pb-3 sticky top-0 bg-white border-b border-orange-50 z-10">
           <h2 className="text-base font-bold text-orange-900">Create your own recipe</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-orange-400 hover:bg-orange-50 transition">
@@ -141,14 +141,14 @@ export default function CreateRecipeModal({ household, onClose, onAddToPlan }) {
                     placeholder="Amount"
                     value={ing.amount}
                     onChange={(e) => updateIngredient(ing.id, 'amount', e.target.value)}
-                    className="w-20 border border-orange-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                    className="w-20 border border-orange-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
                   />
                   <input
                     type="text"
                     placeholder="Ingredient"
                     value={ing.name}
                     onChange={(e) => updateIngredient(ing.id, 'name', e.target.value)}
-                    className="flex-1 border border-orange-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
+                    className="flex-1 border border-orange-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300"
                   />
                   <button onClick={() => removeIngredient(ing.id)} className="text-orange-400 hover:text-red-400 transition flex-shrink-0">
                     <X size={14} />
@@ -173,7 +173,7 @@ export default function CreateRecipeModal({ household, onClose, onAddToPlan }) {
                     placeholder={`Step ${idx + 1}`}
                     value={step.text}
                     onChange={(e) => updateStep(step.id, e.target.value)}
-                    className="flex-1 border border-orange-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none"
+                    className="flex-1 border border-orange-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none"
                   />
                   <button onClick={() => removeStep(step.id)} className="text-orange-400 hover:text-red-400 transition flex-shrink-0 mt-2">
                     <X size={14} />

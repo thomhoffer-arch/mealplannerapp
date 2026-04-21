@@ -140,7 +140,7 @@ function WeeklyNutritionCard({ recipes }) {
           { label: "Carbs",    value: Math.round(totals.carbs),    unit: "g" },
           { label: "Fat",      value: Math.round(totals.fat),      unit: "g" },
         ].map(({ label, value, unit }) => (
-          <div key={label} className="bg-orange-50 rounded-lg p-2 text-center">
+          <div key={label} className="bg-orange-50 rounded-[10px] p-2 text-center">
             <p className="text-sm font-bold text-orange-900">{value}{unit}</p>
             <p className="text-xs text-orange-600">{label}</p>
           </div>
@@ -342,7 +342,7 @@ function SelectedRecipeCard({
                   { label: "Fat",      value: recipe.macros?.fat,      unit: "g" },
                   { label: "Cal",      value: recipe.macros?.calories, unit: "" },
                 ].map(({ label, value, unit }) => (
-                  <div key={label} className="bg-orange-50 rounded-lg p-2 text-center">
+                  <div key={label} className="bg-orange-50 rounded-[10px] p-2 text-center">
                     <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>
                     <p className="text-xs text-orange-400">{label}</p>
                   </div>
@@ -525,7 +525,7 @@ function SelectedRecipeCard({
                 { label: "Fat",       value: recipe.macros?.fat,       unit: "g" },
                 { label: "Calories",  value: recipe.macros?.calories,  unit: "" },
               ].map(({ label, value, unit }) => (
-                <div key={label} className="bg-orange-50 rounded-lg p-2 text-center">
+                <div key={label} className="bg-orange-50 rounded-[10px] p-2 text-center">
                   <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>
                   <p className="text-xs text-orange-600">{label}</p>
                 </div>
@@ -1883,7 +1883,7 @@ export default function App() {
       {/* Side dish panel */}
       {sideDishPanel && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/20" onClick={() => setSideDishPanel(null)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-t-2xl w-full max-w-sm p-5 shadow-warm-lg" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="font-semibold text-orange-900 text-sm">Side for {sideDishPanel.mainRecipe?.name}</p>
@@ -1944,10 +1944,10 @@ export default function App() {
       {/* Post-cook rating prompt */}
       {ratingPrompt && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 text-center">
-            <p className="text-2xl mb-2">🍽️</p>
-            <h3 className="text-base font-bold text-orange-900 mb-1">How was it?</h3>
-            <p className="text-xs text-orange-400 mb-4">Rate the recipe to help your household remember the winners.</p>
+          <div className="bg-white rounded-2xl shadow-warm-lg w-full max-w-xs p-6 text-center">
+            <p className="font-display italic text-orange-600 text-xs tracking-wide mb-3">— how was it?</p>
+            <h3 className="font-display text-xl font-semibold text-orange-900 mb-2 leading-tight">Worth the pan wash?</h3>
+            <p className="text-xs text-orange-600 mb-4 leading-relaxed">A quick rating so the week plans itself around what you actually like.</p>
             <div className="flex justify-center gap-2 mb-4">
               {[1, 2, 3, 4, 5].map((s) => (
                 <button key={s} onClick={() => saveRating(ratingPrompt, s)}
@@ -1967,7 +1967,7 @@ export default function App() {
       {/* Share-this-win offer after a 4-5★ cook */}
       {shareOffer && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 text-center">
+          <div className="bg-white rounded-2xl shadow-warm-lg w-full max-w-xs p-6 text-center">
             <p className="text-2xl mb-2 text-orange-400">{'★'.repeat(shareOffer.stars)}</p>
             <h3 className="text-base font-bold text-orange-900 mb-1">A winner — share it?</h3>
             <p className="text-xs text-orange-400 mb-4">Create a public link to <span className="font-semibold text-orange-600">{shareOffer.recipe.name}</span>. Good for sending to friends.</p>
@@ -2196,7 +2196,7 @@ export default function App() {
                       What've I got?
                     </button>
                     <button onClick={() => setShowWeekSuggest(true)}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition shadow-sm">
+                      className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition shadow-warm">
                       <Sparkles size={13} />
                       Replan
                     </button>
@@ -2251,7 +2251,7 @@ export default function App() {
                             <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider w-16 flex-shrink-0">{typeLabel}</span>
                             {xr._plannerPhoto?.url && (
                               <img src={xr._plannerPhoto.thumbnail || xr._plannerPhoto.url} alt={xr._plannerPhoto.alt || xr.name}
-                                loading="lazy" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                                loading="lazy" className="w-9 h-9 rounded-[10px] object-cover flex-shrink-0" />
                             )}
                             <div className="flex-1 min-w-0">
                               <p className={`text-sm font-semibold leading-snug truncate ${xIsCooked ? 'line-through text-orange-400' : 'text-orange-900'}`}>{xr.name}</p>
@@ -2273,16 +2273,16 @@ export default function App() {
                                       {xr._plannerPhoto.photographer && (
                                         <a href={xr._plannerPhoto.photographer_url || 'https://www.pexels.com'} target="_blank" rel="noopener noreferrer"
                                           className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
-                                          onClick={(e) => e.stopPropagation()}>📷 {xr._plannerPhoto.photographer}</a>
+                                          onClick={(e) => e.stopPropagation()}>{xr._plannerPhoto.photographer}</a>
                                       )}
                                     </div>
                                   )}
                                   <div className="px-4 py-3 space-y-2">
-                                    {xr._plannerReason && <p className="text-xs text-orange-700 italic leading-snug">✨ {xr._plannerReason}</p>}
+                                    {xr._plannerReason && <p className="font-display italic text-orange-600 text-xs leading-snug">— {xr._plannerReason}</p>}
                                     {((xr._plannerUsesPantry || []).length > 0 || xr._plannerLeftoverFor) && (
                                       <div className="flex flex-wrap gap-1">
                                         {xr._plannerLeftoverFor && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">→ {xr._plannerLeftoverFor}</span>}
-                                        {(xr._plannerUsesPantry || []).map((pi) => <span key={pi} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100">🥫 {pi}</span>)}
+                                        {(xr._plannerUsesPantry || []).map((pi) => <span key={pi} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100"><span className="font-display italic">from pantry</span> · {pi}</span>)}
                                       </div>
                                     )}
                                   </div>
@@ -2441,16 +2441,16 @@ export default function App() {
                                       {recipe._plannerPhoto.photographer && (
                                         <a href={recipe._plannerPhoto.photographer_url || 'https://www.pexels.com'} target="_blank" rel="noopener noreferrer"
                                           className="absolute bottom-1.5 right-1.5 text-[9px] bg-black/40 text-white px-1.5 py-0.5 rounded-full hover:bg-black/60 transition"
-                                          onClick={(e) => e.stopPropagation()}>📷 {recipe._plannerPhoto.photographer}</a>
+                                          onClick={(e) => e.stopPropagation()}>{recipe._plannerPhoto.photographer}</a>
                                       )}
                                     </div>
                                   )}
                                   <div className="px-4 py-3 space-y-2">
-                                    {recipe._plannerReason && <p className="text-xs text-orange-700 italic leading-snug">✨ {recipe._plannerReason}</p>}
+                                    {recipe._plannerReason && <p className="font-display italic text-orange-600 text-xs leading-snug">— {recipe._plannerReason}</p>}
                                     {((recipe._plannerUsesPantry || []).length > 0 || recipe._plannerLeftoverFor) && (
                                       <div className="flex flex-wrap gap-1">
                                         {recipe._plannerLeftoverFor && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">→ {recipe._plannerLeftoverFor}</span>}
-                                        {(recipe._plannerUsesPantry || []).map((item) => <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100">🥫 {item}</span>)}
+                                        {(recipe._plannerUsesPantry || []).map((item) => <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100"><span className="font-display italic">from pantry</span> · {item}</span>)}
                                       </div>
                                     )}
                                   </div>
@@ -2577,7 +2577,7 @@ export default function App() {
                     : 'Generate a plan and it will be saved here.'}
                 </p>
                 <button onClick={() => setShowWeekSuggest(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition shadow-sm">
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition shadow-warm">
                   <Sparkles size={14} />
                   Plan this week
                 </button>
@@ -2653,7 +2653,7 @@ export default function App() {
             <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl mb-4">
               {["shopping", "pantry"].map((section) => (
                 <button key={section} onClick={() => setBasketSection(section)}
-                  className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${basketSection === section ? "bg-white text-orange-900 shadow-sm" : "text-orange-400 hover:text-orange-600"}`}>
+                  className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${basketSection === section ? "bg-white text-orange-900 shadow-warm" : "text-orange-400 hover:text-orange-600"}`}>
                   {section.charAt(0).toUpperCase() + section.slice(1)}
                 </button>
               ))}

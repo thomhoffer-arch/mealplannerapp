@@ -92,7 +92,7 @@ export default function NotificationBell({ household }) {
       >
         <Bell size={18} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 bg-red-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 bg-sage-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center px-0.5">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -101,7 +101,7 @@ export default function NotificationBell({ household }) {
       {open && (
         <div
           ref={popoverRef}
-          className="absolute right-0 top-11 bg-white rounded-xl shadow-lg border border-orange-100 w-80 z-40 max-h-96 flex flex-col"
+          className="absolute right-0 top-11 bg-white rounded-2xl shadow-warm-lg border border-orange-100 w-80 z-40 max-h-96 flex flex-col"
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-orange-50">
             <span className="text-sm font-semibold text-orange-900">Notifications</span>
@@ -126,7 +126,7 @@ export default function NotificationBell({ household }) {
               notifications.map((n) => (
                 <div
                   key={n.id}
-                  className={`flex items-start gap-2 px-4 py-3 border-b border-orange-50 last:border-0 transition-colors ${n.read ? '' : 'bg-orange-50/60'}`}
+                  className={`flex items-start gap-2 px-4 py-3 border-b border-orange-50 last:border-0 transition-colors ${n.read ? '' : 'bg-sage-100/50'}`}
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-orange-900 leading-snug">{n.message}</p>
@@ -134,7 +134,7 @@ export default function NotificationBell({ household }) {
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
                     {!n.read && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 flex-shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-sage-500 flex-shrink-0" />
                     )}
                     <button
                       onClick={() => dismiss(n.id)}

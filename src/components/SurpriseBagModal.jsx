@@ -45,7 +45,7 @@ export default function SurpriseBagModal({ household, dietaryPrefs, onAddRecipes
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm flex flex-col max-h-[88vh]">
+      <div className="bg-white rounded-2xl shadow-warm-lg w-full max-w-sm flex flex-col max-h-[88vh]">
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-orange-50">
           <div>
             <h2 className="font-display text-base font-bold text-orange-900">Cook from what you've got</h2>

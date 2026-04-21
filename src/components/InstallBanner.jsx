@@ -58,7 +58,7 @@ export default function InstallBanner() {
 
   return (
     <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pointer-events-none">
-      <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-xl border border-orange-100 p-4 pointer-events-auto animate-slide-up">
+      <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-warm-lg border border-orange-100 p-4 pointer-events-auto animate-slide-up">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
             {showIosHint ? <Share size={18} className="text-orange-600" /> : <Download size={18} className="text-orange-600" />}
