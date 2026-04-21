@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, Settings,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, Settings, AlertTriangle,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { apiFetch, setActiveHouseholdId, getActiveHouseholdId } from "./lib/api";
@@ -85,6 +85,25 @@ function formatWeekLabel(weekStart) {
   const sd = start.getDate();
   const ed = end.getDate();
   return sm === em ? `${sd}–${ed} ${sm}` : `${sd} ${sm} – ${ed} ${em}`;
+}
+
+const ALLERGENS = [
+  { name: 'Gluten',     color: 'bg-amber-100 text-amber-700',   patterns: ['flour','wheat','pasta','bread','breadcrumb','soy sauce','barley','rye','oat','spelt','semolina','noodle','couscous','bulgur','pita','tortilla'] },
+  { name: 'Milk',       color: 'bg-blue-100 text-blue-700',     patterns: ['milk','cream','butter','cheese','yogurt','yoghurt','parmesan','mozzarella','ricotta','halloumi','pecorino','brie','cheddar','gouda','feta','mascarpone','crème fraîche','creme fraiche','ghee'] },
+  { name: 'Eggs',       color: 'bg-yellow-100 text-yellow-700', patterns: ['egg'] },
+  { name: 'Fish',       color: 'bg-cyan-100 text-cyan-700',     patterns: ['salmon','tuna','cod','bass','halibut','trout','flounder','anchovy','sardine','mackerel','herring','tilapia','snapper','fish sauce','fish stock','fish'] },
+  { name: 'Shellfish',  color: 'bg-teal-100 text-teal-700',     patterns: ['shrimp','prawn','crab','lobster','scallop','clam','oyster','mussel','squid','octopus','crayfish'] },
+  { name: 'Peanuts',    color: 'bg-orange-100 text-orange-700', patterns: ['peanut','groundnut','satay'] },
+  { name: 'Tree nuts',  color: 'bg-orange-100 text-orange-700', patterns: ['almond','cashew','walnut','pecan','pistachio','macadamia','hazelnut','pine nut','brazil nut'] },
+  { name: 'Soy',        color: 'bg-green-100 text-green-700',   patterns: ['soy','tofu','tempeh','edamame','miso','tamari'] },
+  { name: 'Sesame',     color: 'bg-stone-100 text-stone-600',   patterns: ['sesame','tahini'] },
+  { name: 'Mustard',    color: 'bg-yellow-100 text-yellow-700', patterns: ['mustard'] },
+  { name: 'Celery',     color: 'bg-lime-100 text-lime-700',     patterns: ['celery','celeriac'] },
+  { name: 'Sulphites',  color: 'bg-purple-100 text-purple-700', patterns: ['wine','vinegar','dried apricot','dried fruit','balsamic'] },
+];
+function detectAllergens(ingredients = []) {
+  const text = ingredients.map((i) => `${i.name || ''} ${i.amount || ''}`).join(' ').toLowerCase();
+  return ALLERGENS.filter((a) => a.patterns.some((p) => text.includes(p)));
 }
 
 function consolidateIngredients(selectedRecipes, customIngredients) {
@@ -204,8 +223,10 @@ function SelectedRecipeCard({
   const [sharing, setSharing] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareError, setShareError] = useState(null);
+  const [showAllergens, setShowAllergens] = useState(false);
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
+  const detectedAllergens = detectAllergens([...(recipe.ingredients || []), ...customs]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
   const [aiError, setAiError] = useState(null);
@@ -274,8 +295,8 @@ function SelectedRecipeCard({
   if (inlineExpanded) {
     return (
       <div className="px-4 pb-4 space-y-4">
-        {/* Minimal action row: cooked toggle + share */}
-        <div className="flex items-center gap-2 pt-1">
+        {/* Minimal action row: cooked toggle + allergens + share */}
+        <div className="flex items-center gap-2 pt-1 flex-wrap">
           <button
             onClick={() => onToggleCooked(rid)}
             className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border-2 transition ${isCooked ? 'border-sage-400 bg-sage-100 text-sage-600' : 'border-orange-200 text-orange-400 hover:border-sage-300 hover:text-sage-600'}`}
@@ -284,6 +305,15 @@ function SelectedRecipeCard({
             {isCooked ? 'Cooked!' : 'Mark cooked'}
           </button>
           {rating && <p className="text-xs ml-1 text-orange-400">{'★'.repeat(rating)}</p>}
+          {detectedAllergens.length > 0 && (
+            <button
+              onClick={() => setShowAllergens((v) => !v)}
+              className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full border-2 border-amber-200 text-amber-600 hover:bg-amber-50 transition"
+            >
+              <AlertTriangle size={11} />
+              Allergens
+            </button>
+          )}
           <button
             onClick={async () => {
               if (sharing) return;
@@ -306,6 +336,19 @@ function SelectedRecipeCard({
             {shareError ? <X size={15} className="text-red-400" /> : shareCopied ? <Check size={15} className="text-orange-600" /> : <Link2 size={15} />}
           </button>
         </div>
+        {showAllergens && detectedAllergens.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+            <p className="text-xs font-semibold text-amber-700 mb-2 flex items-center gap-1.5">
+              <AlertTriangle size={12} /> Possible allergens
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {detectedAllergens.map((a) => (
+                <span key={a.name} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${a.color}`}>{a.name}</span>
+              ))}
+            </div>
+            <p className="text-[10px] text-amber-500 mt-2">Based on ingredient names — always check labels for your specific dietary needs.</p>
+          </div>
+        )}
         {isStub || recipe._quickEntry ? (
           <div className="py-3 space-y-3">
             {isStub && (
@@ -497,6 +540,29 @@ function SelectedRecipeCard({
 
       {expanded && (
         <div className="border-t border-orange-100 p-4 space-y-4">
+
+          {/* Allergen panel */}
+          {detectedAllergens.length > 0 && (
+            <div>
+              <button
+                onClick={() => setShowAllergens((v) => !v)}
+                className="flex items-center gap-1.5 text-xs font-medium text-amber-600 hover:text-amber-800 transition"
+              >
+                <AlertTriangle size={12} />
+                {showAllergens ? 'Hide allergens' : 'Show possible allergens'}
+              </button>
+              {showAllergens && (
+                <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                  <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    {detectedAllergens.map((a) => (
+                      <span key={a.name} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${a.color}`}>{a.name}</span>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-amber-500">Based on ingredient names — always check labels for your specific needs.</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* AI stub — offer to generate full recipe */}
           {isStub ? (
