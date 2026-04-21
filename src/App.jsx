@@ -668,6 +668,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [showInviteSharePanel, setShowInviteSharePanel] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
@@ -1473,9 +1474,25 @@ export default function App() {
     ? `${window.location.origin}?invite=${household.invite_token}`
     : "";
 
+  async function shareInviteLink() {
+    const shareData = {
+      title: 'Join our kitchen',
+      text: "Come plan meals with me — one shared list, no more \"what's for dinner?\" texts.",
+      url: inviteUrl,
+    };
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try { await navigator.share(shareData); } catch (err) {
+        if (err.name !== 'AbortError') setShowInviteSharePanel(true);
+      }
+    } else {
+      setShowInviteSharePanel((v) => !v);
+    }
+  }
+
   async function copyInviteLink() {
     await navigator.clipboard.writeText(inviteUrl);
     setInviteCopied(true);
+    setShowInviteSharePanel(false);
     setTimeout(() => setInviteCopied(false), 2000);
   }
 
@@ -2871,14 +2888,45 @@ export default function App() {
                   )}
                 </div>
               )}
-              <div className="flex gap-2 border-t border-orange-50 pt-3">
-                <input readOnly value={inviteUrl}
-                  className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-900 truncate" />
-                <button onClick={copyInviteLink}
-                  className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center gap-1">
-                  {inviteCopied ? <Check size={12} /> : <Link2 size={12} />}
-                  {inviteCopied ? "Copied" : "Invite"}
-                </button>
+              <div className="border-t border-orange-50 pt-3 space-y-2">
+                <div className="flex gap-2">
+                  <input readOnly value={inviteUrl}
+                    className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-900 truncate" />
+                  <button onClick={shareInviteLink}
+                    className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center gap-1.5">
+                    <Link2 size={12} />
+                    Invite
+                  </button>
+                </div>
+                {/* Desktop share panel — shown when Web Share API isn't available */}
+                {showInviteSharePanel && (
+                  <div className="bg-orange-50 rounded-2xl p-3 space-y-2">
+                    <p className="text-[11px] text-orange-400 font-medium uppercase tracking-wide">Share via</p>
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts. ' + inviteUrl)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                      >
+                        WhatsApp
+                      </a>
+                      <a
+                        href={`https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts.')}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                      >
+                        Telegram
+                      </a>
+                      <button
+                        onClick={copyInviteLink}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                      >
+                        {inviteCopied ? <Check size={11} className="text-sage-500" /> : <Link2 size={11} />}
+                        {inviteCopied ? 'Copied!' : 'Copy link'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
