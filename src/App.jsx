@@ -3609,6 +3609,7 @@ export default function App() {
                     </form>
                   </div>
                 )}
+              </div>
             </div>
 
             {/* Dietary wishes — always visible */}
