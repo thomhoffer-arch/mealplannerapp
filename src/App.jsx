@@ -1500,6 +1500,15 @@ export default function App() {
     });
   }
 
+  const [basketToast, setBasketToast] = useState(null);
+  const basketToastTimer = useRef(null);
+
+  function showBasketToast(recipeName) {
+    clearTimeout(basketToastTimer.current);
+    setBasketToast(recipeName);
+    basketToastTimer.current = setTimeout(() => setBasketToast(null), 4000);
+  }
+
   async function generateAndSaveRecipe(rid, fullData) {
     const item = mealPlanItems.find((i) => i.recipe_id === rid);
     if (!item) return;
@@ -1508,11 +1517,12 @@ export default function App() {
       .update({ recipe_data: updatedRecipe })
       .eq("id", item.id);
     if (error) { console.error('[generateAndSaveRecipe] update failed:', error); return; }
-    // Update local state directly so the expanded card rerenders with the
-    // full ingredients/steps immediately — don't wait for realtime.
     setMealPlanItems((prev) => prev.map((i) =>
       i.id === item.id ? { ...i, recipe_data: updatedRecipe } : i
     ));
+    if ((fullData.ingredients || []).length > 0) {
+      showBasketToast(updatedRecipe.name);
+    }
   }
 
   const [swappingRecipeId, setSwappingRecipeId] = useState(null);
@@ -3575,6 +3585,17 @@ export default function App() {
 
       <InstallBanner />
       <UpdateToast />
+      {basketToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-orange-900 text-white rounded-full shadow-warm-lg px-4 py-3 flex items-center gap-2.5 animate-slide-up whitespace-nowrap">
+          <ShoppingCart size={15} className="flex-shrink-0" />
+          <span className="text-sm font-medium">
+            {basketToast} added to shopping list
+          </span>
+          <button onClick={() => setBasketToast(null)} className="text-white/60 hover:text-white transition ml-1">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/90 backdrop-blur-md border-t border-orange-100 safe-bottom">
