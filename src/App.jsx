@@ -1428,6 +1428,28 @@ export default function App() {
     }
   }
 
+  async function toggleNotAtHome(day) {
+    const existing = mealPlanItems.find(
+      (i) => i.recipe_data?._notAtHome &&
+        String(i.recipe_data._plannedDay).toLowerCase().startsWith(day.toLowerCase().slice(0, 3)) &&
+        i.recipe_data._weekStart === viewWeek
+    );
+    if (existing) {
+      setMealPlanItems((prev) => prev.filter((i) => i.id !== existing.id));
+      await supabase.from('meal_plan_items').delete().eq('id', existing.id);
+      return;
+    }
+    const markerData = { id: `not-at-home-${day}`, _notAtHome: true, _plannedDay: day, _weekStart: viewWeek, name: 'Not at home' };
+    const tempId = `optimistic-not-at-home-${day}`;
+    setMealPlanItems((prev) => [...prev, { id: tempId, recipe_id: 'not-at-home', recipe_data: markerData, household_id: household.id }]);
+    const { data: inserted } = await supabase.from('meal_plan_items').insert({
+      household_id: household.id, recipe_id: 'not-at-home', recipe_data: markerData,
+    }).select('id').single();
+    if (inserted?.id) {
+      setMealPlanItems((prev) => prev.map((i) => i.id === tempId ? { ...i, id: inserted.id } : i));
+    }
+  }
+
   async function saveRating(rid, stars) {
     setRatingPrompt(null);
     setRecipeRatings((prev) => ({ ...prev, [rid]: stars }));
@@ -2025,11 +2047,12 @@ export default function App() {
                       const pd = i.recipe_data?._plannedDay;
                       return pd && String(pd).toLowerCase().startsWith(day.toLowerCase().slice(0, 3));
                     });
-                    const dinnerItem = allDayItems.find((i) => !i.recipe_data?._mealType || i.recipe_data?._mealType === 'dinner');
+                    const isNotAtHome = allDayItems.some((i) => i.recipe_data?._notAtHome);
+                    const dinnerItem = allDayItems.find((i) => (!i.recipe_data?._mealType && !i.recipe_data?._notAtHome) || i.recipe_data?._mealType === 'dinner');
                     // Sort extras by time of day so they appear in chronological order
                     const MEAL_TIME_ORDER = { breakfast: 0, lunch: 1 };
                     const extraItems = allDayItems
-                      .filter((i) => i.recipe_data?._mealType && i.recipe_data?._mealType !== 'dinner')
+                      .filter((i) => i.recipe_data?._mealType && i.recipe_data?._mealType !== 'dinner' && !i.recipe_data?._notAtHome)
                       .sort((a, b) => (MEAL_TIME_ORDER[a.recipe_data._mealType] ?? 2) - (MEAL_TIME_ORDER[b.recipe_data._mealType] ?? 2));
                     const recipe = dinnerItem?.recipe_data;
                     const rid = recipe ? String(recipe.id) : null;
@@ -2112,13 +2135,14 @@ export default function App() {
 
                     return (
                       <div key={day} className={`rounded-2xl border-2 overflow-hidden transition-all ${
+                        isNotAtHome ? 'border-dashed border-orange-100 bg-orange-50/30' :
                         isCooked ? 'border-sage-200 bg-sage-100/40' :
                         recipe ? 'border-orange-100 bg-white' :
                         'border-dashed border-orange-100 bg-white/50'
                       }`}>
 
                         {/* ── Breakfast slot ───────────────────────── */}
-                        {hasBreakfast
+                        {!isNotAtHome && (hasBreakfast
                           ? extraItems.filter((i) => i.recipe_data._mealType === 'breakfast').map(renderExtraRow)
                           : recipe && (
                             <div className="px-4 py-2 border-b border-orange-50">
@@ -2129,10 +2153,10 @@ export default function App() {
                               </button>
                             </div>
                           )
-                        }
+                        )}
 
                         {/* ── Lunch slot ───────────────────────────── */}
-                        {hasLunch
+                        {!isNotAtHome && (hasLunch
                           ? extraItems.filter((i) => i.recipe_data._mealType === 'lunch').map(renderExtraRow)
                           : recipe && (
                             <div className="px-4 py-2 border-b border-orange-50">
@@ -2143,20 +2167,29 @@ export default function App() {
                               </button>
                             </div>
                           )
-                        }
+                        )}
 
                         {/* ── Other extras (snacks etc.) ───────────── */}
-                        {extraItems.filter((i) => !['breakfast','lunch'].includes(i.recipe_data._mealType)).map(renderExtraRow)}
+                        {!isNotAtHome && extraItems.filter((i) => !['breakfast','lunch'].includes(i.recipe_data._mealType)).map(renderExtraRow)}
 
                         {/* ── Dinner slot (primary) ─────────────────── */}
                         <div>
                           <div className="flex items-center gap-3 px-4 py-3.5 cursor-pointer"
-                            onClick={() => recipe && toggleDayMeal(rid)}>
+                            onClick={() => !isNotAtHome && recipe && toggleDayMeal(rid)}>
                             <div className="w-16 flex-shrink-0">
                               <p className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-orange-600' : 'text-orange-400'}`}>{day.slice(0, 3)}</p>
                               {isToday && <p className="text-[10px] text-orange-400 font-medium">today</p>}
                             </div>
-                            {recipe ? (
+                            {isNotAtHome ? (
+                              <>
+                                <p className="flex-1 text-sm text-orange-300 italic">Not at home</p>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
+                                  className="text-xs text-orange-400 hover:text-orange-600 transition px-2 py-1 rounded-full border border-dashed border-orange-200 hover:border-orange-400">
+                                  Undo
+                                </button>
+                              </>
+                            ) : recipe ? (
                               <>
                                 {recipe._plannerPhoto?.url && (
                                   <img src={recipe._plannerPhoto.thumbnail || recipe._plannerPhoto.url} alt={recipe._plannerPhoto.alt || recipe.name}
@@ -2187,14 +2220,16 @@ export default function App() {
                                     className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Leftovers</button>
                                   <button onClick={(e) => { e.stopPropagation(); setTimeout(() => searchInputRef.current?.focus(), 0); }}
                                     className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">+ Add</button>
+                                  <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
+                                    className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Away</button>
                                 </div>
                               </>
                             )}
                           </div>
 
-                          {/* Side dish */}
-                          {recipe && (
-                            <div className="px-4 pb-2 -mt-1">
+                          {/* Side dish + away toggle */}
+                          {!isNotAtHome && recipe && (
+                            <div className="px-4 pb-2 -mt-1 flex items-center gap-2">
                               {recipe._sideDish ? (
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">+ {recipe._sideDish.name}</span>
@@ -2205,11 +2240,13 @@ export default function App() {
                                 <button onClick={(e) => { e.stopPropagation(); const p = { key: `${day}-side`, mainRecipe: recipe, rid, input: '', loading: true, suggestions: [], error: '' }; setSideDishPanel(p); fetchSideSuggestions(p.key, recipe, ''); }}
                                   className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400">+ Add a side</button>
                               )}
+                              <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
+                                className="text-xs text-orange-300 hover:text-orange-500 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">Away</button>
                             </div>
                           )}
 
                           {/* Expanded dinner recipe */}
-                          {recipe && expandedRecipes[rid] && (
+                          {!isNotAtHome && recipe && expandedRecipes[rid] && (
                             <div className="border-t border-orange-100">
                               {(recipe._plannerPhoto?.url || recipe._plannerReason || recipe._plannerLeftoverFor || (recipe._plannerUsesPantry || []).length > 0) && (
                                 <div className="bg-orange-50/50 border-b border-orange-100">
