@@ -3744,18 +3744,20 @@ export default function App() {
         {/* ── PROFILE TAB ── */}
         {activeTab === "profile" && (
           <div className="space-y-4 pb-4">
-            {/* Segmented toggle */}
-            <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
-              {["household", "personal"].map((s) => (
-                <button key={s} onClick={() => setProfileSubTab(s)}
-                  className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${profileSubTab === s ? "bg-white text-orange-900 shadow-warm" : "text-orange-400 hover:text-orange-600"}`}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              ))}
-            </div>
+            {/* Segmented toggle — only for multi-member households */}
+            {householdMembers.length > 1 && (
+              <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
+                {["household", "personal"].map((s) => (
+                  <button key={s} onClick={() => setProfileSubTab(s)}
+                    className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${profileSubTab === s ? "bg-white text-orange-900 shadow-warm" : "text-orange-400 hover:text-orange-600"}`}>
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
 
-            {/* ── PERSONAL ── */}
-            {profileSubTab === "personal" && (
+            {/* ── PERSONAL ── shown always for solo, or on personal tab for multi-member */}
+            {(householdMembers.length <= 1 || profileSubTab === "personal") && (
               <>
                 {/* User card */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
@@ -3899,31 +3901,43 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Data export + account deletion */}
-                <AccountActions />
-              </>
-            )}
-
-            {/* ── HOUSEHOLD ── */}
-            {profileSubTab === "household" && (
-              <>
-                {/* Household switcher — only renders when user has 2+ households */}
-                <HouseholdSwitcher
-                  memberships={memberships}
-                  activeId={household?.id}
-                  onSwitch={switchHousehold}
-                />
-
-                {/* Solo: join or create a household */}
+                {/* Solo: start a household */}
                 {householdMembers.length <= 1 && (
-                  <>
-                    <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                      <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">Join a household</p>
-                      <p className="text-xs text-orange-500 leading-relaxed mb-3">Got an invite link from someone? Paste it here.</p>
-                      <div className="flex gap-2">
+                  <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                    <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">Start a household</p>
+                    <p className="text-xs text-orange-500 leading-relaxed mb-3">Cook together — one shared plan and shopping list.</p>
+                    <div className="space-y-2">
+                      <button onClick={shareInviteLink}
+                        className="w-full py-2.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full font-medium text-sm hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition flex items-center justify-center gap-2">
+                        <Link2 size={13} />
+                        Invite someone to cook with you
+                      </button>
+                      {showInviteSharePanel && (
+                        <div className="bg-orange-50 rounded-2xl p-3 space-y-2">
+                          <p className="text-[11px] text-orange-400 font-medium uppercase tracking-wide">Share via</p>
+                          <div className="flex flex-wrap gap-2">
+                            <a href={`https://wa.me/?text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts. ' + inviteUrl)}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition">
+                              WhatsApp
+                            </a>
+                            <a href={`https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts.')}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition">
+                              Telegram
+                            </a>
+                            <button onClick={copyInviteLink}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition">
+                              {inviteCopied ? <Check size={11} className="text-sage-500" /> : <Link2 size={11} />}
+                              {inviteCopied ? 'Copied!' : 'Copy link'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex gap-2 pt-1">
                         <input
                           type="url"
-                          placeholder="Paste invite link…"
+                          placeholder="Or paste an invite link to join…"
                           value={joinLinkInput}
                           onChange={(e) => { setJoinLinkInput(e.target.value); setJoinHouseholdError(''); }}
                           onKeyDown={(e) => { if (e.key === 'Enter' && joinLinkInput.trim()) joinHouseholdByLink(); }}
@@ -3937,48 +3951,38 @@ export default function App() {
                           {joiningHousehold ? 'Joining…' : 'Join'}
                         </button>
                       </div>
-                      {joinHouseholdError && <p className="text-xs text-red-500 mt-2">{joinHouseholdError}</p>}
+                      {joinHouseholdError && <p className="text-xs text-red-500 mt-1">{joinHouseholdError}</p>}
                     </div>
-
-                    <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                      <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">New household</p>
-                      <p className="text-xs text-orange-500 leading-relaxed mb-3">Start a fresh kitchen — your own plan, list, and settings.</p>
-                      {creatingHousehold ? (
-                        <div className="space-y-2">
-                          <div className="flex gap-2">
-                            <input
-                              autoFocus
-                              type="text"
-                              placeholder="Give it a name…"
-                              value={newHouseholdName}
-                              onChange={(e) => { setNewHouseholdName(e.target.value); setCreateHouseholdError(''); }}
-                              onKeyDown={(e) => { if (e.key === 'Enter') createNewHousehold(); if (e.key === 'Escape') setCreatingHousehold(false); }}
-                              className="flex-1 text-sm border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900 placeholder:text-orange-300 min-w-0"
-                            />
-                            <button
-                              onClick={createNewHousehold}
-                              disabled={savingNewHousehold || !newHouseholdName.trim()}
-                              className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition disabled:opacity-50"
-                            >
-                              {savingNewHousehold ? 'Creating…' : 'Create'}
-                            </button>
-                          </div>
-                          <button onClick={() => { setCreatingHousehold(false); setNewHouseholdName(''); setCreateHouseholdError(''); }}
-                            className="text-xs text-orange-400 hover:text-orange-600 transition">Cancel</button>
-                          {createHouseholdError && <p className="text-xs text-red-500">{createHouseholdError}</p>}
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setCreatingHousehold(true)}
-                          className="w-full px-3 py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-xs font-medium hover:border-orange-300 hover:bg-orange-100 transition flex items-center justify-center gap-1.5"
-                        >
-                          <Plus size={12} />
-                          Create a new household
-                        </button>
-                      )}
-                    </div>
-                  </>
+                  </div>
                 )}
+
+                {/* Data export + account deletion */}
+                <AccountActions />
+              </>
+            )}
+
+            {/* ── HOUSEHOLD ── only shown for multi-member households */}
+            {householdMembers.length > 1 && profileSubTab === "household" && (
+              <>
+                {/* Household switcher — only renders when user has 2+ households */}
+                <HouseholdSwitcher
+                  memberships={memberships}
+                  activeId={household?.id}
+                  onSwitch={switchHousehold}
+                />
+
+                {/* Shared household dietary preferences */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <PreferencesModal
+                    household={household}
+                    section="household-dietary"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                    memberName={memberProfile?.display_name || ''}
+                  />
+                </div>
 
                 {/* Household card */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
@@ -4087,19 +4091,6 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                </div>
-
-                {/* Shared household dietary preferences */}
-                <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                  <PreferencesModal
-                    household={household}
-                    section="household-dietary"
-                    inline={true}
-                    initialPrefs={preferences}
-                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
-                    onClose={loadPreferences}
-                    memberName={memberProfile?.display_name || ''}
-                  />
                 </div>
 
                 {/* Notifications */}
