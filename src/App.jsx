@@ -967,7 +967,7 @@ export default function App() {
   const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [showAppInvitePanel, setShowAppInvitePanel] = useState(false);
   const [appInviteCopied, setAppInviteCopied] = useState(false);
-  const [profileSubTab, setProfileSubTab] = useState('personal');
+  const [profileSubTab, setProfileSubTab] = useState('household');
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
@@ -3629,18 +3629,20 @@ export default function App() {
         {/* ── PROFILE TAB ── */}
         {activeTab === "profile" && (
           <div className="space-y-4 pb-4">
-            {/* Segmented toggle */}
-            <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
-              {["personal", "household"].map((s) => (
-                <button key={s} onClick={() => setProfileSubTab(s)}
-                  className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${profileSubTab === s ? "bg-white text-orange-900 shadow-warm" : "text-orange-400 hover:text-orange-600"}`}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              ))}
-            </div>
+            {/* Segmented toggle — only shown for multi-member households */}
+            {householdMembers.length > 1 && (
+              <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
+                {["household", "personal"].map((s) => (
+                  <button key={s} onClick={() => setProfileSubTab(s)}
+                    className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${profileSubTab === s ? "bg-white text-orange-900 shadow-warm" : "text-orange-400 hover:text-orange-600"}`}>
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
 
-            {/* ── PERSONAL ── */}
-            {profileSubTab === "personal" && (
+            {/* ── PERSONAL ── shown when: solo user, or multi-member on personal tab */}
+            {(householdMembers.length <= 1 || profileSubTab === "personal") && (
               <>
                 {/* User card */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
@@ -3713,10 +3715,10 @@ export default function App() {
 
                 {/* App settings */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">App settings</p>
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Settings</p>
                   <PreferencesModal
                     household={household}
-                    section="settings"
+                    section="appearance"
                     inline={true}
                     initialPrefs={preferences}
                     onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
@@ -3782,8 +3784,8 @@ export default function App() {
               </>
             )}
 
-            {/* ── HOUSEHOLD ── */}
-            {profileSubTab === "household" && (
+            {/* ── HOUSEHOLD ── shown when: multi-member AND on household tab */}
+            {householdMembers.length > 1 && profileSubTab === "household" && (
               <>
                 {/* Household switcher — only renders when user has 2+ households */}
                 <HouseholdSwitcher
@@ -3939,7 +3941,89 @@ export default function App() {
                   )}
                 </div>
 
+                {/* Planning & notifications settings */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Planning</p>
+                  <PreferencesModal
+                    household={household}
+                    section="reminder"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                  />
+                </div>
+
                 {/* Shared household dietary preferences */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <PreferencesModal
+                    household={household}
+                    section="household-dietary"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                    memberName={memberProfile?.display_name || ''}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* ── SOLO USER: household invite + dietary (shown without sub-tab toggle) ── */}
+            {householdMembers.length <= 1 && (
+              <>
+                {/* Invite to household */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Your kitchen</p>
+                  <button onClick={shareInviteLink}
+                    className="w-full px-3 py-2.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center justify-center gap-1.5">
+                    <Link2 size={12} />
+                    Invite someone to cook with you
+                  </button>
+                  {showInviteSharePanel && (
+                    <div className="bg-orange-50 rounded-2xl p-3 space-y-2 mt-2">
+                      <p className="text-[11px] text-orange-400 font-medium uppercase tracking-wide">Share via</p>
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts. ' + inviteUrl)}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                        >
+                          WhatsApp
+                        </a>
+                        <a
+                          href={`https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts.')}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                        >
+                          Telegram
+                        </a>
+                        <button
+                          onClick={copyInviteLink}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                        >
+                          {inviteCopied ? <Check size={11} className="text-sage-500" /> : <Link2 size={11} />}
+                          {inviteCopied ? 'Copied!' : 'Copy link'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Planning settings */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Planning</p>
+                  <PreferencesModal
+                    household={household}
+                    section="reminder"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                  />
+                </div>
+
+                {/* Household dietary preferences */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
                   <PreferencesModal
                     household={household}

@@ -186,14 +186,15 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
     setPuterInput('');
   }
 
-  const showSettings         = !section || section === 'settings';
+  const showAppearance       = !section || section === 'settings' || section === 'appearance';
+  const showReminder         = !section || section === 'settings' || section === 'reminder';
   const showPersonalDietary  = !section || section === 'dietary' || section === 'personal-dietary';
   const showHouseholdDietary = !section || section === 'dietary' || section === 'household-dietary';
 
   const inner = (
     <div className={inline ? "space-y-5" : "px-5 pb-5 space-y-5"}>
           {/* ── Appearance & units ── */}
-          {showSettings && (
+          {showAppearance && (
           <div className="space-y-2">
             <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Appearance</p>
             <div className="flex items-center justify-between">
@@ -233,7 +234,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
 
           {/* ── Personal dietary preferences ── */}
           {showPersonalDietary && (
-          <div className={`space-y-2 ${showSettings ? 'border-t border-orange-100 pt-4' : ''}`}>
+          <div className={`space-y-2 ${showAppearance ? 'border-t border-orange-100 pt-4' : ''}`}>
             <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Your dietary wishes</p>
             <p className="text-xs text-orange-400">Only applies to you — won't affect other household members.</p>
             <textarea
@@ -252,39 +253,9 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
 
           {/* ── Shared household dietary preferences ── */}
           {showHouseholdDietary && (
-          <div className={`space-y-2 ${showSettings || showPersonalDietary ? 'border-t border-orange-100 pt-4' : ''}`}>
+          <div className={`space-y-2 ${showAppearance || showPersonalDietary ? 'border-t border-orange-100 pt-4' : ''}`}>
             <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Shared household preferences <span className="font-normal normal-case text-orange-400">(optional)</span></p>
             <p className="text-xs text-orange-400">Applies to everyone — cuisine styles, things you all agree on.</p>
-
-            {/* Meal prep mode */}
-            <div className="flex items-start justify-between gap-3 bg-orange-50 rounded-xl px-3 py-3">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-orange-900">Meal prep mode</p>
-                <p className="text-xs text-orange-400 mt-0.5 leading-relaxed">Plan around batch cooking — 2–3 dishes cooked in large portions, eaten across the week. Overrides the standard "varied dish each day" rule.</p>
-              </div>
-              <button
-                onClick={async () => {
-                  const next = !mealPrepMode;
-                  const byName = next ? (memberName || '') : '';
-                  setMealPrepMode(next);
-                  setMealPrepSetByName(byName);
-                  setSavingMealPrep(true);
-                  const { error } = await supabase.from('household_preferences').upsert(
-                    { household_id: household.id, meal_prep_mode: next, meal_prep_set_by_name: byName },
-                    { onConflict: 'household_id' }
-                  );
-                  setSavingMealPrep(false);
-                  if (!error) onPrefsChange?.({ meal_prep_mode: next, meal_prep_set_by_name: byName });
-                }}
-                disabled={savingMealPrep}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 disabled:opacity-50 mt-0.5 ${mealPrepMode ? 'bg-orange-500' : 'bg-orange-200'}`}
-              >
-                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${mealPrepMode ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-            {mealPrepMode && mealPrepSetByName && (
-              <p className="text-[11px] text-orange-400 -mt-1">Enabled by <span className="font-semibold text-orange-600">{mealPrepSetByName}</span></p>
-            )}
 
             <textarea
               rows={3}
@@ -308,12 +279,47 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
               {savedPrefs ? <><Check size={14} /> Saved</> : savingPrefs ? 'Saving…' : 'Save household preferences'}
             </button>
             {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+
+            {/* Meal prep mode — at the bottom, description hidden by default */}
+            <div className="border-t border-orange-50 pt-3">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-orange-900">Meal prep mode</p>
+                  {mealPrepMode && mealPrepSetByName && (
+                    <p className="text-[11px] text-orange-400 mt-0.5">Enabled by <span className="font-semibold text-orange-600">{mealPrepSetByName}</span></p>
+                  )}
+                </div>
+                <button
+                  onClick={async () => {
+                    const next = !mealPrepMode;
+                    const byName = next ? (memberName || '') : '';
+                    setMealPrepMode(next);
+                    setMealPrepSetByName(byName);
+                    setSavingMealPrep(true);
+                    const { error } = await supabase.from('household_preferences').upsert(
+                      { household_id: household.id, meal_prep_mode: next, meal_prep_set_by_name: byName },
+                      { onConflict: 'household_id' }
+                    );
+                    setSavingMealPrep(false);
+                    if (!error) onPrefsChange?.({ meal_prep_mode: next, meal_prep_set_by_name: byName });
+                  }}
+                  disabled={savingMealPrep}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${mealPrepMode ? 'bg-orange-500' : 'bg-orange-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${mealPrepMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <details className="mt-1">
+                <summary className="text-[11px] text-orange-400 cursor-pointer hover:text-orange-600 transition select-none">What's this?</summary>
+                <p className="text-xs text-orange-400 mt-1 leading-relaxed">Plan around batch cooking — 2–3 dishes cooked in large portions, eaten across the week. Overrides the standard "varied dish each day" rule.</p>
+              </details>
+            </div>
           </div>
           )}
 
           {/* ── Reminders & notifications ── */}
-          {showSettings && (<>
-          <div className="space-y-3 border-t border-orange-100 pt-4">
+          {showReminder && (<>
+          <div className={`space-y-3 ${showAppearance || showPersonalDietary || showHouseholdDietary ? 'border-t border-orange-100 pt-4' : ''}`}>
             <div className="flex items-center gap-2">
               <Bell size={14} className="text-orange-600" />
               <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Reminders &amp; notifications</p>
@@ -392,8 +398,10 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
               </button>
             </div>
           </div>
+          </>)}
 
           {/* ── Gemini API key ── */}
+          {showAppearance && (<>
           <div className="space-y-2 border-t border-orange-100 pt-4">
             <div>
               <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Personal Gemini API key</p>
@@ -499,6 +507,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
   );
 
   if (inline) return inner;
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
