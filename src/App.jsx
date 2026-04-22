@@ -1985,13 +1985,17 @@ export default function App() {
         _plannedDay: recipe._plannedDay,
         _plannedWeek: recipe._plannedWeek,
         _plannerReason: result.reason || '',
+        _plannerPhoto: result.photo || null,
         _weekStart: viewWeek,
       };
+      // Remove old item.id from the photo-fetch dedup set so the new recipe
+      // can trigger a background fetch if the API didn't return a photo.
+      if (dbItem?.id) fetchedPhotoIds.current.delete(String(dbItem.id));
       setMealPlanItems((prev) => prev.map((i) =>
         i.recipe_id === rid ? { ...i, recipe_id: newRid, recipe_data: newRecipeData } : i
       ));
       if (dbItem?.id) {
-        supabase.from('meal_plan_items')
+        await supabase.from('meal_plan_items')
           .update({ recipe_id: newRid, recipe_data: newRecipeData })
           .eq('id', dbItem.id);
       }
@@ -2011,7 +2015,7 @@ export default function App() {
             setMealPlanItems((prev) => prev.map((i) =>
               i.recipe_id === newRid ? { ...i, recipe_data: enriched } : i
             ));
-            if (dbItem?.id) supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbItem.id);
+            if (dbItem?.id) await supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbItem.id);
           } catch (err) {
             console.error('[bg-generate-swapped]', err.message);
           }
