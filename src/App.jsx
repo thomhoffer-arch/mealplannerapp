@@ -3111,14 +3111,14 @@ export default function App() {
               >
                 <ChevronLeft size={16} />
               </button>
-              <div className="flex-1 bg-white rounded-xl shadow-warm py-2 text-center min-w-0">
-                <p className="text-sm font-semibold text-orange-900 leading-snug">{formatWeekLabel(viewWeek)}</p>
+              <div className="flex-1 bg-white rounded-xl shadow-warm py-2 min-w-0 relative flex items-center justify-center">
+                <p className="text-sm font-semibold text-orange-900">{formatWeekLabel(viewWeek)}</p>
                 {viewWeek !== currentWeekStart && (
                   <button
                     onClick={() => setViewWeek(currentWeekStart)}
-                    className="text-[10px] text-orange-500 hover:text-orange-700 transition font-medium leading-none"
+                    className={`absolute text-[10px] text-orange-500 hover:text-orange-700 transition font-medium ${viewWeek > currentWeekStart ? 'left-3' : 'right-3'}`}
                   >
-                    ← this week
+                    {viewWeek > currentWeekStart ? '← this week' : 'this week →'}
                   </button>
                 )}
               </div>
