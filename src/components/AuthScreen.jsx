@@ -483,12 +483,12 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
                 texts={['week.', 'try.', 'go.', 'Monday.', 'dinner.']}
                 mainClassName="font-display italic font-normal text-orange-600 overflow-hidden justify-center"
                 staggerFrom="last"
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '-120%' }}
-                staggerDuration={0.025}
+                initial={{ y: '100%', opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: '-120%', opacity: 0 }}
+                staggerDuration={0}
                 splitLevelClassName="overflow-hidden pb-0.5"
-                transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                transition={{ type: 'spring', damping: 28, stiffness: 350 }}
                 rotationInterval={2500}
               />
             </motion.p>
