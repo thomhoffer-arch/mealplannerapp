@@ -998,7 +998,7 @@ export default function App() {
   const [memberLanguage, setMemberLanguage] = useState('en');
   const [macroTrackingEnabled, setMacroTrackingEnabled] = useState(false);
   const [macroTargets, setMacroTargets] = useState({ calories: null, protein: null, carbs: null, fat: null });
-  const [weeklyUsage, setWeeklyUsage] = useState(null); // { used, limit, unlimited, credits }
+  const [weeklyUsage, setWeeklyUsage] = useState(null); // { used, limit, unlimited, byok, gifted, credits }
   const [creatingHousehold, setCreatingHousehold] = useState(false);
   const [newHouseholdName, setNewHouseholdName] = useState('');
   const [savingNewHousehold, setSavingNewHousehold] = useState(false);
@@ -1745,7 +1745,7 @@ export default function App() {
     if (match) { amount = match[0].trim(); name = raw.slice(match[0].length).trim() || raw; }
 
     // Premium/gifted: ask AI if the name is ambiguous before saving.
-    const hasUnlimitedAi = weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+    const hasUnlimitedAi = !!(weeklyUsage?.unlimited);
     if (hasUnlimitedAi && name.split(/\s+/).length <= 2) {
       setPantryInput("");
       setPantryNudge({ original: name, amount, suggestions: [], loading: true });
@@ -2499,8 +2499,7 @@ export default function App() {
   // only newly added suspicious items — ones not yet seen this session.
   const _aiNormalizeKey = shoppingList.map((i) => i.name).join('|');
   React.useEffect(() => {
-    const hasUnlimitedAi = weeklyUsage ? weeklyUsage.unlimited
-      : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+    const hasUnlimitedAi = !!(weeklyUsage?.unlimited);
     if (!hasUnlimitedAi || !shoppingList.length) return;
 
     const _PREP_BODY = /\b(finely|roughly|coarsely|thinly|thickly|sliced|diced|chopped|minced|grated|shredded|crushed|beaten|roasted|steamed|boiled|softened|melted|cooked)\b/i;
@@ -2662,7 +2661,7 @@ export default function App() {
               </div>
               {/* Macro tracking (premium) */}
               {(() => {
-                const isUnlimited = weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+                const isUnlimited = !!(weeklyUsage?.unlimited);
                 return (
                   <div className="bg-white rounded-2xl border border-orange-100 p-4">
                     <div className="flex items-center justify-between mb-1">
@@ -2747,65 +2746,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Upgrade / plan modal */}
-      {showUpgradeModal && (() => {
-        const isGifted = weeklyUsage ? !!weeklyUsage.gifted : !!preferences?.is_gifted;
-        const hasPuter = !!preferences?.puter_token_hint;
-        const hasGemini = !!preferences?.gemini_api_key_hint;
-        const unlimited = weeklyUsage ? weeklyUsage.unlimited : (isGifted || hasPuter || hasGemini);
-        return (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" onClick={() => setShowUpgradeModal(false)}>
-            <div className="bg-white rounded-t-2xl w-full max-w-lg p-5 font-outfit" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-semibold text-orange-900">Your plan</span>
-                <button onClick={() => setShowUpgradeModal(false)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition">
-                  <X size={16} />
-                </button>
-              </div>
-
-              {unlimited ? (
-                <>
-                  <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium mb-3 ${isGifted ? 'bg-amber-50 text-orange-700' : 'bg-orange-50 text-orange-600'}`}>
-                    <Sparkles size={13} />
-                    {isGifted ? 'Gifted — unlimited' : hasPuter ? 'Puter AI — unlimited' : 'Gemini key — unlimited'}
-                  </div>
-                  <p className="text-sm text-orange-500 mb-4">You have unlimited AI suggestions. No weekly cap.</p>
-                  <button onClick={() => { setShowUpgradeModal(false); setShowAppSettings(true); }}
-                    className="w-full py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-sm font-medium hover:border-orange-300 hover:bg-orange-100 transition">
-                    Manage settings
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-orange-900">Free plan</span>
-                    <span className="text-xs text-orange-400">{weeklyUsage ? `${weeklyUsage.used} / ${weeklyUsage.limit} suggestions used` : '25 suggestions / week'}</span>
-                  </div>
-                  {weeklyUsage && (
-                    <div className="w-full bg-orange-100 rounded-full h-1.5 mb-4">
-                      <div className={`h-1.5 rounded-full ${weeklyUsage.used >= weeklyUsage.limit ? 'bg-red-400' : 'bg-orange-300'}`}
-                        style={{ width: `${Math.min(100, (weeklyUsage.used / weeklyUsage.limit) * 100)}%` }} />
-                    </div>
-                  )}
-                  <p className="text-xs text-orange-400 mb-4">Go unlimited — add your own AI key (free from Google) or connect Puter AI.</p>
-                  <div className="space-y-2">
-                    <button onClick={() => { setShowUpgradeModal(false); setShowAppSettings(true); }}
-                      className="w-full py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition flex items-center justify-center gap-2">
-                      <Sparkles size={14} />
-                      Add Gemini key — free &amp; unlimited
-                    </button>
-                    <button onClick={() => { setShowUpgradeModal(false); setShowAppSettings(true); }}
-                      className="w-full py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-sm font-medium hover:border-orange-300 hover:bg-orange-100 transition">
-                      Connect Puter AI
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Post-signup Puter connect */}
       {showPuterWelcome && (
@@ -2864,63 +2804,98 @@ export default function App() {
         />
       )}
 
-      {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)}>
-          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-warm-lg border border-orange-100 p-6 sm:p-8" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between mb-5">
-              <div>
-                <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight">Premium</h2>
-                <p className="text-xs text-orange-400 mt-0.5">Payment coming soon — join the waitlist below</p>
-              </div>
-              <button onClick={() => setShowUpgradeModal(false)} className="text-orange-300 hover:text-orange-600 transition mt-1">
-                <X size={18} />
-              </button>
+      {showUpgradeModal && (() => {
+        const isPremium = !!(weeklyUsage?.unlimited);
+        const isByok = !!(weeklyUsage?.byok);
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)}>
+            <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-warm-lg border border-orange-100 p-6 sm:p-8" onClick={(e) => e.stopPropagation()}>
+              {isPremium ? (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="font-semibold text-orange-900">Your plan</span>
+                    <button onClick={() => setShowUpgradeModal(false)} className="w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"><X size={16} /></button>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium mb-3 bg-amber-50 text-orange-700">
+                    <Sparkles size={13} />
+                    Premium
+                  </div>
+                  <p className="text-sm text-orange-500 mb-4">All features unlocked. No weekly AI cap.</p>
+                  <button onClick={() => { setShowUpgradeModal(false); setShowAppSettings(true); }}
+                    className="w-full py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-sm font-medium hover:border-orange-300 hover:bg-orange-100 transition">
+                    Manage settings
+                  </button>
+                </>
+              ) : isByok ? (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="font-semibold text-orange-900">Your plan</span>
+                    <button onClick={() => setShowUpgradeModal(false)} className="w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition"><X size={16} /></button>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium mb-3 bg-orange-50 text-orange-600">
+                    <Sparkles size={13} />
+                    Your AI key — no weekly cap
+                  </div>
+                  <p className="text-sm text-orange-500 mb-4">You've connected your own API key. AI suggestions aren't capped. Premium features — recipe depth, side dish options, pantry smarts — need an upgrade.</p>
+                  <button disabled className="w-full py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold opacity-60 cursor-not-allowed flex items-center justify-center gap-2 mb-2">
+                    <Sparkles size={14} />
+                    Get Premium — €4.99/month (coming soon)
+                  </button>
+                  <button onClick={() => { setShowUpgradeModal(false); setShowAppSettings(true); }}
+                    className="w-full py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-sm font-medium hover:border-orange-300 hover:bg-orange-100 transition">
+                    Manage settings
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between mb-5">
+                    <div>
+                      <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight">Premium</h2>
+                      <p className="text-xs text-orange-400 mt-0.5">Payment coming soon — join the waitlist below</p>
+                    </div>
+                    <button onClick={() => setShowUpgradeModal(false)} className="text-orange-300 hover:text-orange-600 transition mt-1"><X size={18} /></button>
+                  </div>
+                  <div className="flex items-baseline gap-1.5 mb-5">
+                    <p className="font-display text-3xl font-semibold text-orange-900">€4.99</p>
+                    <span className="text-sm text-orange-600">/ month per person</span>
+                  </div>
+                  <ul className="space-y-2.5 mb-5">
+                    {[
+                      { live: true,  text: 'Unlimited AI suggestions — no weekly cap' },
+                      { live: true,  text: 'Unlimited recipe search results' },
+                      { live: true,  text: 'Daily macro tracking' },
+                      { live: true,  text: 'AI-cleaned shopping list ingredient names' },
+                      { live: true,  text: 'AI pantry item disambiguation' },
+                      { live: true,  text: 'All side dish suggestions (free shows 1)' },
+                      { live: false, text: 'Export meal plans to PDF or Google Calendar' },
+                      { live: false, text: 'Recipe history & cooking insights' },
+                      { live: false, text: 'Advanced recipe filters (cuisine, time, macros)' },
+                      { live: false, text: 'Cross-household favourites sync' },
+                    ].map((f) => (
+                      <li key={f.text} className="flex items-start gap-2.5">
+                        {f.live
+                          ? <Check size={13} className="text-sage-600 mt-0.5 flex-shrink-0" />
+                          : <span className="text-[10px] font-semibold text-orange-300 mt-0.5 flex-shrink-0 w-[13px] text-center">soon</span>
+                        }
+                        <span className={`text-sm leading-snug ${f.live ? 'text-orange-900' : 'text-orange-400'}`}>{f.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-orange-600/80 bg-orange-50 rounded-2xl px-4 py-3 mb-4 leading-relaxed">
+                    Your subscription is tied to you, not your household — premium features follow you everywhere you cook.
+                  </p>
+                  <button disabled className="w-full py-3.5 bg-orange-500 text-white rounded-full font-medium text-sm opacity-60 cursor-not-allowed">
+                    Notify me when payment is ready
+                  </button>
+                  <p className="text-center text-xs text-orange-400 mt-3">
+                    Add your own AI key in Settings to remove the weekly cap.
+                  </p>
+                </>
+              )}
             </div>
-
-            <div className="flex items-baseline gap-1.5 mb-5">
-              <p className="font-display text-3xl font-semibold text-orange-900">€4.99</p>
-              <span className="text-sm text-orange-600">/ month per person</span>
-            </div>
-
-            <ul className="space-y-2.5 mb-5">
-              {[
-                { live: true,  text: '50 AI suggestions/week — 10× your free allowance' },
-                { live: true,  text: 'Unlimited recipe search results' },
-                { live: true,  text: 'Daily macro tracking' },
-                { live: true,  text: 'AI-cleaned shopping list ingredient names' },
-                { live: true,  text: 'AI pantry name disambiguation' },
-                { live: true,  text: 'All side dish suggestions (free tier shows 1 of 3)' },
-                { live: false, text: 'Export meal plans to PDF or Google Calendar' },
-                { live: false, text: 'Recipe history & cooking insights' },
-                { live: false, text: 'Advanced recipe filters (cuisine, time, macros)' },
-                { live: false, text: 'Cross-household favourites sync' },
-              ].map((f) => (
-                <li key={f.text} className="flex items-start gap-2.5">
-                  {f.live
-                    ? <Check size={13} className="text-sage-600 mt-0.5 flex-shrink-0" />
-                    : <span className="text-[10px] font-semibold text-orange-300 mt-0.5 flex-shrink-0 w-[13px] text-center">soon</span>
-                  }
-                  <span className={`text-sm leading-snug ${f.live ? 'text-orange-900' : 'text-orange-400'}`}>{f.text}</span>
-                </li>
-              ))}
-            </ul>
-
-            <p className="text-xs text-orange-600/80 bg-orange-50 rounded-2xl px-4 py-3 mb-4 leading-relaxed">
-              Your subscription follows you. One upgrade contributes 50 suggestions to every shared kitchen you're in.
-            </p>
-
-            <button
-              disabled
-              className="w-full py-3.5 bg-orange-500 text-white rounded-full font-medium text-sm opacity-60 cursor-not-allowed"
-            >
-              Notify me when payment is ready
-            </button>
-            <p className="text-center text-xs text-orange-400 mt-3">
-              For now, connect Puter or add your Gemini key in Settings for unlimited AI.
-            </p>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {showWeekSuggest && (
         <WeekSuggestModal
@@ -3028,7 +3003,7 @@ export default function App() {
               </div>
             )}
             {!sideDishPanel.loading && sideDishPanel.suggestions.length > 0 && (() => {
-              const isUnlimited = weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+              const isUnlimited = !!(weeklyUsage?.unlimited);
               const visible = isUnlimited ? sideDishPanel.suggestions : sideDishPanel.suggestions.slice(0, 1);
               const locked = isUnlimited ? 0 : sideDishPanel.suggestions.length - 1;
               return (
@@ -3261,15 +3236,12 @@ export default function App() {
                   </div>
                 ) : recipes.length > 0 ? (
                   (() => {
-                    const isPaid  = weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
-                    const isBYOK  = !isPaid && !!(preferences?.gemini_api_key_hint);
-                    const limit   = isPaid ? Infinity : isBYOK ? 8 : 4;
+                    const isPaid = !!(weeklyUsage?.unlimited);
+                    const limit = isPaid ? Infinity : 4;
                     const visible = recipes.slice(0, limit);
                     const lockedCount = Math.max(0, recipes.length - limit);
-                    const lockMsg = isBYOK
-                      ? `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} in the full library — upgrade for all results.`
-                      : `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — add your Gemini key for more, or upgrade for the full library.`;
-                    const lockLabel = isBYOK ? 'Upgrade for full access' : 'Add a key for more results';
+                    const lockMsg = `${lockedCount} more recipe${lockedCount !== 1 ? 's' : ''} — upgrade for the full library.`;
+                    const lockLabel = 'Upgrade for full access';
                     return (
                       <div className="space-y-3">
                         <p className="text-sm text-orange-600 font-medium">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} found</p>
@@ -3608,7 +3580,7 @@ export default function App() {
                           )}
 
                           {/* Daily macro progress bars (premium, when tracking enabled) */}
-                          {macroTrackingEnabled && (weeklyUsage?.unlimited ?? !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint)) && !isNotAtHome && allDayItems.length > 0 && (() => {
+                          {macroTrackingEnabled && !!(weeklyUsage?.unlimited) && !isNotAtHome && allDayItems.length > 0 && (() => {
                             const dayMacros = allDayItems.reduce((acc, item) => {
                               const m = item.recipe_data?.macros || {};
                               const s = item.recipe_data?.servings || 1;
@@ -3910,7 +3882,7 @@ export default function App() {
                   {checkedCount === shoppingList.length && shoppingList.length > 0 && (
                     <p className="text-center text-sm text-sage-600 font-semibold mt-2">All done! Happy cooking!</p>
                   )}
-                  {!(weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint)) && (
+                  {!(weeklyUsage?.unlimited) && (
                     <button onClick={() => setShowUpgradeModal(true)}
                       className="w-full mt-2 flex items-center justify-center gap-1.5 text-xs text-orange-400 hover:text-orange-600 transition py-1">
                       <Sparkles size={10} />
@@ -4063,7 +4035,7 @@ export default function App() {
                     </button>
                   </div>
                   <p className="text-xs text-orange-400 mt-2">Items here are skipped (greyed out) in your shopping list.</p>
-                  {!(weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint)) && (
+                  {!(weeklyUsage?.unlimited) && (
                     <button onClick={() => setShowUpgradeModal(true)}
                       className="mt-2 flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-600 transition">
                       <Sparkles size={10} />
@@ -4174,14 +4146,12 @@ export default function App() {
                       )}
                       <p className="text-xs text-orange-400 truncate">{user?.email}</p>
                       {(() => {
-                        const isGifted = weeklyUsage ? !!weeklyUsage.gifted : !!preferences?.is_gifted;
-                        const hasPuter = !!preferences?.puter_token_hint;
-                        const hasGemini = !!preferences?.gemini_api_key_hint;
-                        const unlimited = weeklyUsage ? weeklyUsage.unlimited : (isGifted || hasPuter || hasGemini);
+                        const isPremium = weeklyUsage ? weeklyUsage.unlimited : false;
+                        const isByokBadge = weeklyUsage ? weeklyUsage.byok : !!(preferences?.puter_token_hint || preferences?.gemini_api_key_hint);
+                        const unlimited = isPremium;
                         let label, labelClass;
-                        if (isGifted) { label = 'Gifted — unlimited'; labelClass = 'text-orange-700 bg-amber-50'; }
-                        else if (hasPuter) { label = 'Puter AI — unlimited'; labelClass = 'text-orange-600 bg-orange-50'; }
-                        else if (hasGemini) { label = 'Gemini key — unlimited'; labelClass = 'text-orange-600 bg-orange-50'; }
+                        if (isPremium) { label = 'Premium'; labelClass = 'text-orange-700 bg-amber-50'; }
+                        else if (isByokBadge) { label = 'Your AI key'; labelClass = 'text-orange-600 bg-orange-50'; }
                         else { label = 'Free plan'; labelClass = 'text-orange-400 bg-orange-50'; }
                         return (
                           <div className="mt-1.5">
@@ -4358,9 +4328,9 @@ export default function App() {
                               <span className="text-xs font-bold text-orange-600">{(m.display_name || '?')[0].toUpperCase()}</span>
                             </div>
                             <span className="text-sm text-orange-900 flex-1">{m.display_name || 'Member'}{isSelf && ' (you)'}</span>
-                            {weeklyUsage?.unlimited && (
+                            {weeklyUsage?.unlimited && isSelf && (
                               <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-orange-600 border border-orange-100 flex-shrink-0">
-                                {weeklyUsage.gifted ? 'Gifted' : 'Premium'}
+                                Premium
                               </span>
                             )}
                             {!isSelf && householdMembers.length > 1 && (
@@ -4504,7 +4474,7 @@ export default function App() {
                 </div>
 
                 {/* AI usage */}
-                {weeklyUsage && !weeklyUsage.unlimited && (
+                {weeklyUsage && !weeklyUsage.unlimited && !weeklyUsage.byok && (
                   <div className="bg-white rounded-2xl border border-orange-100 p-4">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Suggestions this week</p>

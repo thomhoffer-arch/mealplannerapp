@@ -20,10 +20,17 @@ export default async function handler(req, res) {
 
   const prefs = prefsResult.data || {};
   const isByok = !!(prefs.gemini_api_key_hint || prefs.puter_token_hint);
-  const unlimited = giftedResult || isByok;
+  const isPremium = giftedResult;
 
-  if (unlimited) {
-    return res.json({ used: 0, limit, unlimited: true, gifted: giftedResult, credits: prefs.ai_credits || 0 });
+  if (isPremium || isByok) {
+    return res.json({
+      used: 0,
+      limit,
+      unlimited: isPremium,
+      byok: isByok && !isPremium,
+      gifted: isPremium,
+      credits: prefs.ai_credits || 0,
+    });
   }
 
   const weekKey = currentWeekKey(weekStartDayFromReminder(prefs.reminder_day));
@@ -38,6 +45,7 @@ export default async function handler(req, res) {
     used: data?.call_count || 0,
     limit,
     unlimited: false,
+    byok: false,
     credits: prefs.ai_credits || 0,
   });
 }
