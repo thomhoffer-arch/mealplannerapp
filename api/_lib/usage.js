@@ -1,4 +1,4 @@
-export const WEEKLY_FREE_LIMIT = 40;
+export const WEEKLY_FREE_LIMIT = 25;
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
