@@ -968,6 +968,9 @@ export default function App() {
   const [showAppInvitePanel, setShowAppInvitePanel] = useState(false);
   const [appInviteCopied, setAppInviteCopied] = useState(false);
   const [profileSubTab, setProfileSubTab] = useState('household');
+  const [joinLinkInput, setJoinLinkInput] = useState('');
+  const [joiningHousehold, setJoiningHousehold] = useState(false);
+  const [joinHouseholdError, setJoinHouseholdError] = useState('');
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
@@ -1209,6 +1212,33 @@ export default function App() {
       body: { action: 'share', recipe },
     });
     return shareUrl;
+  }
+
+  async function joinHouseholdByLink() {
+    setJoinHouseholdError('');
+    let token;
+    try {
+      const url = new URL(joinLinkInput.trim());
+      token = url.searchParams.get('invite');
+    } catch {
+      setJoinHouseholdError("That doesn't look like a valid link — try copying it again.");
+      return;
+    }
+    if (!token) {
+      setJoinHouseholdError("No invite token found in that link.");
+      return;
+    }
+    setJoiningHousehold(true);
+    try {
+      const { error } = await supabase.rpc('join_household_by_token', { p_token: token, p_user_id: user.id });
+      if (error) throw error;
+      setJoinLinkInput('');
+      loadHousehold();
+    } catch (err) {
+      setJoinHouseholdError(err.message || "Couldn't join — check the link and try again.");
+    } finally {
+      setJoiningHousehold(false);
+    }
   }
 
   async function leaveHousehold() {
@@ -4008,6 +4038,30 @@ export default function App() {
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* Join another household */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">Join a household</p>
+                  <p className="text-xs text-orange-500 leading-relaxed mb-3">Got an invite link from someone? Paste it here.</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="Paste invite link…"
+                      value={joinLinkInput}
+                      onChange={(e) => { setJoinLinkInput(e.target.value); setJoinHouseholdError(''); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && joinLinkInput.trim()) joinHouseholdByLink(); }}
+                      className="flex-1 text-sm border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900 placeholder:text-orange-300 min-w-0"
+                    />
+                    <button
+                      onClick={joinHouseholdByLink}
+                      disabled={joiningHousehold || !joinLinkInput.trim()}
+                      className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition disabled:opacity-50"
+                    >
+                      {joiningHousehold ? 'Joining…' : 'Join'}
+                    </button>
+                  </div>
+                  {joinHouseholdError && <p className="text-xs text-red-500 mt-2">{joinHouseholdError}</p>}
                 </div>
 
                 {/* Planning settings */}
