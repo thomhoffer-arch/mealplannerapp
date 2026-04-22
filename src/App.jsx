@@ -2168,6 +2168,12 @@ export default function App() {
       recipe_id: rid,
       recipe_data: recipeData,
     }).select('id').single();
+    // Replace optimistic ID with the real DB row ID so deletes work correctly.
+    if (inserted?.id) {
+      setMealPlanItems((prev) => prev.map((i) =>
+        i.id === `optimistic-${rid}` ? { ...i, id: inserted.id } : i
+      ));
+    }
     // Background Pexels photo fetch for manually-added recipes (no planner photo yet)
     if (!recipeData._plannerPhoto && recipeData.name) {
       apiFetch(`/api/photo?name=${encodeURIComponent(recipeData.name)}`)
@@ -2412,13 +2418,16 @@ export default function App() {
   }
 
   async function clearWeekPlan() {
-    const ids = viewItems.map((i) => i.id).filter(Boolean);
-    if (!ids.length) return;
-    setMealPlanItems((prev) => prev.filter((i) => !ids.includes(i.id)));
+    if (!viewItems.length) return;
+    setMealPlanItems((prev) => prev.filter((i) => !viewItems.includes(i)));
     setClearWeekConfirm(false);
     setShowEmptyGrid(true);
     markLocalWrite('meal_plan_items');
-    await supabase.from("meal_plan_items").delete().in("id", ids);
+    // Delete by week field so optimistic IDs and in-flight inserts are covered too.
+    await supabase.from("meal_plan_items")
+      .delete()
+      .eq("household_id", household.id)
+      .filter("recipe_data->>_weekStart", "eq", viewWeek);
   }
 
   // ── Invite link ───────────────────────────────────────────────────────────
@@ -2974,10 +2983,12 @@ export default function App() {
             setShowEmptyGrid(false);
             // Optimistically clear existing items for this week
             markLocalWrite('meal_plan_items');
-            const oldIds = viewItems.map((i) => i.id).filter(Boolean);
-            if (oldIds.length) {
-              setMealPlanItems((prev) => prev.filter((i) => !oldIds.includes(i.id)));
-              supabase.from("meal_plan_items").delete().in("id", oldIds);
+            if (viewItems.length) {
+              setMealPlanItems((prev) => prev.filter((i) => !viewItems.includes(i)));
+              await supabase.from("meal_plan_items")
+                .delete()
+                .eq("household_id", household.id)
+                .filter("recipe_data->>_weekStart", "eq", viewWeek);
             }
             // Optimistically add new items
             const newRows = recipes.map((recipe) => ({
