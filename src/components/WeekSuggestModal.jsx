@@ -298,6 +298,14 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
 
         {/* Controls */}
         <div className="px-5 pt-4 pb-3 space-y-3">
+          {preferences?.meal_prep_mode && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+              <span className="text-xs font-semibold text-orange-700">Meal prep mode on</span>
+              {preferences.meal_prep_set_by_name && (
+                <span className="text-xs text-orange-400">— enabled by {preferences.meal_prep_set_by_name}</span>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-orange-900">Plan:</span>
             {[1, 2].map((w) => (
@@ -414,8 +422,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                 <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2 px-5">Week {week.week}</p>
               )}
 
-              {/* Horizontal carousel — cards align with the controls above */}
-              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory px-5 scroll-px-5 pb-3 scrollbar-hide">
+              {/* Stacked day cards */}
+              <div className="space-y-3 px-5 pb-3">
                 {week.days.map((day) => {
                   const key = `${week.week}-${day.day}`;
                   const isSelected = !!selected[key];
@@ -431,7 +439,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                       <div
                         key={day.day}
                         id={`plan-day-${week.week}-${day.day}`}
-                        className="flex-shrink-0 w-full snap-start rounded-2xl border-2 border-dashed border-orange-100 bg-orange-50/40 overflow-hidden"
+                        className="rounded-2xl border-2 border-dashed border-orange-100 bg-orange-50/40 overflow-hidden"
                       >
                         <div className="flex items-center gap-1.5 px-4 pt-4">
                           <span className="text-[10px] font-bold uppercase bg-orange-100 text-orange-400 px-2 py-0.5 rounded-full tracking-wider">{day.day}</span>
@@ -454,7 +462,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                     <div
                       key={day.day}
                       id={`plan-day-${week.week}-${day.day}`}
-                      className={`flex-shrink-0 w-full snap-start rounded-2xl border-2 overflow-hidden bg-white transition ${
+                      className={`rounded-2xl border-2 overflow-hidden bg-white transition ${
                         isSelected ? 'border-orange-400' : 'border-orange-100 opacity-75'
                       }`}
                     >

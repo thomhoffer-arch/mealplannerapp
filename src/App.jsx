@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, Settings, AlertTriangle, MinusCircle, Mail,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, AlertTriangle, MinusCircle, Mail,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { apiFetch, setActiveHouseholdId, getActiveHouseholdId } from "./lib/api";
@@ -967,6 +967,7 @@ export default function App() {
   const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [showAppInvitePanel, setShowAppInvitePanel] = useState(false);
   const [appInviteCopied, setAppInviteCopied] = useState(false);
+  const [profileSubTab, setProfileSubTab] = useState('personal');
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
@@ -984,7 +985,6 @@ export default function App() {
       return raw ? JSON.parse(raw) : [];
     } catch { return []; }
   });
-  const [showSettings, setShowSettings] = useState(false);
   const [preferences, setPreferences] = useState({});
   const [planExtrasText, setPlanExtrasText] = useState('');
   const [sideDishPanel, setSideDishPanel] = useState(null);
@@ -1018,6 +1018,7 @@ export default function App() {
   const [customIngredients, setCustomIngredients] = useState({});  // { recipe_id: [{id,name,amount}] }
   const [cookedRecipes, setCookedRecipes] = useState({});   // { recipe_id: true }
   const [checkedItems, setCheckedItems] = useState({});     // { item_name: true }
+  const [checkAnimating, setCheckAnimating] = useState({}); // { item_name: 'enlarging' | 'squeezing' }
   const [starredItems, setStarredItems] = useState([]);     // [{ recipe_id, recipe_data, rotation_priority }]
   const [userRecipes, setUserRecipes] = useState([]);       // household-created recipes
   const [recipeRatings, setRecipeRatings] = useState({});  // { recipe_id: 1-5 }
@@ -3437,28 +3438,45 @@ export default function App() {
                 )}
 
                 {(() => {
-                  const unchecked = shoppingList.filter((i) => !checkedItems[i.name]).sort((a, b) => a.name.localeCompare(b.name));
-                  const checked   = shoppingList.filter((i) =>  checkedItems[i.name]).sort((a, b) => a.name.localeCompare(b.name));
+                  const unchecked = shoppingList.filter((i) => !checkedItems[i.name] || checkAnimating[i.name]).sort((a, b) => a.name.localeCompare(b.name));
+                  const checked   = shoppingList.filter((i) =>  checkedItems[i.name] && !checkAnimating[i.name]).sort((a, b) => a.name.localeCompare(b.name));
+                  const handleCheckToggle = (name) => {
+                    if (!checkedItems[name]) {
+                      setCheckAnimating((prev) => ({ ...prev, [name]: 'enlarging' }));
+                      setTimeout(() => setCheckAnimating((prev) => ({ ...prev, [name]: 'squeezing' })), 300);
+                      setTimeout(() => setCheckAnimating((prev) => { const n = { ...prev }; delete n[name]; return n; }), 650);
+                    }
+                    toggleItem(name);
+                  };
                   const renderRow = (item) => {
                     const isChecked = !!checkedItems[item.name];
+                    const anim = checkAnimating[item.name];
                     return (
-                      <button key={item.name} onClick={() => !item.inPantry && toggleItem(item.name)}
-                        className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
-                        <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                          item.inPantry ? "bg-orange-100 border-orange-200" : isChecked ? "bg-sage-500 border-sage-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
-                          {(isChecked || item.inPantry) && <Check size={13} className={item.inPantry ? "text-orange-400" : ""} />}
+                      <div key={item.name} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out overflow-hidden ${anim === 'squeezing' ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'}`}>
+                        <div className="min-h-0">
+                          <button onClick={() => !item.inPantry && handleCheckToggle(item.name)}
+                            className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
+                            <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                              item.inPantry ? "bg-orange-100 border-orange-200" : (isChecked || anim) ? "bg-sage-500 border-sage-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
+                              {(isChecked || item.inPantry || anim) && <Check size={13} className={item.inPantry ? "text-orange-400" : ""} />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className={`font-medium transition-all duration-200 ${
+                                anim === 'enlarging' ? "text-base text-orange-400 line-through" :
+                                anim === 'squeezing' ? "text-sm text-orange-400 line-through" :
+                                isChecked || item.inPantry ? "text-sm line-through text-orange-400" : "text-sm text-orange-900"
+                              }`}>
+                                {aiCleanNames[item.name] || item.name}
+                                {item.isCustom && <span className="ml-1.5 text-xs text-orange-600 font-normal">custom</span>}
+                                {item.inPantry && <span className="ml-1.5 text-xs text-orange-400 font-normal">in pantry</span>}
+                              </span>
+                            </div>
+                            {item.amount && (
+                              <span className={`text-xs flex-shrink-0 ${isChecked || anim ? "text-orange-400" : "text-orange-600"}`}>{item.amount}</span>
+                            )}
+                          </button>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <span className={`text-sm font-medium transition-all ${isChecked || item.inPantry ? "line-through text-orange-400" : "text-orange-900"}`}>
-                            {aiCleanNames[item.name] || item.name}
-                            {item.isCustom && <span className="ml-1.5 text-xs text-orange-600 font-normal">custom</span>}
-                            {item.inPantry && <span className="ml-1.5 text-xs text-orange-400 font-normal">in pantry</span>}
-                          </span>
-                        </div>
-                        {item.amount && (
-                          <span className={`text-xs flex-shrink-0 ${isChecked ? "text-orange-400" : "text-orange-600"}`}>{item.amount}</span>
-                        )}
-                      </button>
+                      </div>
                     );
                   };
                   return (
@@ -3568,345 +3586,330 @@ export default function App() {
         {/* ── PROFILE TAB ── */}
         {activeTab === "profile" && (
           <div className="space-y-4 pb-4">
-            {/* User card */}
-            <div className="bg-white rounded-2xl border border-orange-100 p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                  <span className="font-display text-xl font-bold text-orange-600">
-                    {(memberProfile?.display_name || user?.email || '?')[0].toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  {editingDisplayName ? (
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <input
-                        autoFocus
-                        value={displayNameDraft}
-                        onChange={(e) => setDisplayNameDraft(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') saveDisplayName(); if (e.key === 'Escape') setEditingDisplayName(false); }}
-                        className="flex-1 text-sm border border-orange-300 rounded-xl px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900 min-w-0"
-                      />
-                      <button onClick={saveDisplayName} className="px-2.5 py-1 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex-shrink-0">Save</button>
-                      <button onClick={() => setEditingDisplayName(false)} className="text-orange-400 hover:text-orange-600 transition flex-shrink-0"><X size={14} /></button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => { setDisplayNameDraft(memberProfile?.display_name || ''); setEditingDisplayName(true); }}
-                      className="flex items-center gap-1.5 mb-0.5 group"
-                    >
-                      <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
-                      <PenLine size={12} className="text-orange-400 opacity-0 group-hover:opacity-100 transition" />
-                    </button>
-                  )}
-                  <p className="text-xs text-orange-400 truncate">{user?.email}</p>
-                  {(() => {
-                    const isGifted = !!preferences?.is_gifted;
-                    const hasPuter = !!preferences?.puter_token_hint;
-                    const hasGemini = !!preferences?.gemini_api_key_hint;
-                    let label, labelClass, upgradeText;
-                    if (isGifted) {
-                      label = 'Gifted — unlimited AI';
-                      labelClass = 'text-orange-700 bg-amber-50';
-                    } else if (hasPuter) {
-                      label = 'Puter AI — unlimited';
-                      labelClass = 'text-orange-600 bg-orange-50';
-                    } else if (hasGemini) {
-                      label = 'Gemini key connected';
-                      labelClass = 'text-orange-600 bg-orange-50';
-                      upgradeText = 'Connect Puter for unlimited';
-                    } else {
-                      label = 'Free plan';
-                      labelClass = 'text-orange-400 bg-orange-50';
-                      upgradeText = 'Upgrade for more';
-                    }
-                    return (
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${labelClass}`}>{label}</span>
-                        {upgradeText && (
-                          <button
-                            onClick={() => setShowSettings(true)}
-                            className="text-[11px] font-semibold text-orange-600 hover:text-orange-900 transition underline underline-offset-2"
-                          >
-                            {upgradeText} →
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-                <button onClick={() => setShowSettings((v) => !v)}
-                  className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition ${showSettings ? 'bg-orange-100 text-orange-600' : 'text-orange-400 hover:bg-orange-50 hover:text-orange-600'}`}
-                  title="Settings">
-                  <Settings size={15} />
+            {/* Segmented toggle */}
+            <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
+              {["personal", "household"].map((s) => (
+                <button key={s} onClick={() => setProfileSubTab(s)}
+                  className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${profileSubTab === s ? "bg-white text-orange-900 shadow-warm" : "text-orange-400 hover:text-orange-600"}`}>
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
                 </button>
-                <ThemeToggle />
-                <button onClick={() => supabase.auth.signOut()}
-                  className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 hover:text-orange-600 transition"
-                  title="Sign out">
-                  <LogOut size={15} />
-                </button>
-              </div>
+              ))}
             </div>
 
-            {/* Household switcher — only renders when user has 2+ households */}
-            <HouseholdSwitcher
-              memberships={memberships}
-              activeId={household?.id}
-              onSwitch={switchHousehold}
-            />
-
-            {/* Settings overlay — covers the profile tab when open */}
-            {showSettings && (
-              <div className="fixed inset-0 z-40 bg-white overflow-y-auto pb-24">
-                <div className="max-w-2xl mx-auto px-4 pt-4 space-y-4">
-                  {/* Keep user card visible at top */}
-                  <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                        <span className="font-display text-xl font-bold text-orange-600">
-                          {(memberProfile?.display_name || user?.email || '?')[0].toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        {editingDisplayName ? (
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <input
-                              autoFocus
-                              value={displayNameDraft}
-                              onChange={(e) => setDisplayNameDraft(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === 'Enter') saveDisplayName(); if (e.key === 'Escape') setEditingDisplayName(false); }}
-                              className="flex-1 text-sm border border-orange-300 rounded-xl px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900 min-w-0"
-                            />
-                            <button onClick={saveDisplayName} className="px-2.5 py-1 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex-shrink-0">Save</button>
-                            <button onClick={() => setEditingDisplayName(false)} className="text-orange-400 hover:text-orange-600 transition flex-shrink-0"><X size={14} /></button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => { setDisplayNameDraft(memberProfile?.display_name || ''); setEditingDisplayName(true); }}
-                            className="flex items-center gap-1.5 mb-0.5 group"
-                          >
-                            <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
-                            <PenLine size={12} className="text-orange-400 opacity-0 group-hover:opacity-100 transition" />
-                          </button>
-                        )}
-                        <p className="text-xs text-orange-400 truncate">{user?.email}</p>
-                      </div>
-                      <button onClick={() => setShowSettings(false)}
-                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-orange-100 text-orange-600 hover:bg-orange-200 transition"
-                        title="Close settings">
-                        <X size={15} />
-                      </button>
+            {/* ── PERSONAL ── */}
+            {profileSubTab === "personal" && (
+              <>
+                {/* User card */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                      <span className="font-display text-xl font-bold text-orange-600">
+                        {(memberProfile?.display_name || user?.email || '?')[0].toUpperCase()}
+                      </span>
                     </div>
+                    <div className="flex-1 min-w-0">
+                      {editingDisplayName ? (
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <input
+                            autoFocus
+                            value={displayNameDraft}
+                            onChange={(e) => setDisplayNameDraft(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveDisplayName(); if (e.key === 'Escape') setEditingDisplayName(false); }}
+                            className="flex-1 text-sm border border-orange-300 rounded-xl px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900 min-w-0"
+                          />
+                          <button onClick={saveDisplayName} className="px-2.5 py-1 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex-shrink-0">Save</button>
+                          <button onClick={() => setEditingDisplayName(false)} className="text-orange-400 hover:text-orange-600 transition flex-shrink-0"><X size={14} /></button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setDisplayNameDraft(memberProfile?.display_name || ''); setEditingDisplayName(true); }}
+                          className="flex items-center gap-1.5 mb-0.5 group"
+                        >
+                          <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
+                          <PenLine size={12} className="text-orange-400 opacity-0 group-hover:opacity-100 transition" />
+                        </button>
+                      )}
+                      <p className="text-xs text-orange-400 truncate">{user?.email}</p>
+                      {(() => {
+                        const isGifted = !!preferences?.is_gifted;
+                        const hasPuter = !!preferences?.puter_token_hint;
+                        const hasGemini = !!preferences?.gemini_api_key_hint;
+                        let label, labelClass, upgradeText;
+                        if (isGifted) {
+                          label = 'Gifted — unlimited AI';
+                          labelClass = 'text-orange-700 bg-amber-50';
+                        } else if (hasPuter) {
+                          label = 'Puter AI — unlimited';
+                          labelClass = 'text-orange-600 bg-orange-50';
+                        } else if (hasGemini) {
+                          label = 'Gemini key connected';
+                          labelClass = 'text-orange-600 bg-orange-50';
+                          upgradeText = 'Upgrade for more';
+                        } else {
+                          label = 'Free plan';
+                          labelClass = 'text-orange-400 bg-orange-50';
+                          upgradeText = 'Upgrade for more';
+                        }
+                        return (
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${labelClass}`}>{label}</span>
+                            {upgradeText && (
+                              <span className="text-[11px] text-orange-400">— set an API key below</span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <button onClick={() => supabase.auth.signOut()}
+                      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 hover:text-orange-600 transition"
+                      title="Sign out">
+                      <LogOut size={15} />
+                    </button>
                   </div>
-                  <PreferencesModal household={household} section="settings" inline={true} initialPrefs={preferences} onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))} onClose={() => { loadPreferences(); setShowSettings(false); }} />
                 </div>
-              </div>
-            )}
 
-            {/* Notifications */}
-            <div className="bg-white rounded-2xl border border-orange-100 overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-orange-50">
-                <span className="text-sm font-semibold text-orange-900">Notifications</span>
-                {notifUnread > 0 && (
-                  <button onClick={markAllNotifsRead}
-                    className="text-xs text-orange-600 hover:text-orange-900 font-medium flex items-center gap-1 transition">
-                    <Check size={11} /> Mark all read
-                  </button>
-                )}
-              </div>
-              {notifications.length === 0 ? (
-                <div className="text-center py-6 text-orange-400">
-                  <Bell size={24} className="mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">No activity yet</p>
-                  <p className="text-xs mt-0.5 text-orange-400/70">Changes your partner makes will appear here</p>
+                {/* App settings */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">App settings</p>
+                  <PreferencesModal
+                    household={household}
+                    section="settings"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                  />
                 </div>
-              ) : (
-                <div className="max-h-64 overflow-y-auto">
-                  {notifications.map((n) => (
-                    <div key={n.id}
-                      className={`flex items-start gap-2 px-4 py-3 border-b border-orange-50 last:border-0 ${n.read ? '' : 'bg-orange-50/60'}`}>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-orange-900 leading-snug">{n.message}</p>
-                        <p className="text-xs text-orange-400 mt-0.5">{formatNotifTime(n.timestamp)}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
-                        {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
-                        <button onClick={() => dismissNotif(n.id)} className="text-orange-400 hover:text-orange-600 transition">
-                          <X size={13} />
+
+                {/* Personal dietary wishes */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <PreferencesModal
+                    household={household}
+                    section="personal-dietary"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                    personalPrefs={memberProfile?.personal_prefs || ''}
+                    onSavePersonalPrefs={savePersonalPrefs}
+                  />
+                </div>
+
+                {/* Invite a friend — solo */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Invite a friend</p>
+                  <p className="text-xs text-orange-500 leading-relaxed mb-3">Know someone who'd love this? Send them a link — they'll start with their own kitchen, no household joining required.</p>
+                  <button onClick={shareAppLink}
+                    className="w-full px-3 py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-xs font-medium hover:border-orange-300 hover:bg-orange-100 transition flex items-center justify-center gap-1.5">
+                    <Link2 size={12} />
+                    Invite someone to the app
+                  </button>
+                  {showAppInvitePanel && (
+                    <div className="bg-orange-50 rounded-2xl p-3 space-y-2 mt-2">
+                      <p className="text-[11px] text-orange-400 font-medium uppercase tracking-wide">Share via</p>
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent("I've been using this meal planner — plan your meals, build your shopping list, and never stress about dinner again. " + window.location.origin)}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                        >
+                          WhatsApp
+                        </a>
+                        <a
+                          href={`https://t.me/share/url?url=${encodeURIComponent(window.location.origin)}&text=${encodeURIComponent("I've been using this meal planner — plan your meals, build your shopping list, and never stress about dinner again.")}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                        >
+                          Telegram
+                        </a>
+                        <button
+                          onClick={copyAppLink}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                        >
+                          {appInviteCopied ? <Check size={11} className="text-sage-500" /> : <Link2 size={11} />}
+                          {appInviteCopied ? 'Copied!' : 'Copy link'}
                         </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Household card */}
-            <div className="bg-white rounded-2xl border border-orange-100 p-4">
-              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Household</p>
-              {editingHouseholdName ? (
-                <div className="flex gap-2 mb-3">
-                  <input
-                    autoFocus
-                    value={householdNameDraft}
-                    onChange={(e) => setHouseholdNameDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') saveHouseholdName(); if (e.key === 'Escape') setEditingHouseholdName(false); }}
-                    className="flex-1 text-sm border border-orange-300 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900"
-                  />
-                  <button onClick={saveHouseholdName} className="px-3 py-1.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition">Save</button>
-                  <button onClick={() => setEditingHouseholdName(false)} className="px-3 py-1.5 text-orange-400 hover:text-orange-600 transition text-xs">Cancel</button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => { setHouseholdNameDraft(household.name); setEditingHouseholdName(true); }}
-                  className="flex items-center gap-1.5 mb-3 group"
-                >
-                  <span className="text-sm font-semibold text-orange-900">{household.name}</span>
-                  <PenLine size={12} className="text-orange-400 opacity-0 group-hover:opacity-100 transition" />
-                </button>
-              )}
-              {householdMembers.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  {householdMembers.map((m, i) => {
-                    const isSelf = m.user_id === user?.id;
-                    return (
-                      <div key={i} className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xs font-bold text-orange-600">{(m.display_name || '?')[0].toUpperCase()}</span>
-                        </div>
-                        <span className="text-sm text-orange-900 flex-1">{m.display_name || 'Member'}{isSelf && ' (you)'}</span>
-                        {!isSelf && householdMembers.length > 1 && (
-                          <button
-                            onClick={() => removeMember(m.user_id, m.display_name)}
-                            className="text-xs text-orange-400 hover:text-red-500 transition"
-                            title="Remove from household"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {householdMembers.length > 1 && (
-                    <button
-                      onClick={leaveHousehold}
-                      className="w-full mt-2 text-xs text-orange-400 hover:text-red-500 transition flex items-center justify-center gap-1 py-1.5"
-                    >
-                      Leave this household
-                    </button>
                   )}
                 </div>
-              )}
-              <div className="border-t border-orange-50 pt-3 space-y-2">
-                <button onClick={shareInviteLink}
-                  className="w-full px-3 py-2.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center justify-center gap-1.5">
-                  <Link2 size={12} />
-                  Invite someone to this household
-                </button>
-                {/* Desktop share panel — shown when Web Share API isn't available */}
-                {showInviteSharePanel && (
-                  <div className="bg-orange-50 rounded-2xl p-3 space-y-2">
-                    <p className="text-[11px] text-orange-400 font-medium uppercase tracking-wide">Share via</p>
-                    <div className="flex flex-wrap gap-2">
-                      <a
-                        href={`https://wa.me/?text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts. ' + inviteUrl)}`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
-                      >
-                        WhatsApp
-                      </a>
-                      <a
-                        href={`https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts.')}`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
-                      >
-                        Telegram
-                      </a>
-                      <button
-                        onClick={copyInviteLink}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
-                      >
-                        {inviteCopied ? <Check size={11} className="text-sage-500" /> : <Link2 size={11} />}
-                        {inviteCopied ? 'Copied!' : 'Copy link'}
-                      </button>
-                    </div>
-                    <form onSubmit={sendEmailInvite} className="flex gap-2 pt-1">
-                      <input
-                        type="email"
-                        placeholder="Invite by email"
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        className="flex-1 text-xs border border-orange-200 rounded-xl px-3 py-2 bg-white text-orange-900 placeholder:text-orange-300 focus:outline-none focus:border-orange-400"
-                      />
-                      <button
-                        type="submit"
-                        disabled={sendingEmailInvite || !inviteEmail.trim()}
-                        className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                      >
-                        {emailInviteSent ? <Check size={12} /> : <Mail size={12} />}
-                        {emailInviteSent ? 'Sent!' : sendingEmailInvite ? 'Sending…' : 'Send'}
-                      </button>
-                    </form>
-                  </div>
-                )}
-              </div>
-            </div>
 
-            {/* Invite to app — solo users */}
-            <div className="bg-white rounded-2xl border border-orange-100 p-4">
-              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Invite a friend</p>
-              <p className="text-xs text-orange-500 leading-relaxed mb-3">Know someone who'd love this? Send them a link — they'll start with their own kitchen, no household joining required.</p>
-              <button onClick={shareAppLink}
-                className="w-full px-3 py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-xs font-medium hover:border-orange-300 hover:bg-orange-100 transition flex items-center justify-center gap-1.5">
-                <Link2 size={12} />
-                Invite someone to the app
-              </button>
-              {showAppInvitePanel && (
-                <div className="bg-orange-50 rounded-2xl p-3 space-y-2 mt-2">
-                  <p className="text-[11px] text-orange-400 font-medium uppercase tracking-wide">Share via</p>
-                  <div className="flex flex-wrap gap-2">
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent("I've been using this meal planner — plan your meals, build your shopping list, and never stress about dinner again. " + window.location.origin)}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
-                    >
-                      WhatsApp
-                    </a>
-                    <a
-                      href={`https://t.me/share/url?url=${encodeURIComponent(window.location.origin)}&text=${encodeURIComponent("I've been using this meal planner — plan your meals, build your shopping list, and never stress about dinner again.")}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
-                    >
-                      Telegram
-                    </a>
+                {/* Data export + account deletion */}
+                <AccountActions />
+              </>
+            )}
+
+            {/* ── HOUSEHOLD ── */}
+            {profileSubTab === "household" && (
+              <>
+                {/* Household switcher — only renders when user has 2+ households */}
+                <HouseholdSwitcher
+                  memberships={memberships}
+                  activeId={household?.id}
+                  onSwitch={switchHousehold}
+                />
+
+                {/* Household card */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  {editingHouseholdName ? (
+                    <div className="flex gap-2 mb-3">
+                      <input
+                        autoFocus
+                        value={householdNameDraft}
+                        onChange={(e) => setHouseholdNameDraft(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveHouseholdName(); if (e.key === 'Escape') setEditingHouseholdName(false); }}
+                        className="flex-1 text-sm border border-orange-300 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900"
+                      />
+                      <button onClick={saveHouseholdName} className="px-3 py-1.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition">Save</button>
+                      <button onClick={() => setEditingHouseholdName(false)} className="px-3 py-1.5 text-orange-400 hover:text-orange-600 transition text-xs">Cancel</button>
+                    </div>
+                  ) : (
                     <button
-                      onClick={copyAppLink}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                      onClick={() => { setHouseholdNameDraft(household.name); setEditingHouseholdName(true); }}
+                      className="flex items-center gap-1.5 mb-3 group"
                     >
-                      {appInviteCopied ? <Check size={11} className="text-sage-500" /> : <Link2 size={11} />}
-                      {appInviteCopied ? 'Copied!' : 'Copy link'}
+                      <span className="text-sm font-semibold text-orange-900">{household.name}</span>
+                      <PenLine size={12} className="text-orange-400 opacity-0 group-hover:opacity-100 transition" />
                     </button>
+                  )}
+                  {householdMembers.length > 0 && (
+                    <div className="space-y-2 mb-4">
+                      {householdMembers.map((m, i) => {
+                        const isSelf = m.user_id === user?.id;
+                        return (
+                          <div key={i} className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs font-bold text-orange-600">{(m.display_name || '?')[0].toUpperCase()}</span>
+                            </div>
+                            <span className="text-sm text-orange-900 flex-1">{m.display_name || 'Member'}{isSelf && ' (you)'}</span>
+                            {!isSelf && householdMembers.length > 1 && (
+                              <button
+                                onClick={() => removeMember(m.user_id, m.display_name)}
+                                className="text-xs text-orange-400 hover:text-red-500 transition"
+                                title="Remove from household"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {householdMembers.length > 1 && (
+                        <button
+                          onClick={leaveHousehold}
+                          className="w-full mt-2 text-xs text-orange-400 hover:text-red-500 transition flex items-center justify-center gap-1 py-1.5"
+                        >
+                          Leave this household
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <div className="border-t border-orange-50 pt-3 space-y-2">
+                    <button onClick={shareInviteLink}
+                      className="w-full px-3 py-2.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center justify-center gap-1.5">
+                      <Link2 size={12} />
+                      Invite someone to this household
+                    </button>
+                    {showInviteSharePanel && (
+                      <div className="bg-orange-50 rounded-2xl p-3 space-y-2">
+                        <p className="text-[11px] text-orange-400 font-medium uppercase tracking-wide">Share via</p>
+                        <div className="flex flex-wrap gap-2">
+                          <a
+                            href={`https://wa.me/?text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts. ' + inviteUrl)}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                          >
+                            WhatsApp
+                          </a>
+                          <a
+                            href={`https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts.')}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                          >
+                            Telegram
+                          </a>
+                          <button
+                            onClick={copyInviteLink}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                          >
+                            {inviteCopied ? <Check size={11} className="text-sage-500" /> : <Link2 size={11} />}
+                            {inviteCopied ? 'Copied!' : 'Copy link'}
+                          </button>
+                        </div>
+                        <form onSubmit={sendEmailInvite} className="flex gap-2 pt-1">
+                          <input
+                            type="email"
+                            placeholder="Invite by email"
+                            value={inviteEmail}
+                            onChange={(e) => setInviteEmail(e.target.value)}
+                            className="flex-1 text-xs border border-orange-200 rounded-xl px-3 py-2 bg-white text-orange-900 placeholder:text-orange-300 focus:outline-none focus:border-orange-400"
+                          />
+                          <button
+                            type="submit"
+                            disabled={sendingEmailInvite || !inviteEmail.trim()}
+                            className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                          >
+                            {emailInviteSent ? <Check size={12} /> : <Mail size={12} />}
+                            {emailInviteSent ? 'Sent!' : sendingEmailInvite ? 'Sending…' : 'Send'}
+                          </button>
+                        </form>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Dietary wishes — always visible */}
-            <div className="bg-white rounded-2xl border border-orange-100 p-4">
-              <PreferencesModal
-                household={household}
-                section="dietary"
-                inline={true}
-                initialPrefs={preferences}
-                onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
-                onClose={loadPreferences}
-                personalPrefs={memberProfile?.personal_prefs || ''}
-                onSavePersonalPrefs={savePersonalPrefs}
-              />
-            </div>
+                {/* Notifications */}
+                <div className="bg-white rounded-2xl border border-orange-100 overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-orange-50">
+                    <span className="text-sm font-semibold text-orange-900">Notifications</span>
+                    {notifUnread > 0 && (
+                      <button onClick={markAllNotifsRead}
+                        className="text-xs text-orange-600 hover:text-orange-900 font-medium flex items-center gap-1 transition">
+                        <Check size={11} /> Mark all read
+                      </button>
+                    )}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="text-center py-6 text-orange-400">
+                      <Bell size={24} className="mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">No activity yet</p>
+                      <p className="text-xs mt-0.5 text-orange-400/70">Changes your partner makes will appear here</p>
+                    </div>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto">
+                      {notifications.map((n) => (
+                        <div key={n.id}
+                          className={`flex items-start gap-2 px-4 py-3 border-b border-orange-50 last:border-0 ${n.read ? '' : 'bg-orange-50/60'}`}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-orange-900 leading-snug">{n.message}</p>
+                            <p className="text-xs text-orange-400 mt-0.5">{formatNotifTime(n.timestamp)}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
+                            {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
+                            <button onClick={() => dismissNotif(n.id)} className="text-orange-400 hover:text-orange-600 transition">
+                              <X size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-            {/* Data export + account deletion */}
-            <AccountActions />
+                {/* Shared household dietary preferences */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <PreferencesModal
+                    household={household}
+                    section="household-dietary"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                    memberName={memberProfile?.display_name || ''}
+                  />
+                </div>
+              </>
+            )}
           </div>
         )}
       </main>

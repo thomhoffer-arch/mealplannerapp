@@ -53,7 +53,7 @@ async function _handler(req, res) {
   }
 
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }, { data: pantryData }] = await Promise.all([
-    supabase.from('household_preferences').select('preferences_text, meal_prep_mode, measurement_system').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_preferences').select('preferences_text, meal_prep_mode, meal_prep_set_by_name, measurement_system').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
@@ -350,6 +350,10 @@ Variety — applies across ALL meals chosen in the plan:
   Examples of hero ingredients: eggs, chicken, beef, salmon, pasta, lentils, tofu, shrimp, pork.
   A dinner and an extra on the same day must be meaningfully different from each other.
   Vary cuisines across the week. Spread themed days (fish, vegetarian, etc.) naturally.
+
+  BREAKFAST VARIETY — MANDATORY:
+  Eggs (in any form: scrambled, fried, omelette, shakshuka, etc.) may appear at most ONCE across the entire week's breakfasts. If eggs appear as a dinner ingredient that week, do not use eggs as a breakfast at all.
+  Each breakfast must be a genuinely different dish category: e.g. one day porridge, one day yoghurt, one day toast/bread, one day pancakes, one day fruit bowl, one day smoothie bowl, one day granola. Never repeat a category two days in a row.
 
 Starred recipes:
   HIGH-priority starred recipes should appear in week 1. Respect rotation priorities.

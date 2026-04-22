@@ -9,7 +9,7 @@ import PuterConnect from './PuterConnect';
 // initialPrefs: the preferences object from App.jsx state (avoids a second DB round-trip)
 // personalPrefs: the current user's personal_prefs string from household_members
 // onSavePersonalPrefs(text): saves personal_prefs to household_members for the current user
-export default function PreferencesModal({ household, onClose, onPrefsChange, inline = false, section, initialPrefs, personalPrefs: personalPrefsProp = '', onSavePersonalPrefs }) {
+export default function PreferencesModal({ household, onClose, onPrefsChange, inline = false, section, initialPrefs, personalPrefs: personalPrefsProp = '', onSavePersonalPrefs, memberName = '' }) {
   const [text, setText] = useState('');
   const [personalText, setPersonalText] = useState('');
   const [savingPersonal, setSavingPersonal] = useState(false);
@@ -29,6 +29,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
   const [showWeeklyMacros, setShowWeeklyMacros] = useState(true);
   const [savingMacros, setSavingMacros] = useState(false);
   const [mealPrepMode, setMealPrepMode] = useState(false);
+  const [mealPrepSetByName, setMealPrepSetByName] = useState('');
   const [savingMealPrep, setSavingMealPrep] = useState(false);
   const [measurementSystem, setMeasurementSystem] = useState('metric');
   const [savingMeasurement, setSavingMeasurement] = useState(false);
@@ -68,6 +69,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
     setNotificationsEnabled(initialPrefs.notifications_enabled !== false);
     setShowWeeklyMacros(initialPrefs.show_weekly_macros !== false);
     setMealPrepMode(initialPrefs.meal_prep_mode || false);
+    setMealPrepSetByName(initialPrefs.meal_prep_set_by_name || '');
     setMeasurementSystem(initialPrefs.measurement_system || 'metric');
     setKeyHint(initialPrefs.gemini_api_key_hint || null);
     setPuterHint(initialPrefs.puter_token_hint || null);
@@ -184,8 +186,9 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
     setPuterInput('');
   }
 
-  const showSettings = !section || section === 'settings';
-  const showDietary  = !section || section === 'dietary';
+  const showSettings         = !section || section === 'settings';
+  const showPersonalDietary  = !section || section === 'dietary' || section === 'personal-dietary';
+  const showHouseholdDietary = !section || section === 'dietary' || section === 'household-dietary';
 
   const inner = (
     <div className={inline ? "space-y-5" : "px-5 pb-5 space-y-5"}>
@@ -228,80 +231,83 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
           </div>
           )}
 
-          {/* ── Dietary & taste preferences ── */}
-          {showDietary && (
-          <div className={`space-y-4 ${showSettings ? 'border-t border-orange-100 pt-4' : ''}`}>
+          {/* ── Personal dietary preferences ── */}
+          {showPersonalDietary && (
+          <div className={`space-y-2 ${showSettings ? 'border-t border-orange-100 pt-4' : ''}`}>
+            <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Your dietary wishes</p>
+            <p className="text-xs text-orange-400">Only applies to you — won't affect other household members.</p>
+            <textarea
+              rows={3}
+              placeholder="e.g. I'm lactose intolerant. I don't eat red meat. I prefer lighter meals in the evening."
+              value={personalText}
+              onChange={(e) => setPersonalText(e.target.value)}
+              className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
+            />
+            <button onClick={handleSavePersonal} disabled={savingPersonal}
+              className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+              {savedPersonal ? <><Check size={14} /> Saved</> : savingPersonal ? 'Saving…' : 'Save my preferences'}
+            </button>
+          </div>
+          )}
 
-            {/* Personal preferences */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Your dietary wishes</p>
-              <p className="text-xs text-orange-400">Only applies to you — won't affect other household members.</p>
-              <textarea
-                rows={3}
-                placeholder="e.g. I'm lactose intolerant. I don't eat red meat. I prefer lighter meals in the evening."
-                value={personalText}
-                onChange={(e) => setPersonalText(e.target.value)}
-                className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
-              />
-              <button onClick={handleSavePersonal} disabled={savingPersonal}
-                className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
-                {savedPersonal ? <><Check size={14} /> Saved</> : savingPersonal ? 'Saving…' : 'Save my preferences'}
+          {/* ── Shared household dietary preferences ── */}
+          {showHouseholdDietary && (
+          <div className={`space-y-2 ${showSettings || showPersonalDietary ? 'border-t border-orange-100 pt-4' : ''}`}>
+            <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Shared household preferences <span className="font-normal normal-case text-orange-400">(optional)</span></p>
+            <p className="text-xs text-orange-400">Applies to everyone — cuisine styles, things you all agree on.</p>
+
+            {/* Meal prep mode */}
+            <div className="flex items-start justify-between gap-3 bg-orange-50 rounded-xl px-3 py-3">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-orange-900">Meal prep mode</p>
+                <p className="text-xs text-orange-400 mt-0.5 leading-relaxed">Plan around batch cooking — 2–3 dishes cooked in large portions, eaten across the week. Overrides the standard "varied dish each day" rule.</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const next = !mealPrepMode;
+                  const byName = next ? (memberName || '') : '';
+                  setMealPrepMode(next);
+                  setMealPrepSetByName(byName);
+                  setSavingMealPrep(true);
+                  const { error } = await supabase.from('household_preferences').upsert(
+                    { household_id: household.id, meal_prep_mode: next, meal_prep_set_by_name: byName },
+                    { onConflict: 'household_id' }
+                  );
+                  setSavingMealPrep(false);
+                  if (!error) onPrefsChange?.({ meal_prep_mode: next, meal_prep_set_by_name: byName });
+                }}
+                disabled={savingMealPrep}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 disabled:opacity-50 mt-0.5 ${mealPrepMode ? 'bg-orange-500' : 'bg-orange-200'}`}
+              >
+                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${mealPrepMode ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
+            {mealPrepMode && mealPrepSetByName && (
+              <p className="text-[11px] text-orange-400 -mt-1">Enabled by <span className="font-semibold text-orange-600">{mealPrepSetByName}</span></p>
+            )}
 
-            {/* Shared household preferences */}
-            <div className="space-y-2 border-t border-orange-100 pt-3">
-              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Shared household preferences <span className="font-normal normal-case text-orange-400">(optional)</span></p>
-              <p className="text-xs text-orange-400">Applies to everyone — cuisine styles, things you all agree on.</p>
-
-              {/* Meal prep mode */}
-              <div className="flex items-start justify-between gap-3 bg-orange-50 rounded-xl px-3 py-3">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-orange-900">Meal prep mode</p>
-                  <p className="text-xs text-orange-400 mt-0.5 leading-relaxed">Plan around batch cooking — 2–3 dishes cooked in large portions, eaten across the week. Overrides the standard "varied dish each day" rule.</p>
-                </div>
-                <button
-                  onClick={async () => {
-                    const next = !mealPrepMode;
-                    setMealPrepMode(next);
-                    setSavingMealPrep(true);
-                    const { error } = await supabase.from('household_preferences').upsert(
-                      { household_id: household.id, meal_prep_mode: next },
-                      { onConflict: 'household_id' }
-                    );
-                    setSavingMealPrep(false);
-                    if (!error) onPrefsChange?.({ meal_prep_mode: next });
-                  }}
-                  disabled={savingMealPrep}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 disabled:opacity-50 mt-0.5 ${mealPrepMode ? 'bg-orange-500' : 'bg-orange-200'}`}
-                >
-                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${mealPrepMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-
+            <textarea
+              rows={3}
+              placeholder="e.g. We prefer mostly plant-based during the week. We love spicy food. Nothing too heavy or creamy."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
+            />
+            <div>
+              <p className="text-xs text-orange-400 mb-1.5">Dinner's always in. Describe anything else you'd all like planned.</p>
               <textarea
-                rows={3}
-                placeholder="e.g. We prefer mostly plant-based during the week. We love spicy food. Nothing too heavy or creamy."
-                value={text}
-                onChange={(e) => setText(e.target.value)}
+                rows={2}
+                placeholder="e.g. Quick breakfasts Mon–Fri. Packed lunches for Tom. A bake for Sunday afternoon."
+                value={extrasText}
+                onChange={(e) => setExtrasText(e.target.value)}
                 className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
               />
-              <div>
-                <p className="text-xs text-orange-400 mb-1.5">Dinner's always in. Describe anything else you'd all like planned.</p>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Quick breakfasts Mon–Fri. Packed lunches for Tom. A bake for Sunday afternoon."
-                  value={extrasText}
-                  onChange={(e) => setExtrasText(e.target.value)}
-                  className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
-                />
-              </div>
-              <button onClick={handleSavePrefs} disabled={savingPrefs}
-                className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
-                {savedPrefs ? <><Check size={14} /> Saved</> : savingPrefs ? 'Saving…' : 'Save household preferences'}
-              </button>
-              {saveError && <p className="text-xs text-red-500">{saveError}</p>}
             </div>
+            <button onClick={handleSavePrefs} disabled={savingPrefs}
+              className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+              {savedPrefs ? <><Check size={14} /> Saved</> : savingPrefs ? 'Saving…' : 'Save household preferences'}
+            </button>
+            {saveError && <p className="text-xs text-red-500">{saveError}</p>}
           </div>
           )}
 
