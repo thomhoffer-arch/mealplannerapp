@@ -1109,6 +1109,8 @@ export default function App() {
   const [pantryNudge, setPantryNudge] = useState(null);   // { original, amount, suggestions, loading }
   const [quickEntryDay, setQuickEntryDay] = useState(null);
   const [quickEntryValue, setQuickEntryValue] = useState('');
+  const [weekDayNotes, setWeekDayNotes] = useState({});  // { Monday: 'hint', ... } — per-day AI planning hints
+  const [editingDayNote, setEditingDayNote] = useState(null); // day name currently being edited
   const [searchTargetDay, setSearchTargetDay] = useState(null); // day name when search triggered from a day slot
   const [templates, setTemplates] = useState([]);          // [{ id, name, recipes }]
   const [templateName, setTemplateName] = useState("");
@@ -1118,6 +1120,7 @@ export default function App() {
   // ── Local UI state
   const [expandedRecipes, setExpandedRecipes] = useState({});
   const [newIngredientInput, setNewIngredientInput] = useState({});
+  const [listExtraInput, setListExtraInput] = useState('');
   const [generatingExtra, setGeneratingExtra] = useState(null); // "Monday-breakfast" while generating
 
   useEffect(() => { localStorage.setItem('mp:activeTab', activeTab); }, [activeTab]);
@@ -2355,6 +2358,22 @@ export default function App() {
     await supabase.from("custom_ingredients").delete().eq("id", ingredientId);
   }
 
+  async function addListExtra(raw) {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return;
+    const match = trimmed.match(/^([\d.\/½¼¾⅓⅔⅛]+\s*(?:g|kg|ml|l|L|tsp|tbsp|cup|cups|oz|lb|piece|pieces|slice|slices|x|pack|packs|bag|bags|can|cans|bottle|bottles)\s+)/i);
+    let amount = '', name = trimmed;
+    if (match) { amount = match[0].trim(); name = trimmed.slice(match[0].length).trim() || trimmed; }
+    const tempId = `optimistic-${Date.now()}`;
+    setCustomIngredients((prev) => ({ ...prev, '__list__': [...(prev['__list__'] || []), { id: tempId, name, amount }] }));
+    await supabase.from('custom_ingredients').insert({ household_id: household.id, recipe_id: '__list__', name, amount });
+  }
+
+  async function removeListExtra(id) {
+    setCustomIngredients((prev) => ({ ...prev, '__list__': (prev['__list__'] || []).filter((i) => i.id !== id) }));
+    await supabase.from('custom_ingredients').delete().eq('id', id);
+  }
+
   // ── Shopping list handlers ────────────────────────────────────────────────
   async function toggleItem(itemName) {
     // Optimistic update — flip state immediately so the UI responds without
@@ -2949,6 +2968,7 @@ export default function App() {
           preferences={preferences}
           language={LANG_NAMES[memberLanguage] || 'English'}
           weeklyUsage={weeklyUsage}
+          initialDayNotes={weekDayNotes}
           onClose={() => setShowWeekSuggest(false)}
           onLoadPlan={async (recipes) => {
             setShowEmptyGrid(false);
@@ -3589,6 +3609,43 @@ export default function App() {
                               </>
                             )}
                           </div>
+                          {/* Per-day AI planning hint — visible on empty days, feeds into Plan week as hard constraints */}
+                          {!isNotAtHome && !recipe && quickEntryDay !== day && (
+                            <div className="px-4 pb-3" onClick={(e) => e.stopPropagation()}>
+                              {editingDayNote === day ? (
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    autoFocus
+                                    type="text"
+                                    value={weekDayNotes[day] || ''}
+                                    onChange={(e) => setWeekDayNotes((p) => ({ ...p, [day]: e.target.value }))}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingDayNote(null); }}
+                                    onBlur={() => setEditingDayNote(null)}
+                                    placeholder="AI hint for this day (e.g. vegetarian, under 30 min)…"
+                                    className="flex-1 text-xs border-b border-orange-300 bg-transparent focus:outline-none text-orange-700 placeholder-orange-200 py-0.5"
+                                  />
+                                  {weekDayNotes[day] && (
+                                    <button onMouseDown={(e) => { e.preventDefault(); setWeekDayNotes((p) => ({ ...p, [day]: '' })); setEditingDayNote(null); }}
+                                      className="text-orange-200 hover:text-orange-400 p-0.5"><X size={11} /></button>
+                                  )}
+                                </div>
+                              ) : weekDayNotes[day] ? (
+                                <button
+                                  onClick={() => setEditingDayNote(day)}
+                                  className="flex items-center gap-1 text-[11px] bg-orange-50 text-orange-500 border border-orange-200 rounded-full px-2.5 py-0.5 hover:border-orange-400 transition"
+                                >
+                                  ✦ {weekDayNotes[day]}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setEditingDayNote(day)}
+                                  className="text-[11px] text-orange-200 hover:text-orange-400 transition"
+                                >
+                                  + AI hint
+                                </button>
+                              )}
+                            </div>
+                          )}
 
                           {/* Side dish + meal add buttons + away toggle */}
                           {recipe && (
@@ -3989,8 +4046,12 @@ export default function App() {
                 )}
 
                 {(() => {
-                  const unchecked = shoppingList.filter((i) => !checkedItems[i.name] || checkAnimating[i.name]).sort((a, b) => a.name.localeCompare(b.name));
-                  const checked   = shoppingList.filter((i) =>  checkedItems[i.name] && !checkAnimating[i.name]).sort((a, b) => a.name.localeCompare(b.name));
+                  const listExtras = (customIngredients['__list__'] || []).map((e) => ({
+                    name: e.name, amount: e.amount || '', isCustom: true, isListExtra: true, listExtraId: e.id, inPantry: false,
+                  }));
+                  const fullList = [...shoppingList, ...listExtras];
+                  const unchecked = fullList.filter((i) => !checkedItems[i.name] || checkAnimating[i.name]).sort((a, b) => a.name.localeCompare(b.name));
+                  const checked   = fullList.filter((i) =>  checkedItems[i.name] && !checkAnimating[i.name]).sort((a, b) => a.name.localeCompare(b.name));
                   const handleCheckToggle = (name) => {
                     if (!checkedItems[name]) {
                       setCheckAnimating((prev) => ({ ...prev, [name]: 'enlarging' }));
@@ -4002,30 +4063,38 @@ export default function App() {
                   const renderRow = (item) => {
                     const isChecked = !!checkedItems[item.name];
                     const anim = checkAnimating[item.name];
+                    const rowKey = item.listExtraId ? `__extra__${item.listExtraId}` : item.name;
                     return (
-                      <div key={item.name} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out overflow-hidden ${anim === 'squeezing' ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'}`}>
+                      <div key={rowKey} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out overflow-hidden ${anim === 'squeezing' ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'}`}>
                         <div className="min-h-0">
-                          <button onClick={() => !item.inPantry && handleCheckToggle(item.name)}
-                            className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition active:bg-orange-100 ${item.inPantry ? "opacity-50 cursor-default" : "hover:bg-orange-50"}`}>
-                            <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                              item.inPantry ? "bg-orange-100 border-orange-200" : (isChecked || anim) ? "bg-sage-500 border-sage-500 text-white" : item.isCustom ? "border-amber-300" : "border-orange-300"}`}>
-                              {(isChecked || item.inPantry || anim) && <Check size={13} className={item.inPantry ? "text-orange-400" : ""} />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <span className={`font-medium transition-all duration-200 ${
-                                anim === 'enlarging' ? "text-base text-orange-400 line-through" :
-                                anim === 'squeezing' ? "text-sm text-orange-400 line-through" :
-                                isChecked || item.inPantry ? "text-sm line-through text-orange-400" : "text-sm text-orange-900"
-                              }`}>
-                                {aiCleanNames[item.name] || item.name}
-                                {item.isCustom && <span className="ml-1.5 text-xs text-orange-600 font-normal">custom</span>}
-                                {item.inPantry && <span className="ml-1.5 text-xs text-orange-400 font-normal">in pantry</span>}
-                              </span>
-                            </div>
-                            {item.amount && (
-                              <span className={`text-xs flex-shrink-0 ${isChecked || anim ? "text-orange-400" : "text-orange-600"}`}>{item.amount}</span>
+                          <div className={`flex items-center gap-1 pr-2 transition ${item.inPantry ? "opacity-50" : ""}`}>
+                            <button onClick={() => !item.inPantry && handleCheckToggle(item.name)}
+                              className={`flex-1 flex items-center gap-3 px-4 py-3.5 text-left active:bg-orange-100 ${item.inPantry ? "cursor-default" : "hover:bg-orange-50"}`}>
+                              <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                                item.inPantry ? "bg-orange-100 border-orange-200" : (isChecked || anim) ? "bg-sage-500 border-sage-500 text-white" : item.isListExtra ? "border-amber-300" : "border-orange-300"}`}>
+                                {(isChecked || item.inPantry || anim) && <Check size={13} className={item.inPantry ? "text-orange-400" : ""} />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <span className={`font-medium transition-all duration-200 ${
+                                  anim === 'enlarging' ? "text-base text-orange-400 line-through" :
+                                  anim === 'squeezing' ? "text-sm text-orange-400 line-through" :
+                                  isChecked || item.inPantry ? "text-sm line-through text-orange-400" : "text-sm text-orange-900"
+                                }`}>
+                                  {aiCleanNames[item.name] || item.name}
+                                  {item.inPantry && <span className="ml-1.5 text-xs text-orange-400 font-normal">in pantry</span>}
+                                </span>
+                              </div>
+                              {item.amount && (
+                                <span className={`text-xs flex-shrink-0 ${isChecked || anim ? "text-orange-400" : "text-orange-600"}`}>{item.amount}</span>
+                              )}
+                            </button>
+                            {item.isListExtra && (
+                              <button onClick={() => removeListExtra(item.listExtraId)}
+                                className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-orange-300 hover:text-orange-500 transition rounded-full hover:bg-orange-50">
+                                <X size={14} />
+                              </button>
                             )}
-                          </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -4043,19 +4112,54 @@ export default function App() {
                           </div>
                         </div>
                       )}
+                      {/* Add extra item input */}
+                      <div className="mt-3 flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Add item to list…"
+                          value={listExtraInput}
+                          onChange={(e) => setListExtraInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && listExtraInput.trim()) { addListExtra(listExtraInput); setListExtraInput(''); } }}
+                          className="flex-1 text-sm border border-orange-200 rounded-full px-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300"
+                        />
+                        <button
+                          onClick={() => { if (listExtraInput.trim()) { addListExtra(listExtraInput); setListExtraInput(''); } }}
+                          disabled={!listExtraInput.trim()}
+                          className="flex-shrink-0 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-40"
+                        >
+                          Add
+                        </button>
+                      </div>
                     </>
                   );
                 })()}
               </>
             ) : (
-              <div className="text-center py-16 text-orange-400">
+              <div className="text-center py-10 text-orange-400">
                 <ShoppingCart size={48} className="mx-auto mb-3 opacity-50" />
                 <p className="font-medium text-orange-400">Your shopping list is empty</p>
-                <p className="text-sm mt-1">Select recipes to build your list</p>
+                <p className="text-sm mt-1">Select recipes to build your list, or add items below</p>
                 <button onClick={() => setActiveTab("week")}
                   className="mt-4 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition">
                   Find Recipes
                 </button>
+                <div className="mt-4 flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Add item to list…"
+                    value={listExtraInput}
+                    onChange={(e) => setListExtraInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && listExtraInput.trim()) { addListExtra(listExtraInput); setListExtraInput(''); } }}
+                    className="flex-1 text-sm border border-orange-200 rounded-full px-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 text-orange-900"
+                  />
+                  <button
+                    onClick={() => { if (listExtraInput.trim()) { addListExtra(listExtraInput); setListExtraInput(''); } }}
+                    disabled={!listExtraInput.trim()}
+                    className="flex-shrink-0 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-40"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
             )}
               </>

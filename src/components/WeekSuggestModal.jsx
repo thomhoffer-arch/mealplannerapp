@@ -79,7 +79,7 @@ function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor,
   );
 }
 
-export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences, language = 'English', weeklyUsage = null }) {
+export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences, language = 'English', weeklyUsage = null, initialDayNotes = {} }) {
   const hasDealsAccess = !!(preferences?.is_gifted || preferences?.gemini_api_key_hint);
   const hhKey = household?.id ? `mp:hh:${household.id}` : null;
   const [numWeeks, setNumWeeks]         = useState(() => {
@@ -92,7 +92,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [errorStatus, setErrorStatus]   = useState(null);
   const [selected, setSelected]         = useState({});   // { "1-Monday": true }
   const [servings, setServings]         = useState({});   // { "1-Monday": 4 }
-  const [dayNotes, setDayNotes]         = useState({});
+  const [dayNotes, setDayNotes]         = useState(() => initialDayNotes || {});
   const [swapInput, setSwapInput]       = useState({});
   const [swappingKey, setSwappingKey]   = useState(null);
   const [thisWeekWishes, setThisWeekWishes] = useState('');
@@ -566,10 +566,24 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           )}
 
           {!loading && !plan && !error && (
-            <div className="flex flex-col items-center justify-center px-5 text-center py-20">
-              <Sparkles size={40} className="mx-auto mb-3 text-orange-400" />
-              <p className="text-sm text-orange-600 font-medium">AI plans a varied week for you</p>
-              <p className="text-xs text-orange-400 mt-1 leading-relaxed">Based on your preferences and starred recipes — no pasta two days in a row.</p>
+            <div className="px-5 py-4">
+              <p className="text-[11px] text-orange-400 text-center mb-3">
+                Set per-day rules before generating — the AI treats these as hard constraints.
+              </p>
+              <div className="space-y-1.5">
+                {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map((day) => (
+                  <div key={day} className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase text-orange-400 w-8 flex-shrink-0">{day.slice(0,3)}</span>
+                    <input
+                      type="text"
+                      value={dayNotes[day] || ''}
+                      onChange={(e) => setDayNotes((p) => ({ ...p, [day]: e.target.value }))}
+                      placeholder="e.g. vegetarian, under 30 min, fish night, away…"
+                      className="flex-1 text-xs border border-orange-200 rounded-full px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-200"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
