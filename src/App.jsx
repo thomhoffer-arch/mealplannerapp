@@ -4055,6 +4055,19 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Shared household dietary preferences */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <PreferencesModal
+                    household={household}
+                    section="household-dietary"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                    memberName={memberProfile?.display_name || ''}
+                  />
+                </div>
+
                 {/* Notifications */}
                 <div className="bg-white rounded-2xl border border-orange-100 overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-orange-50">
@@ -4129,18 +4142,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Shared household dietary preferences */}
-                <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                  <PreferencesModal
-                    household={household}
-                    section="household-dietary"
-                    inline={true}
-                    initialPrefs={preferences}
-                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
-                    onClose={loadPreferences}
-                    memberName={memberProfile?.display_name || ''}
-                  />
-                </div>
               </>
             )}
 
