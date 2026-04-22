@@ -288,7 +288,24 @@ function parseWeekdayTimeCap(text) {
   return null;
 }
 
+// Rotates every calendar week so new users (no history) get a different
+// cuisine/protein nudge each time they open the planner.
+const _VARIETY_SEEDS = [
+  { cuisine: 'Asian — Thai, Vietnamese, or Japanese', protein: 'fish or tofu' },
+  { cuisine: 'Middle Eastern or North African — Lebanese, Moroccan, or Persian', protein: 'lamb or chickpeas' },
+  { cuisine: 'Mexican or Latin American', protein: 'chicken or black beans' },
+  { cuisine: 'European — French, Spanish, or Italian beyond pasta', protein: 'pork or seafood' },
+  { cuisine: 'South or East Asian — Indian, Korean, or Chinese', protein: 'beef or lentils' },
+  { cuisine: 'Mediterranean — Greek, Turkish, or Cypriot', protein: 'lamb or white fish' },
+  { cuisine: 'African — West African, Ethiopian, or Moroccan', protein: 'chicken or chickpeas' },
+  { cuisine: 'Northern European — Scandinavian, German, or Eastern European', protein: 'pork or root vegetables' },
+];
+
 function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null) {
+  const _weekNum = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  const _seed = _VARIETY_SEEDS[_weekNum % _VARIETY_SEEDS.length];
+  const _noHistory = loved.length === 0 && recentNames.length === 0;
+
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -351,6 +368,10 @@ ${recentBuckets
   : (avoidList || 'None — be creative and varied.')
 }
 
+${_noHistory ? `VARIETY BOOST — no meal history yet:
+This household has no cooking history. Be intentionally creative and varied — do NOT fall back on the most familiar "default" dishes (spaghetti bolognese, chicken stir-fry, beef tacos, roast chicken, shepherd's pie, etc.) unless they genuinely fit the household.
+This week's focus: lean toward ${_seed.cuisine} dishes, and feature ${_seed.protein} as a hero protein on at least one day.
+Span at least 3 different cuisine traditions across the week. Vary proteins every day — no hero protein should repeat across dinners.` : ''}
 RATINGS HISTORY — what this household actually liked when they cooked it:
 ${loved.length ? `  LOVED (4-5★): ${loved.slice(0, 15).join(', ')}` : '  (no high ratings recorded yet)'}
 ${disliked.length ? `  DISLIKED (1-2★): ${disliked.slice(0, 15).join(', ')} — avoid these patterns` : ''}
@@ -369,7 +390,9 @@ Enforcement rules:
 • Dietary or ingredient constraints apply to every meal for the specified scope.
 • Day-specific instructions override all defaults for that day.
 • When in doubt, err on the side of shorter / simpler / stricter — never assume the user is OK with bending these rules.` : ''}
-${dayNotesSection ? `\nPER-DAY NOTES:\n${dayNotesSection}` : ''}
+${dayNotesSection ? `\nPER-DAY HARD RULES — treat each as a strict non-negotiable constraint for that day, same weight as a dietary allergy:
+${dayNotesSection}
+Every rule above must be satisfied in the final plan. If a note says "vegetarian", that day must be vegetarian. If it says "under 30 min", prep_time + cook_time must be ≤ 30. If it says "away" or "not home", set skip=true for that day. Do not soften, approximate, or skip any of these.` : ''}
 
 HOW TO READ USER INPUT
 Users write casually. Read every input for intent, not literal words. Here are examples across the full range of things they ask — use these to reason about inputs you haven't seen before:
@@ -460,7 +483,7 @@ Real dishes only:
   Every suggestion must be a recognisable, real-world dish.`}
 
 SELF-CHECK BEFORE OUTPUT
-For every day confirm: (a) extras are in the "extras" array only when directly requested — if you added any extras without a verbatim user request, remove them now; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) leftover_for never points at a spontaneously invented meal; (e) if a time limit was stated in HOUSEHOLD-LEVEL PREFERENCES or THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning.
+For every day confirm: (a) extras are in the "extras" array only when directly requested — if you added any extras without a verbatim user request, remove them now; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) leftover_for never points at a spontaneously invented meal; (e) if a time limit was stated in HOUSEHOLD-LEVEL PREFERENCES or THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning; (f) for every day that had a PER-DAY HARD RULE, verify the rule is satisfied — dietary rules fully respected, time rules within the stated limit, away/skip rules set correctly.
 
 Return ONLY a JSON object, no markdown:
 {
