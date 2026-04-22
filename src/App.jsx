@@ -2418,7 +2418,7 @@ export default function App() {
     setClearWeekConfirm(false);
     setShowEmptyGrid(true);
     markLocalWrite('meal_plan_items');
-    supabase.from("meal_plan_items").delete().in("id", ids);
+    await supabase.from("meal_plan_items").delete().in("id", ids);
   }
 
   // ── Invite link ───────────────────────────────────────────────────────────
