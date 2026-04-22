@@ -66,7 +66,7 @@ function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor,
   );
 }
 
-export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences }) {
+export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences, language = 'English' }) {
   const hasDealsAccess = !!(preferences?.is_gifted || preferences?.gemini_api_key_hint);
   const [numWeeks, setNumWeeks]         = useState(1);
   const [loading, setLoading]           = useState(false);
@@ -145,6 +145,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           weekly_budget: weeklyBudget ? Number(weeklyBudget) : null,
           simple_night: simpleNight,
           deals: deals,
+          language,
         },
       });
       setPlan(data.weeks);

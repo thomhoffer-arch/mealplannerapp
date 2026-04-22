@@ -25,6 +25,26 @@ import ThemeToggle from "./components/ThemeToggle";
 import { applyTheme } from "./lib/theme";
 import { GlyphPot, GlyphSpyglass, GlyphLink, GlyphBasket, Scribble } from "./components/glyphs";
 
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'nl', label: 'Nederlands' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'it', label: 'Italiano' },
+  { code: 'pt', label: 'Português' },
+  { code: 'pl', label: 'Polski' },
+  { code: 'sv', label: 'Svenska' },
+  { code: 'da', label: 'Dansk' },
+  { code: 'no', label: 'Norsk' },
+  { code: 'tr', label: 'Türkçe' },
+];
+const LANG_NAMES = {
+  en: 'English', nl: 'Dutch', de: 'German', fr: 'French',
+  es: 'Spanish', it: 'Italian', pt: 'Portuguese', pl: 'Polish',
+  sv: 'Swedish', da: 'Danish', no: 'Norwegian', tr: 'Turkish',
+};
+
 const SOURCE_COLORS = {
   "My Recipes":    "bg-orange-100 text-orange-600",
   "AI Suggestion": "bg-orange-100 text-orange-600",
@@ -971,6 +991,11 @@ export default function App() {
   const [joinLinkInput, setJoinLinkInput] = useState('');
   const [joiningHousehold, setJoiningHousehold] = useState(false);
   const [joinHouseholdError, setJoinHouseholdError] = useState('');
+  const [memberLanguage, setMemberLanguage] = useState('en');
+  const [creatingHousehold, setCreatingHousehold] = useState(false);
+  const [newHouseholdName, setNewHouseholdName] = useState('');
+  const [savingNewHousehold, setSavingNewHousehold] = useState(false);
+  const [createHouseholdError, setCreateHouseholdError] = useState('');
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
@@ -1151,7 +1176,7 @@ export default function App() {
     async function readMemberships() {
       const { data, error } = await supabase
         .from("household_members")
-        .select("household_id, display_name, personal_prefs, onboarded_at, households(*)")
+        .select("household_id, display_name, personal_prefs, onboarded_at, language, households(*)")
         .eq("user_id", user.id);
       return { rows: (data || []).filter((r) => r.households), error };
     }
@@ -1202,7 +1227,9 @@ export default function App() {
       display_name:   active.display_name,
       personal_prefs: active.personal_prefs,
       onboarded_at:   active.onboarded_at,
+      language:       active.language || 'en',
     });
+    setMemberLanguage(active.language || 'en');
     setAuthLoading(false);
   }
 
@@ -1212,6 +1239,36 @@ export default function App() {
       body: { action: 'share', recipe },
     });
     return shareUrl;
+  }
+
+  async function saveLanguage(code) {
+    setMemberLanguage(code);
+    setMemberProfile((m) => ({ ...m, language: code }));
+    await supabase.from('household_members')
+      .update({ language: code })
+      .eq('household_id', household.id)
+      .eq('user_id', user.id);
+  }
+
+  async function createNewHousehold() {
+    if (!newHouseholdName.trim()) return;
+    setSavingNewHousehold(true);
+    setCreateHouseholdError('');
+    try {
+      const data = await apiFetch('/api/household/create', {
+        method: 'POST',
+        body: { name: newHouseholdName.trim() },
+      });
+      setNewHouseholdName('');
+      setCreatingHousehold(false);
+      loadHousehold();
+      // Switch immediately to the new household
+      if (data?.household?.id) setActiveHouseholdId(data.household.id);
+    } catch (err) {
+      setCreateHouseholdError(err.message || "Couldn't create the household — try again.");
+    } finally {
+      setSavingNewHousehold(false);
+    }
   }
 
   async function joinHouseholdByLink() {
@@ -1285,7 +1342,9 @@ export default function App() {
       display_name:   target.display_name,
       personal_prefs: target.personal_prefs,
       onboarded_at:   target.onboarded_at,
+      language:       target.language || 'en',
     });
+    setMemberLanguage(target.language || 'en');
     // Reset household-scoped UI state so we don't briefly show the wrong data.
     setMealPlanItems([]);
     setCustomIngredients({});
@@ -2544,6 +2603,7 @@ export default function App() {
           household={household}
           planExtrasText={planExtrasText}
           preferences={preferences}
+          language={LANG_NAMES[memberLanguage] || 'English'}
           onClose={() => setShowWeekSuggest(false)}
           onLoadPlan={async (recipes) => {
             setShowEmptyGrid(false);
@@ -3746,14 +3806,34 @@ export default function App() {
                 {/* App settings */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
                   <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Settings</p>
-                  <PreferencesModal
-                    household={household}
-                    section="appearance"
-                    inline={true}
-                    initialPrefs={preferences}
-                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
-                    onClose={loadPreferences}
-                  />
+                  {/* Language — personal, affects AI-generated content */}
+                  <div className="space-y-2 mb-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-sm text-orange-900 font-medium">Language</span>
+                        <p className="text-xs text-orange-400">Recipes and suggestions are generated in this language</p>
+                      </div>
+                      <select
+                        value={memberLanguage}
+                        onChange={(e) => saveLanguage(e.target.value)}
+                        className="border border-orange-200 rounded-xl px-3 py-1.5 text-sm text-orange-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
+                      >
+                        {LANGUAGES.map((l) => (
+                          <option key={l.code} value={l.code}>{l.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="border-t border-orange-100 pt-4">
+                    <PreferencesModal
+                      household={household}
+                      section="appearance"
+                      inline={true}
+                      initialPrefs={preferences}
+                      onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                      onClose={loadPreferences}
+                    />
+                  </div>
                 </div>
 
                 {/* Personal dietary wishes */}
@@ -4062,6 +4142,45 @@ export default function App() {
                     </button>
                   </div>
                   {joinHouseholdError && <p className="text-xs text-red-500 mt-2">{joinHouseholdError}</p>}
+                </div>
+
+                {/* Create a new household */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">New household</p>
+                  <p className="text-xs text-orange-500 leading-relaxed mb-3">Start a fresh kitchen with its own plan, list, and preferences.</p>
+                  {creatingHousehold ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Give it a name…"
+                          value={newHouseholdName}
+                          onChange={(e) => { setNewHouseholdName(e.target.value); setCreateHouseholdError(''); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') createNewHousehold(); if (e.key === 'Escape') setCreatingHousehold(false); }}
+                          className="flex-1 text-sm border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900 placeholder:text-orange-300 min-w-0"
+                        />
+                        <button
+                          onClick={createNewHousehold}
+                          disabled={savingNewHousehold || !newHouseholdName.trim()}
+                          className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition disabled:opacity-50"
+                        >
+                          {savingNewHousehold ? 'Creating…' : 'Create'}
+                        </button>
+                      </div>
+                      <button onClick={() => { setCreatingHousehold(false); setNewHouseholdName(''); setCreateHouseholdError(''); }}
+                        className="text-xs text-orange-400 hover:text-orange-600 transition">Cancel</button>
+                      {createHouseholdError && <p className="text-xs text-red-500">{createHouseholdError}</p>}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setCreatingHousehold(true)}
+                      className="w-full px-3 py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-xs font-medium hover:border-orange-300 hover:bg-orange-100 transition flex items-center justify-center gap-1.5"
+                    >
+                      <Plus size={12} />
+                      Create a new household
+                    </button>
+                  )}
                 </div>
 
                 {/* Planning settings */}
