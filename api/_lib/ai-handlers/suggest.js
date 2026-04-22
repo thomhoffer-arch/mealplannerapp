@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getUserAndHousehold } from '../auth.js';
 import { VOICE_GUIDE } from '../voice.js';
 import { resolveAiProvider, callAi } from '../ai-call.js';
-import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../usage.js';
+import { checkAndIncrementUsage, isGiftedHousehold } from '../usage.js';
 
 export default async function handleSuggest(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -25,7 +25,8 @@ export default async function handleSuggest(req, res) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({
-        error: `Weekly limit of ${WEEKLY_FREE_LIMIT} AI suggestions reached. Connect Puter or add your own Gemini key in Settings for unlimited use.`,
+        error: `Your kitchen's weekly AI limit has been reached. Upgrade for more, or wait until next week.`,
+        code: 'weekly_limit_reached',
       });
     }
   }
