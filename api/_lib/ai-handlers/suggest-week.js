@@ -58,7 +58,7 @@ async function _handler(req, res) {
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
-      .order('added_at', { ascending: false }).limit(30),
+      .order('added_at', { ascending: false }).limit(60),
     supabase.from('household_members').select('display_name, personal_prefs').eq('household_id', ctx.householdId),
     supabase.from('pantry_items').select('name').eq('household_id', ctx.householdId),
   ]);
@@ -95,10 +95,23 @@ async function _handler(req, res) {
     else if (c.rating <= 2) disliked.push(name);
   });
 
-  const recentNames = (recentPlanData || []).slice(0, 10).map((i) => i.recipe_data?.name).filter(Boolean);
+  // Bucket recent meals by age so the prompt can enforce hard vs soft avoidance.
+  const _now = Date.now();
+  const _WEEK = 7 * 24 * 60 * 60 * 1000;
+  const recentBuckets = { week1: [], week2: [], older: [] };
+  (recentPlanData || []).forEach((i) => {
+    const name = i.recipe_data?.name;
+    if (!name) return;
+    const age = _now - new Date(i.added_at).getTime();
+    if (age < _WEEK)          recentBuckets.week1.push(name);
+    else if (age < 2 * _WEEK) recentBuckets.week2.push(name);
+    else if (age < 4 * _WEEK) recentBuckets.older.push(name);
+  });
+  // Flat list kept for backward-compat with other uses
+  const recentNames = [...recentBuckets.week1, ...recentBuckets.week2, ...recentBuckets.older];
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
 
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language, recentBuckets);
 
   let rawText;
   try {
@@ -275,7 +288,7 @@ function parseWeekdayTimeCap(text) {
   return null;
 }
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English') {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null) {
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -327,8 +340,16 @@ ${membersSection || '  - (no individual preferences on file)'}
 STARRED RECIPES:
 ${starredSection || 'None starred yet — suggest freely based on preferences.'}
 
-RECENTLY EATEN (avoid repeating for 2 weeks):
-${avoidList}
+RECENTLY EATEN — variety enforcement:
+${recentBuckets
+  ? [
+      recentBuckets.week1.length  ? `Last 7 days   — DO NOT use these dishes or anything very similar: ${recentBuckets.week1.join(', ')}` : '',
+      recentBuckets.week2.length  ? `Last 8–14 days — strongly avoid unless the household has very few choices: ${recentBuckets.week2.join(', ')}` : '',
+      recentBuckets.older.length  ? `15–28 days ago — avoid repeating in the same week: ${recentBuckets.older.join(', ')}` : '',
+      !recentBuckets.week1.length && !recentBuckets.week2.length && !recentBuckets.older.length ? 'No recent history — be creative and varied.' : '',
+    ].filter(Boolean).join('\n')
+  : (avoidList || 'None — be creative and varied.')
+}
 
 RATINGS HISTORY — what this household actually liked when they cooked it:
 ${loved.length ? `  LOVED (4-5★): ${loved.slice(0, 15).join(', ')}` : '  (no high ratings recorded yet)'}
@@ -417,6 +438,7 @@ Variety — applies across ALL meals chosen in the plan:
   Examples of hero ingredients: eggs, chicken, beef, salmon, pasta, lentils, tofu, shrimp, pork.
   A dinner and an extra on the same day must be meaningfully different from each other.
   Vary cuisines across the week. Spread themed days (fish, vegetarian, etc.) naturally.
+  Cross-week variety: the RECENTLY EATEN section above shows what was served recently. A plan that closely mirrors last week (same dishes, same cuisine run, same protein sequence) is a failure even if no single dish is a direct repeat. Each week should feel meaningfully different from the previous one.
 
 Starred recipes:
   HIGH-priority starred recipes should appear in week 1. Respect rotation priorities.
