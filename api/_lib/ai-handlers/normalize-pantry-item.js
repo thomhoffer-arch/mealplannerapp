@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getUserAndHousehold } from '../auth.js';
 import { resolveAiProvider, callAi } from '../ai-call.js';
-import { isGiftedHousehold } from '../usage.js';
+import { isUserPremium } from '../usage.js';
 
 export default async function handleNormalizePantryItem(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -16,9 +16,8 @@ export default async function handleNormalizePantryItem(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   const { provider, token, usingSharedKey } = await resolveAiProvider(supabase, ctx.householdId);
 
-  // Only available for own-key users and gifted households — no shared quota spent.
-  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId, ctx.user.id))) {
-    return res.status(403).json({ error: 'own_key_required' });
+  if (!(await isUserPremium(supabase, ctx.householdId, ctx.user.id))) {
+    return res.status(403).json({ error: 'premium_required' });
   }
 
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });

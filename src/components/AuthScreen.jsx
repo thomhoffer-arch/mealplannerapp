@@ -540,7 +540,8 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
                   { ok: true,  text: '20 AI suggestions/week — grows with your kitchen' },
                   { ok: true,  text: 'Shared plan, list & pantry' },
                   { ok: true,  text: '4 recipe results per search' },
-                  { ok: false, text: 'Full recipe library (8 results)' },
+                  { ok: false, text: 'Unlimited recipe search results' },
+                  { ok: false, text: 'AI shopping, pantry & side dish extras' },
                   { ok: false, text: 'Exports, history & insights' },
                 ].map((f) => (
                   <li key={f.text} className="flex items-start gap-2">
@@ -584,16 +585,20 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
               <p className="text-[11px] text-orange-500 mb-4">per person · your perks follow you everywhere</p>
               <ul className="space-y-2">
                 {[
-                  '50 AI suggestions/week to your shared kitchen',
-                  '8 recipe results per search',
-                  'Faster AI generation',
-                  'Export plans to PDF or Google Calendar',
-                  'Recipe history & cooking insights',
-                  'Advanced filters & cross-household sync',
-                ].map((t) => (
-                  <li key={t} className="flex items-start gap-2">
-                    <Check size={12} className="text-sage-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-xs leading-snug text-orange-900">{t}</span>
+                  { live: true,  text: 'Unlimited AI suggestions — no weekly cap' },
+                  { live: true,  text: 'Unlimited recipe search results' },
+                  { live: true,  text: 'Daily macro tracking' },
+                  { live: true,  text: 'AI-cleaned shopping list & pantry smarts' },
+                  { live: true,  text: 'All side dish suggestions' },
+                  { live: false, text: 'Export to PDF or Google Calendar' },
+                  { live: false, text: 'Recipe history & cooking insights' },
+                ].map((f) => (
+                  <li key={f.text} className="flex items-start gap-2">
+                    {f.live
+                      ? <Check size={12} className="text-sage-600 mt-0.5 flex-shrink-0" />
+                      : <span className="text-[10px] font-semibold text-orange-300 mt-0.5 flex-shrink-0 w-[12px] text-center">soon</span>
+                    }
+                    <span className={`text-xs leading-snug ${f.live ? 'text-orange-900' : 'text-orange-400'}`}>{f.text}</span>
                   </li>
                 ))}
               </ul>
