@@ -1,5 +1,5 @@
 import { requireAuth } from '../_lib/auth.js';
-import { isGiftedHousehold, WEEKLY_FREE_LIMIT, currentWeekKey } from '../_lib/usage.js';
+import { isGiftedHousehold, WEEKLY_FREE_LIMIT, currentWeekKey, weekStartDayFromReminder } from '../_lib/usage.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();
@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   const [giftedResult, prefsResult] = await Promise.all([
     isGiftedHousehold(supabase, householdId),
     supabase.from('household_preferences')
-      .select('gemini_api_key_hint, puter_token_hint, ai_credits')
+      .select('gemini_api_key_hint, puter_token_hint, ai_credits, reminder_day')
       .eq('household_id', householdId)
       .maybeSingle(),
   ]);
@@ -24,11 +24,12 @@ export default async function handler(req, res) {
     return res.json({ used: 0, limit: WEEKLY_FREE_LIMIT, unlimited: true, credits: prefs.ai_credits || 0 });
   }
 
+  const weekKey = currentWeekKey(weekStartDayFromReminder(prefs.reminder_day));
   const { data } = await supabase
     .from('ai_usage')
     .select('call_count')
     .eq('household_id', householdId)
-    .eq('usage_date', currentWeekKey())
+    .eq('usage_date', weekKey)
     .maybeSingle();
 
   return res.json({

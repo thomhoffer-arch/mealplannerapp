@@ -3805,7 +3805,7 @@ export default function App() {
                                     style={{ width: `${Math.min(100, (weeklyUsage.used / weeklyUsage.limit) * 100)}%` }}
                                   />
                                 </div>
-                                <p className="text-[11px] text-orange-400">Resets every Monday · <span className="text-orange-400">add an API key below for unlimited</span></p>
+                                <p className="text-[11px] text-orange-400">Resets every {preferences.reminder_day ? (() => { const d = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; const idx = (d.indexOf(preferences.reminder_day) - 1 + 7) % 7; return d[idx].charAt(0).toUpperCase() + d[idx].slice(1); })() : 'Monday'} · <span className="text-orange-400">add an API key below for unlimited</span></p>
                               </div>
                             )}
                           </div>
@@ -4096,7 +4096,7 @@ export default function App() {
                         style={{ width: `${Math.min(100, (weeklyUsage.used / weeklyUsage.limit) * 100)}%` }}
                       />
                     </div>
-                    <p className="text-[11px] text-orange-400 mb-3">Resets every Monday. Shared across the whole household.</p>
+                    <p className="text-[11px] text-orange-400 mb-3">{(() => { const d = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; const idx = (d.indexOf(preferences.reminder_day) - 1 + 7) % 7; const name = d[idx].charAt(0).toUpperCase() + d[idx].slice(1); return `Resets every ${name}. Shared across the household.`; })()}</p>
                     <button disabled
                       className="w-full px-3 py-2.5 border border-orange-100 text-orange-300 bg-orange-50/50 rounded-full text-xs font-medium cursor-not-allowed flex items-center justify-center gap-1.5">
                       Buy more uses — coming soon
