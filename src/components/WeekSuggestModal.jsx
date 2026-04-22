@@ -354,7 +354,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     }));
   }
 
-
+  function handleLoadPlan() {
     if (!plan) return;
     const recipes = [];
     plan.forEach((week) => {
