@@ -1177,7 +1177,7 @@ export default function App() {
     async function readMemberships() {
       const { data, error } = await supabase
         .from("household_members")
-        .select("household_id, display_name, personal_prefs, onboarded_at, language, households(*)")
+        .select("household_id, display_name, personal_prefs, onboarded_at, households(*)")
         .eq("user_id", user.id);
       return { rows: (data || []).filter((r) => r.households), error };
     }
@@ -1228,10 +1228,24 @@ export default function App() {
       display_name:   active.display_name,
       personal_prefs: active.personal_prefs,
       onboarded_at:   active.onboarded_at,
-      language:       active.language || 'en',
+      language:       'en',
     });
-    setMemberLanguage(active.language || 'en');
+    setMemberLanguage('en');
     setAuthLoading(false);
+
+    // Load language preference separately — column may not exist yet if the
+    // migration hasn't been applied, and we don't want that to block sign-in.
+    supabase.from('household_members')
+      .select('language')
+      .eq('household_id', active.household_id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.language) {
+          setMemberLanguage(data.language);
+          setMemberProfile((m) => ({ ...m, language: data.language }));
+        }
+      });
   }
 
   async function shareRecipe(recipe) {
@@ -1343,9 +1357,20 @@ export default function App() {
       display_name:   target.display_name,
       personal_prefs: target.personal_prefs,
       onboarded_at:   target.onboarded_at,
-      language:       target.language || 'en',
+      language:       'en',
     });
-    setMemberLanguage(target.language || 'en');
+    setMemberLanguage('en');
+    supabase.from('household_members')
+      .select('language')
+      .eq('household_id', id)
+      .eq('user_id', user?.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.language) {
+          setMemberLanguage(data.language);
+          setMemberProfile((m) => ({ ...m, language: data.language }));
+        }
+      });
     // Reset household-scoped UI state so we don't briefly show the wrong data.
     setMealPlanItems([]);
     setCustomIngredients({});
