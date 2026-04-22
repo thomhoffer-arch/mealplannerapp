@@ -125,7 +125,31 @@ function detectAllergens(ingredients = []) {
   return ALLERGENS.filter((a) => a.patterns.some((p) => text.includes(p)));
 }
 
-const PREP_WORDS = ['sliced','diced','chopped','minced','peeled','grated','shredded','torn','crushed','halved','quartered','julienned','roughly','finely','thinly','thickly','cut','trimmed','washed','rinsed','dried','softened','melted','beaten','whisked','to taste','at room temperature','room temperature'];
+// Text that can appear after a comma in an ingredient name and signals a prep/serving note
+// that should be stripped — leaving only the ingredient itself.
+// Rule: only add a word here if it *always* describes HOW to prepare or serve, never the ingredient itself.
+// Examples of what belongs: "finely chopped", "for serving", "to taste"
+// Examples of what does NOT belong: "fresh" (could be "fresh thyme" as the actual ingredient name)
+const PREP_WORDS = [
+  // Cutting & shaping
+  'sliced','diced','chopped','minced','julienned','shredded','torn','crushed',
+  'halved','quartered','cut',
+  // Surface / quantity modifiers that prefix a cut word ("finely chopped", "roughly sliced")
+  'roughly','finely','thinly','thickly','coarsely',
+  // Cleaning & trimming
+  'peeled','grated','trimmed','washed','rinsed',
+  // Heat / texture state
+  'softened','melted','beaten','whisked','cooked','boiled','steamed',
+  // Taste / serving notes
+  'to taste','at room temperature','room temperature',
+  'for serving','to serve','for garnish','to garnish',
+  'for topping','to top','for decoration','for drizzling',
+  // Dryness state (strips "dried" only when it follows a comma, e.g. "herbs, dried")
+  'dried',
+];
+// Trailing phrases that follow the ingredient name WITHOUT a comma — also stripped.
+// Keep this list shorter: only phrases where even a bare trailing occurrence is always a note.
+const _TRAILING_PREP = /\s+(to taste|for serving|to serve|for garnish|to garnish|for topping|as needed)$/i;
 function normalizeIngredientName(name) {
   // Strip prep description after the first comma if it looks like a preparation instruction
   const commaIdx = name.indexOf(',');
@@ -136,7 +160,10 @@ function normalizeIngredientName(name) {
     }
   }
   // Strip parenthetical prep notes like "(peeled and diced)"
-  return name.replace(/\s*\([^)]*\)/g, '').trim();
+  name = name.replace(/\s*\([^)]*\)/g, '').trim();
+  // Strip trailing serving/taste notes even without a comma
+  name = name.replace(_TRAILING_PREP, '').trim();
+  return name;
 }
 
 // Tokens stripped from the END of an ingredient name when building the dedup key.
@@ -281,7 +308,12 @@ function mergeAmounts(rawAmounts, system = 'metric') {
 function consolidateIngredients(selectedRecipes, customIngredients, measurementSystem = 'metric') {
   const items = {};
 
-  const add = (rawName, amount, extra = {}) => {
+  // Ingredients that are purely plating/serving notes — not something to buy.
+  // "cooked rice, for serving" and similar should be omitted entirely.
+  const _SERVING_SUFFIX = /,\s*(for serving|to serve|for garnish|to garnish|for topping|for decoration|as needed)/i;
+
+  const addSingle = (rawName, amount, extra = {}) => {
+    if (_SERVING_SUFFIX.test(rawName)) return;
     const key = ingredientKey(rawName);
     if (!key || key.startsWith('leftover')) return;
     if (items[key]) {
@@ -289,6 +321,17 @@ function consolidateIngredients(selectedRecipes, customIngredients, measurementS
     } else {
       const displayName = normalizeIngredientName(rawName.split(/ or /i)[0].trim()).toLowerCase();
       items[key] = { name: displayName, amounts: [amount], ...extra };
+    }
+  };
+
+  // Split "X and Y" compound entries the AI occasionally generates as one ingredient.
+  // Each part inherits the same amount so pantry matching and dedup work correctly.
+  const add = (rawName, amount, extra = {}) => {
+    const parts = rawName.split(/ and /i);
+    if (parts.length > 1) {
+      parts.forEach((p) => addSingle(p.trim(), amount, extra));
+    } else {
+      addSingle(rawName, amount, extra);
     }
   };
 
@@ -944,6 +987,7 @@ export default function App() {
   const [clearWeekConfirm, setClearWeekConfirm] = useState(false);
   const [showEmptyGrid, setShowEmptyGrid] = useState(false);
   const [wasteInsights, setWasteInsights] = useState(null); // null | { loading, insights, error }
+  const [aiCleanNames, setAiCleanNames] = useState({}); // originalName → AI-cleaned name (premium only)
   const [showBagModal, setShowBagModal] = useState(false); // { key, mainRecipe, rid, input, loading, suggestions, error }
 
   // ── Search state
@@ -1505,9 +1549,10 @@ export default function App() {
   }
 
   async function savePantryName(name, amount) {
+    const normalizedName = name.toLowerCase().trim();
     const tempId = `optimistic-${Date.now()}`;
-    setPantryItems((prev) => [...prev, { id: tempId, name, amount }]);
-    await supabase.from("pantry_items").insert({ household_id: household.id, name, amount });
+    setPantryItems((prev) => [...prev, { id: tempId, name: normalizedName, amount }]);
+    await supabase.from("pantry_items").insert({ household_id: household.id, name: normalizedName, amount });
   }
 
   async function confirmPantryNudge(chosenName) {
@@ -2183,6 +2228,38 @@ export default function App() {
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { setWasteInsights(null); }, [shoppingList.length]);
+
+  // AI polish pass — only for premium/gifted households.
+  // Sends items the heuristics couldn't fully clean (e.g. prep words in unusual positions,
+  // names > 4 words) to the AI endpoint and silently updates display names.
+  const _aiNormalizeKey = shoppingList.map((i) => i.name).join('|');
+  React.useEffect(() => {
+    const hasUnlimitedAi = !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+    if (!hasUnlimitedAi || !shoppingList.length) return;
+
+    // Only items that look like heuristics left something unresolved.
+    const _PREP_BODY = /\b(finely|roughly|coarsely|thinly|thickly|sliced|diced|chopped|minced|grated|shredded|crushed|beaten|roasted|steamed|boiled|softened|melted|cooked)\b/i;
+    const suspicious = shoppingList
+      .filter((item) => item.name.split(/\s+/).length > 4 || _PREP_BODY.test(item.name))
+      .map((item) => ({ name: item.name, amount: item.amount }));
+
+    if (!suspicious.length) return;
+
+    apiFetch('/api/ai/normalize-shopping-list', { method: 'POST', body: { items: suspicious } })
+      .then((data) => {
+        if (!data?.items?.length) return;
+        setAiCleanNames((prev) => {
+          const next = { ...prev };
+          data.items.forEach((r) => {
+            const original = suspicious[r.index]?.name;
+            if (original && !r.skip && r.name && r.name !== original) next[original] = r.name;
+          });
+          return next;
+        });
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [_aiNormalizeKey]);
 
   // ── Public recipe share view ─────────────────────────────────────────────
   // Rendered before the auth gate so unsigned visitors can see shared recipes.
@@ -3335,7 +3412,7 @@ export default function App() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <span className={`text-sm font-medium transition-all ${isChecked || item.inPantry ? "line-through text-orange-400" : "text-orange-900"}`}>
-                            {item.name}
+                            {aiCleanNames[item.name] || item.name}
                             {item.isCustom && <span className="ml-1.5 text-xs text-orange-600 font-normal">custom</span>}
                             {item.inPantry && <span className="ml-1.5 text-xs text-orange-400 font-normal">in pantry</span>}
                           </span>
@@ -3428,7 +3505,7 @@ export default function App() {
                     {pantryItems.map((item) => (
                       <div key={item.id} className="flex items-center justify-between px-4 py-3">
                         <div>
-                          <span className="text-sm font-medium text-orange-900">{item.name}</span>
+                          <span className="text-sm font-medium text-orange-900">{item.name.toLowerCase()}</span>
                           {item.amount && <span className="text-xs text-orange-400 ml-2">{item.amount}</span>}
                         </div>
                         <button onClick={() => removePantryItem(item.id)}
