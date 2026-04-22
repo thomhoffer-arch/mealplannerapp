@@ -3790,7 +3790,7 @@ export default function App() {
                             onKeyDown={(e) => { if (e.key === 'Enter') saveDisplayName(); if (e.key === 'Escape') setEditingDisplayName(false); }}
                             className="flex-1 text-sm border border-orange-300 rounded-xl px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900 min-w-0"
                           />
-                          <button onClick={saveDisplayName} className="px-2.5 py-1 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex-shrink-0">Save</button>
+                          <button onClick={saveDisplayName} className="px-2.5 py-1 border border-orange-200 text-orange-500 bg-orange-50 rounded-full text-xs font-medium hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition flex-shrink-0">Save</button>
                           <button onClick={() => setEditingDisplayName(false)} className="text-orange-400 hover:text-orange-600 transition flex-shrink-0"><X size={14} /></button>
                         </div>
                       ) : (
@@ -3814,27 +3814,8 @@ export default function App() {
                         else if (hasGemini) { label = 'Gemini key — unlimited'; labelClass = 'text-orange-600 bg-orange-50'; }
                         else { label = 'Free plan'; labelClass = 'text-orange-400 bg-orange-50'; }
                         return (
-                          <div className="mt-1.5 space-y-1.5">
+                          <div className="mt-1.5">
                             <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${labelClass}`}>{label}</span>
-                            {!unlimited && weeklyUsage && (
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[11px] text-orange-400">
-                                    {weeklyUsage.used} of {weeklyUsage.limit} AI uses this week
-                                  </span>
-                                  {weeklyUsage.used >= weeklyUsage.limit && (
-                                    <span className="text-[11px] font-medium text-red-500">Limit reached</span>
-                                  )}
-                                </div>
-                                <div className="w-full bg-orange-100 rounded-full h-1.5">
-                                  <div
-                                    className={`h-1.5 rounded-full transition-all ${weeklyUsage.used >= weeklyUsage.limit ? 'bg-red-400' : weeklyUsage.used / weeklyUsage.limit > 0.75 ? 'bg-orange-500' : 'bg-orange-400'}`}
-                                    style={{ width: `${Math.min(100, (weeklyUsage.used / weeklyUsage.limit) * 100)}%` }}
-                                  />
-                                </div>
-                                <p className="text-[11px] text-orange-400">Resets every {preferences.reminder_day ? (() => { const d = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; const idx = (d.indexOf(preferences.reminder_day) - 1 + 7) % 7; return d[idx].charAt(0).toUpperCase() + d[idx].slice(1); })() : 'Monday'} · <span className="text-orange-400">add an API key below for unlimited</span></p>
-                              </div>
-                            )}
                           </div>
                         );
                       })()}
@@ -3897,11 +3878,11 @@ export default function App() {
                 {/* Invite a friend — solo */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
                   <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Invite a friend</p>
-                  <p className="text-xs text-orange-500 leading-relaxed mb-3">Know someone who'd love this? Send them a link — they'll start with their own kitchen, no household joining required.</p>
+                  <p className="text-xs text-orange-500 leading-relaxed mb-3">Send someone a link and they'll have their own kitchen set up in a minute.</p>
                   <button onClick={shareAppLink}
-                    className="w-full px-3 py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-xs font-medium hover:border-orange-300 hover:bg-orange-100 transition flex items-center justify-center gap-1.5">
-                    <Link2 size={12} />
-                    Invite someone to the app
+                    className="w-full py-2.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full text-sm font-medium hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition flex items-center justify-center gap-2">
+                    <Link2 size={13} />
+                    Share with a friend
                   </button>
                   {showAppInvitePanel && (
                     <div className="bg-orange-50 rounded-2xl p-3 space-y-2 mt-2">
@@ -3959,7 +3940,7 @@ export default function App() {
                         onKeyDown={(e) => { if (e.key === 'Enter') saveHouseholdName(); if (e.key === 'Escape') setEditingHouseholdName(false); }}
                         className="flex-1 text-sm border border-orange-300 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900"
                       />
-                      <button onClick={saveHouseholdName} className="px-3 py-1.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition">Save</button>
+                      <button onClick={saveHouseholdName} className="px-3 py-1.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full text-xs font-medium hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition">Save</button>
                       <button onClick={() => setEditingHouseholdName(false)} className="px-3 py-1.5 text-orange-400 hover:text-orange-600 transition text-xs">Cancel</button>
                     </div>
                   ) : (
@@ -4125,7 +4106,7 @@ export default function App() {
                 {weeklyUsage && !weeklyUsage.unlimited && (
                   <div className="bg-white rounded-2xl border border-orange-100 p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">AI uses this week</p>
+                      <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Suggestions this week</p>
                       <span className="text-xs font-semibold text-orange-900">
                         {weeklyUsage.used} <span className="text-orange-400 font-normal">/ {weeklyUsage.limit}</span>
                       </span>
@@ -4136,11 +4117,7 @@ export default function App() {
                         style={{ width: `${Math.min(100, (weeklyUsage.used / weeklyUsage.limit) * 100)}%` }}
                       />
                     </div>
-                    <p className="text-[11px] text-orange-400 mb-3">{(() => { const d = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; const idx = (d.indexOf(preferences.reminder_day) - 1 + 7) % 7; const name = d[idx].charAt(0).toUpperCase() + d[idx].slice(1); return `Resets every ${name}. Shared across the household.`; })()}</p>
-                    <button disabled
-                      className="w-full px-3 py-2.5 border border-orange-100 text-orange-300 bg-orange-50/50 rounded-full text-xs font-medium cursor-not-allowed flex items-center justify-center gap-1.5">
-                      Buy more uses — coming soon
-                    </button>
+                    <p className="text-[11px] text-orange-400">{(() => { const d = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; const idx = (d.indexOf(preferences.reminder_day) - 1 + 7) % 7; const name = d[idx].charAt(0).toUpperCase() + d[idx].slice(1); return `Resets every ${name} · shared with your kitchen.`; })()}</p>
                   </div>
                 )}
 
@@ -4215,7 +4192,7 @@ export default function App() {
                 {/* Create a new household */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
                   <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">New household</p>
-                  <p className="text-xs text-orange-500 leading-relaxed mb-3">Start a fresh kitchen with its own plan, list, and preferences.</p>
+                  <p className="text-xs text-orange-500 leading-relaxed mb-3">Start a fresh kitchen — your own plan, list, and settings.</p>
                   {creatingHousehold ? (
                     <div className="space-y-2">
                       <div className="flex gap-2">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Check, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight, X } from 'lucide-react';
 import { LayoutGroup, motion } from 'motion/react';
 import { GlyphStar, GlyphCalendar, GlyphBasket, Scribble } from './glyphs';
 import NotebookWeekScene from './NotebookWeekScene';
@@ -540,7 +540,7 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
               </p>
               <ul className="space-y-2 mt-5">
                 {[
-                  { ok: true,  text: '15 AI suggestions per week' },
+                  { ok: true,  text: '25 week plan suggestions free' },
                   { ok: true,  text: 'Shared plan, list & pantry' },
                   { ok: true,  text: 'Up to 4 recipe results per search' },
                   { ok: false, text: 'Full recipe library' },
@@ -549,7 +549,7 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
                   <li key={f.text} className="flex items-start gap-2">
                     {f.ok
                       ? <Check size={12} className="text-sage-600 mt-0.5 flex-shrink-0" />
-                      : <span className="text-orange-400 text-xs mt-0.5 flex-shrink-0">✕</span>}
+                      : <X size={12} className="text-orange-300 mt-0.5 flex-shrink-0" />}
                     <span className={`text-xs leading-snug ${f.ok ? 'text-orange-900' : 'text-orange-400'}`}>{f.text}</span>
                   </li>
                 ))}
@@ -697,7 +697,7 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
 
         <h1 className="font-display text-3xl font-semibold text-orange-900 leading-none mb-1.5">Welcome</h1>
         <p className="text-xs text-orange-600 mb-6 leading-relaxed">
-          {mode === 'login' ? 'Good to see you again.' : 'Two fields and you\u2019re in.'}
+          {mode === 'login' ? 'Good to see you again.' : 'Just two fields.'}
         </p>
 
         {inviteToken && (

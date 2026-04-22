@@ -222,7 +222,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
                       setSavingMeasurement(false);
                       if (!error) onPrefsChange?.({ measurement_system: sys });
                     }}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition disabled:opacity-50 ${sys === measurementSystem ? 'bg-orange-500 text-white' : 'bg-white border border-orange-200 text-orange-700 hover:bg-orange-100'}`}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold transition disabled:opacity-50 ${sys === measurementSystem ? 'bg-orange-500 text-white' : 'bg-white border border-orange-200 text-orange-700 hover:bg-orange-100'}`}
                   >
                     {sys === 'metric' ? 'Metric' : 'Imperial'}
                   </button>
@@ -245,7 +245,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
               className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
             />
             <button onClick={handleSavePersonal} disabled={savingPersonal}
-              className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+              className="w-full py-2.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full font-medium text-sm hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
               {savedPersonal ? <><Check size={14} /> Saved</> : savingPersonal ? 'Saving…' : 'Save my preferences'}
             </button>
           </div>
@@ -275,7 +275,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
               />
             </div>
             <button onClick={handleSavePrefs} disabled={savingPrefs}
-              className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+              className="w-full py-2.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full font-medium text-sm hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
               {savedPrefs ? <><Check size={14} /> Saved</> : savingPrefs ? 'Saving…' : 'Save household preferences'}
             </button>
             {saveError && <p className="text-xs text-red-500">{saveError}</p>}
