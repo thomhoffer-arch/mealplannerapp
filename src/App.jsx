@@ -2840,26 +2840,28 @@ export default function App() {
         {activeTab === "week" && (
           <div>
             {/* Week navigator */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl mb-4 items-center">
               <button
                 onClick={() => setViewWeek((w) => addWeeks(w, -1))}
-                className="w-9 h-9 flex items-center justify-center rounded-full border border-orange-200 bg-white text-orange-400 hover:text-orange-600 hover:border-orange-300 transition"
+                className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl text-orange-400 hover:text-orange-600 hover:bg-white/60 transition"
                 aria-label="Previous week"
               >
                 <ChevronLeft size={16} />
               </button>
-              <div className="text-center">
-                <p className="text-sm font-semibold text-orange-900">{formatWeekLabel(viewWeek)}</p>
-                <button
-                  onClick={() => setViewWeek(currentWeekStart)}
-                  className={`text-[11px] text-orange-600 hover:text-orange-900 transition font-medium ${viewWeek === currentWeekStart ? 'invisible' : ''}`}
-                >
-                  Back to this week
-                </button>
+              <div className="flex-1 bg-white rounded-xl shadow-warm py-2 text-center min-w-0">
+                <p className="text-sm font-semibold text-orange-900 leading-snug">{formatWeekLabel(viewWeek)}</p>
+                {viewWeek !== currentWeekStart && (
+                  <button
+                    onClick={() => setViewWeek(currentWeekStart)}
+                    className="text-[10px] text-orange-500 hover:text-orange-700 transition font-medium leading-none"
+                  >
+                    ← this week
+                  </button>
+                )}
               </div>
               <button
                 onClick={() => setViewWeek((w) => addWeeks(w, 1))}
-                className="w-9 h-9 flex items-center justify-center rounded-full border border-orange-200 bg-white text-orange-400 hover:text-orange-600 hover:border-orange-300 transition"
+                className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl text-orange-400 hover:text-orange-600 hover:bg-white/60 transition"
                 aria-label="Next week"
               >
                 <ChevronRight size={16} />
@@ -4003,8 +4005,8 @@ export default function App() {
                   )}
                   <div className="border-t border-orange-50 pt-3 space-y-2">
                     <button onClick={shareInviteLink}
-                      className="w-full px-3 py-2.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center justify-center gap-1.5">
-                      <Link2 size={12} />
+                      className="w-full py-2.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full font-medium text-sm hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition flex items-center justify-center gap-2">
+                      <Link2 size={13} />
                       Invite someone to this household
                     </button>
                     {showInviteSharePanel && (
@@ -4152,8 +4154,8 @@ export default function App() {
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
                   <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Your kitchen</p>
                   <button onClick={shareInviteLink}
-                    className="w-full px-3 py-2.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center justify-center gap-1.5">
-                    <Link2 size={12} />
+                    className="w-full py-2.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full font-medium text-sm hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition flex items-center justify-center gap-2">
+                    <Link2 size={13} />
                     Invite someone to cook with you
                   </button>
                   {showInviteSharePanel && (
