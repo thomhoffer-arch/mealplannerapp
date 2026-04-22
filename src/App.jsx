@@ -3814,27 +3814,8 @@ export default function App() {
                         else if (hasGemini) { label = 'Gemini key — unlimited'; labelClass = 'text-orange-600 bg-orange-50'; }
                         else { label = 'Free plan'; labelClass = 'text-orange-400 bg-orange-50'; }
                         return (
-                          <div className="mt-1.5 space-y-1.5">
+                          <div className="mt-1.5">
                             <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${labelClass}`}>{label}</span>
-                            {!unlimited && weeklyUsage && (
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[11px] text-orange-400">
-                                    {weeklyUsage.used} of {weeklyUsage.limit} suggestions this week
-                                  </span>
-                                  {weeklyUsage.used >= weeklyUsage.limit && (
-                                    <span className="text-[11px] font-medium text-red-500">Limit reached</span>
-                                  )}
-                                </div>
-                                <div className="w-full bg-orange-100 rounded-full h-1.5">
-                                  <div
-                                    className={`h-1.5 rounded-full transition-all ${weeklyUsage.used >= weeklyUsage.limit ? 'bg-red-400' : weeklyUsage.used / weeklyUsage.limit > 0.75 ? 'bg-orange-500' : 'bg-orange-400'}`}
-                                    style={{ width: `${Math.min(100, (weeklyUsage.used / weeklyUsage.limit) * 100)}%` }}
-                                  />
-                                </div>
-                                <p className="text-[11px] text-orange-400">Resets every {preferences.reminder_day ? (() => { const d = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; const idx = (d.indexOf(preferences.reminder_day) - 1 + 7) % 7; return d[idx].charAt(0).toUpperCase() + d[idx].slice(1); })() : 'Monday'} · shared with your kitchen</p>
-                              </div>
-                            )}
                           </div>
                         );
                       })()}
