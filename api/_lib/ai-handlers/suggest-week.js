@@ -264,6 +264,7 @@ Use this system for all ingredient amounts in the plan.
 
 HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}
+Any time limits stated above (e.g. "weekdays under 40 min", "max 30 min school nights") are hard caps — every applicable day must have prep_time + cook_time within that limit, same as constraints in THIS WEEK SPECIFICALLY.
 
 WHO'S EATING:
 ${membersSection || '  - (no individual preferences on file)'}
@@ -382,7 +383,7 @@ Real dishes only:
   Every suggestion must be a recognisable, real-world dish.`}
 
 SELF-CHECK BEFORE OUTPUT
-For every day confirm: (a) extras are in the "extras" array only when directly requested — if you added any extras without a verbatim user request, remove them now; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) leftover_for never points at a spontaneously invented meal; (e) if a time limit was stated in THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning.
+For every day confirm: (a) extras are in the "extras" array only when directly requested — if you added any extras without a verbatim user request, remove them now; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) leftover_for never points at a spontaneously invented meal; (e) if a time limit was stated in HOUSEHOLD-LEVEL PREFERENCES or THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning.
 
 Return ONLY a JSON object, no markdown:
 {
