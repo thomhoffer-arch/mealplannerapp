@@ -1023,7 +1023,7 @@ export default function App() {
     } catch { return []; }
   });
   const [preferences, setPreferences] = useState({});
-  const [planExtrasText, setPlanExtrasText] = useState('');
+  // planExtrasText is read directly from preferences to stay in sync with onPrefsChange updates
   const [sideDishPanel, setSideDishPanel] = useState(null);
   const [clearWeekConfirm, setClearWeekConfirm] = useState(false);
   const [showEmptyGrid, setShowEmptyGrid] = useState(false);
@@ -1462,7 +1462,13 @@ export default function App() {
             if (rd?._notAtHome) showActivityToast(`${who}'s back for dinner${day ? ` on ${day}` : ''}.`);
             else if (recipe) showActivityToast(`${who} took ${recipe} off the plan.`);
           } else if (payload.eventType === 'UPDATE') {
-            showActivityToast(`${who} tweaked the plan.`);
+            const oldSkipped = payload.old?.recipe_data?._skipped;
+            const newSkipped = payload.new?.recipe_data?._skipped;
+            if (oldSkipped !== newSkipped && recipe) {
+              showActivityToast(newSkipped
+                ? `${who} skipped ${recipe}${day ? ` on ${day}` : ''}.`
+                : `${who} put ${recipe}${day ? ` on ${day}` : ''} back.`);
+            }
           }
         }
       })
@@ -1578,7 +1584,6 @@ export default function App() {
     const { data } = await supabase
       .from("household_preferences").select("*").eq("household_id", household.id).maybeSingle();
     setPreferences(data || {});
-    setPlanExtrasText(data?.plan_extras_text || '');
   }
 
   async function loadWeeklyUsage() {
@@ -1769,6 +1774,7 @@ export default function App() {
     const normalizedName = name.toLowerCase().trim();
     const tempId = `optimistic-${Date.now()}`;
     setPantryItems((prev) => [...prev, { id: tempId, name: normalizedName, amount }]);
+    markLocalWrite('pantry_items');
     await supabase.from("pantry_items").insert({ household_id: household.id, name: normalizedName, amount });
   }
 
@@ -1800,6 +1806,7 @@ export default function App() {
 
   async function removePantryItem(id) {
     setPantryItems((prev) => prev.filter((i) => i.id !== id));
+    markLocalWrite('pantry_items');
     await supabase.from("pantry_items").delete().eq("id", id);
   }
 
@@ -1823,7 +1830,7 @@ export default function App() {
   }
 
   async function loadTemplate(template) {
-    // Clear current plan and load template recipes
+    markLocalWrite('meal_plan_items');
     for (const item of mealPlanItems) {
       await supabase.from("meal_plan_items").delete().eq("id", item.id);
     }
@@ -2219,6 +2226,7 @@ export default function App() {
     if (existing) {
       // Undo: remove the marker; shopping list items auto-restore via viewRecipeObjects
       setMealPlanItems((prev) => prev.filter((i) => i.id !== existing.id));
+      markLocalWrite('meal_plan_items');
       await supabase.from('meal_plan_items').delete().eq('id', existing.id);
       return;
     }
@@ -2241,6 +2249,7 @@ export default function App() {
         }
       });
     });
+    if (toAddToPantry.length) markLocalWrite('pantry_items');
     for (const name of toAddToPantry) {
       await supabase.from('pantry_items').insert({ household_id: household.id, name, amount: '' });
     }
@@ -2248,6 +2257,7 @@ export default function App() {
     const markerData = { id: `not-at-home-${day}`, _notAtHome: true, _plannedDay: day, _weekStart: viewWeek, name: 'Not at home' };
     const tempId = `optimistic-not-at-home-${day}`;
     setMealPlanItems((prev) => [...prev, { id: tempId, recipe_id: 'not-at-home', recipe_data: markerData, household_id: household.id }]);
+    markLocalWrite('meal_plan_items');
     const { data: inserted } = await supabase.from('meal_plan_items').insert({
       household_id: household.id, recipe_id: 'not-at-home', recipe_data: markerData,
     }).select('id').single();
@@ -2257,6 +2267,7 @@ export default function App() {
   }
 
   async function toggleMealSkip(itemId) {
+    markLocalWrite('meal_plan_items');
     setMealPlanItems((prev) => prev.map((item) => {
       if (item.id !== itemId) return item;
       const updated = { ...item.recipe_data, _skipped: !item.recipe_data._skipped };
@@ -2342,6 +2353,7 @@ export default function App() {
     setMealPlanItems((prev) => prev.filter((i) => !ids.includes(i.id)));
     setClearWeekConfirm(false);
     setShowEmptyGrid(true);
+    markLocalWrite('meal_plan_items');
     supabase.from("meal_plan_items").delete().in("id", ids);
   }
 
@@ -2907,7 +2919,7 @@ export default function App() {
       {showWeekSuggest && (
         <WeekSuggestModal
           household={household}
-          planExtrasText={planExtrasText}
+          planExtrasText={preferences?.plan_extras_text || ''}
           preferences={preferences}
           language={LANG_NAMES[memberLanguage] || 'English'}
           weeklyUsage={weeklyUsage}
@@ -3461,21 +3473,14 @@ export default function App() {
                         {/* ── Dinner slot (primary) ─────────────────── */}
                         <div>
                           <div className="flex items-center gap-3 px-4 py-3.5 cursor-pointer"
-                            onClick={() => !isNotAtHome && recipe && toggleDayMeal(rid)}>
+                            onClick={() => recipe && toggleDayMeal(rid)}>
                             <div className="w-16 flex-shrink-0">
                               <p className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-orange-600' : 'text-orange-400'}`}>{day.slice(0, 3)}</p>
-                              <p className={`text-[10px] font-medium text-orange-400 ${isToday ? '' : 'invisible'}`}>today</p>
+                              <p className={`text-[10px] font-medium text-orange-400 ${(isToday || isNotAtHome) ? '' : 'invisible'}`}>
+                                {isNotAtHome ? 'away' : 'today'}
+                              </p>
                             </div>
-                            {isNotAtHome ? (
-                              <>
-                                <p className="flex-1 text-sm text-orange-300 italic">Not at home</p>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
-                                  className="text-xs text-orange-400 hover:text-orange-600 transition px-2 py-1 rounded-full border border-dashed border-orange-200 hover:border-orange-400">
-                                  Undo
-                                </button>
-                              </>
-                            ) : recipe ? (
+                            {recipe ? (
                               <>
                                 {recipe._plannerPhoto?.url && (
                                   <img src={recipe._plannerPhoto.thumbnail || recipe._plannerPhoto.url} alt={recipe._plannerPhoto.alt || recipe.name}
@@ -3495,6 +3500,10 @@ export default function App() {
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                   {isCooked && <Check size={14} className="text-sage-500" />}
+                                  <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(recipe); }}
+                                    className="text-orange-300 hover:text-red-400 transition p-1" title="Remove dinner">
+                                    <X size={13} />
+                                  </button>
                                   {expandedRecipes[rid] ? <ChevronUp size={16} className="text-orange-400" /> : <ChevronDown size={16} className="text-orange-400" />}
                                 </div>
                               </>
@@ -3525,23 +3534,27 @@ export default function App() {
                               </div>
                             ) : (
                               <>
-                                <p className="flex-1 text-sm text-orange-400 italic">Free evening</p>
+                                <p className="flex-1 text-sm text-orange-400 italic">{isNotAtHome ? 'Away — no dinner' : 'Free evening'}</p>
                                 <div className="flex items-center gap-1.5">
-                                  <button onClick={(e) => { e.stopPropagation(); setQuickEntryDay(day); setQuickEntryValue(''); }}
-                                    className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Write it in</button>
-                                  <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
-                                    className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Leftovers</button>
-                                  <button onClick={(e) => { e.stopPropagation(); setSearchTargetDay(day); setTimeout(() => searchInputRef.current?.focus(), 0); }}
-                                    className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">+ Search</button>
+                                  {!isNotAtHome && <>
+                                    <button onClick={(e) => { e.stopPropagation(); setQuickEntryDay(day); setQuickEntryValue(''); }}
+                                      className="text-xs px-3 py-1 border border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Write it in</button>
+                                    <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
+                                      className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Leftovers</button>
+                                    <button onClick={(e) => { e.stopPropagation(); setSearchTargetDay(day); setTimeout(() => searchInputRef.current?.focus(), 0); }}
+                                      className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">+ Search</button>
+                                  </>}
                                   <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
-                                    className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Away</button>
+                                    className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">
+                                    {isNotAtHome ? 'Undo away' : 'Away'}
+                                  </button>
                                 </div>
                               </>
                             )}
                           </div>
 
                           {/* Side dish + meal add buttons + away toggle */}
-                          {!isNotAtHome && recipe && (
+                          {recipe && (
                             <div className="px-4 pb-2 -mt-1 flex items-center flex-wrap gap-1.5">
                               {recipe._sideDish ? (
                                 <div className="flex items-center gap-2">
@@ -3568,7 +3581,9 @@ export default function App() {
                                 </button>
                               )}
                               <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
-                                className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">Away</button>
+                                className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">
+                                {isNotAtHome ? 'Undo away' : 'Away'}
+                              </button>
                             </div>
                           )}
 

@@ -81,7 +81,10 @@ function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor,
 
 export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences, language = 'English', weeklyUsage = null }) {
   const hasDealsAccess = !!(preferences?.is_gifted || preferences?.gemini_api_key_hint);
-  const [numWeeks, setNumWeeks]         = useState(1);
+  const hhKey = household?.id ? `mp:hh:${household.id}` : null;
+  const [numWeeks, setNumWeeks]         = useState(() => {
+    try { return Number(localStorage.getItem(`${hhKey}:numWeeks`)) || 1; } catch { return 1; }
+  });
   const [loading, setLoading]           = useState(false);
   const [plan, setPlan]                 = useState(null);
   const [notes, setNotes]               = useState('');
@@ -93,7 +96,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [swapInput, setSwapInput]       = useState({});
   const [swappingKey, setSwappingKey]   = useState(null);
   const [thisWeekWishes, setThisWeekWishes] = useState('');
-  const [weeklyBudget, setWeeklyBudget]   = useState('');   // optional €/week
+  const [weeklyBudget, setWeeklyBudget]   = useState(() => {
+    try { return localStorage.getItem(`${hhKey}:weeklyBudget`) || ''; } catch { return ''; }
+  });
   const [simpleNight, setSimpleNight]     = useState(false); // include one easy night
   const [deals, setDeals]               = useState([]);    // fetched supermarket deals
   const [dealsLoading, setDealsLoading] = useState(false);
@@ -121,6 +126,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     "Making sure no one gets pasta three days running…",
     "Checking the fridge knows what's coming…",
   ];
+
+  useEffect(() => { try { if (hhKey) localStorage.setItem(`${hhKey}:numWeeks`, numWeeks); } catch {} }, [numWeeks, hhKey]);
+  useEffect(() => { try { if (hhKey) localStorage.setItem(`${hhKey}:weeklyBudget`, weeklyBudget); } catch {} }, [weeklyBudget, hhKey]);
 
   useEffect(() => {
     if (!loading) return;
