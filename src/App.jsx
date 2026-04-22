@@ -1001,6 +1001,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('mp:activeTab') || "week");
   const [basketSection, setBasketSection] = useState("shopping");
   const [householdMembers, setHouseholdMembers] = useState([]);
+  useEffect(() => { householdMembersRef.current = householdMembers; }, [householdMembers]);
   const [editingHouseholdName, setEditingHouseholdName] = useState(false);
   const [householdNameDraft, setHouseholdNameDraft] = useState('');
   const searchInputRef = useRef(null);
@@ -1278,15 +1279,28 @@ export default function App() {
     supabase.from('household_members').select('display_name, user_id, personal_prefs').eq('household_id', household.id)
       .then(({ data }) => setHouseholdMembers(data || []));
 
+    function otherName() {
+      const others = householdMembersRef.current.filter((m) => m.user_id !== user?.id);
+      return others.length === 1 ? (others[0].display_name || 'Your partner') : 'Your partner';
+    }
     const channel = supabase
       .channel(`hh-${household.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "meal_plan_items", filter: `household_id=eq.${household.id}` }, (payload) => {
         loadMealPlan();
         if (!wasLocalWrite('meal_plan_items')) {
-          const name = payload.new?.recipe_data?.name || payload.old?.recipe_data?.name;
-          if (payload.eventType === 'INSERT' && name) showActivityToast(`${name} added to the plan`);
-          else if (payload.eventType === 'DELETE' && name) showActivityToast(`${name} removed from the plan`);
-          else if (payload.eventType === 'UPDATE') showActivityToast('Meal plan updated');
+          const rd = payload.new?.recipe_data || payload.old?.recipe_data;
+          const who = otherName();
+          const recipe = rd?.name;
+          const day = rd?._plannedDay;
+          if (payload.eventType === 'INSERT') {
+            if (rd?._notAtHome) showActivityToast(`${who} won't be home for dinner${day ? ` on ${day}` : ''}.`);
+            else if (recipe) showActivityToast(`${who} put ${recipe}${day ? ` on ${day}` : ''} on the plan.`);
+          } else if (payload.eventType === 'DELETE') {
+            if (rd?._notAtHome) showActivityToast(`${who}'s back for dinner${day ? ` on ${day}` : ''}.`);
+            else if (recipe) showActivityToast(`${who} took ${recipe} off the plan.`);
+          } else if (payload.eventType === 'UPDATE') {
+            showActivityToast(`${who} tweaked the plan.`);
+          }
         }
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "custom_ingredients", filter: `household_id=eq.${household.id}` }, loadCustomIngredients)
@@ -1294,24 +1308,28 @@ export default function App() {
       .on("postgres_changes", { event: "*", schema: "public", table: "shopping_checks", filter: `household_id=eq.${household.id}` }, (payload) => {
         loadCheckedItems();
         if (!wasLocalWrite('shopping_checks')) {
-          if (payload.eventType === 'INSERT') showActivityToast(`${payload.new?.item_name || 'Item'} checked off`);
-          else if (payload.eventType === 'DELETE') showActivityToast('Shopping list updated');
+          const who = otherName();
+          const item = payload.new?.item_name || payload.old?.item_name;
+          if (payload.eventType === 'INSERT' && item) showActivityToast(`${who} ticked ${item} off the list.`);
+          else if (payload.eventType === 'DELETE' && item) showActivityToast(`${who} put ${item} back on the list.`);
         }
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "starred_recipes", filter: `household_id=eq.${household.id}` }, (payload) => {
         loadStarred();
         if (!wasLocalWrite('starred_recipes')) {
-          const name = payload.new?.recipe_data?.name || payload.old?.recipe_data?.name;
-          if (payload.eventType === 'INSERT' && name) showActivityToast(`${name} starred`);
-          else if (payload.eventType === 'DELETE' && name) showActivityToast(`${name} unstarred`);
+          const who = otherName();
+          const recipe = payload.new?.recipe_data?.name || payload.old?.recipe_data?.name;
+          if (payload.eventType === 'INSERT' && recipe) showActivityToast(`${who} starred ${recipe}.`);
+          else if (payload.eventType === 'DELETE' && recipe) showActivityToast(`${who} unstarred ${recipe}.`);
         }
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "pantry_items", filter: `household_id=eq.${household.id}` }, (payload) => {
         loadPantry();
         if (!wasLocalWrite('pantry_items')) {
-          const name = payload.new?.name || payload.old?.name;
-          if (payload.eventType === 'INSERT' && name) showActivityToast(`${name} added to pantry`);
-          else if (payload.eventType === 'DELETE' && name) showActivityToast(`${name} removed from pantry`);
+          const who = otherName();
+          const item = payload.new?.name || payload.old?.name;
+          if (payload.eventType === 'INSERT' && item) showActivityToast(`${who} added ${item} to the pantry.`);
+          else if (payload.eventType === 'DELETE' && item) showActivityToast(`${who} used up the ${item}.`);
         }
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "user_recipes",       filter: `household_id=eq.${household.id}` }, loadUserRecipes)
@@ -1320,7 +1338,7 @@ export default function App() {
           .then(({ data }) => setHouseholdMembers(data || []));
         if (!wasLocalWrite('household_members') && payload.eventType === 'INSERT') {
           const name = payload.new?.display_name;
-          if (name) showActivityToast(`${name} joined the household`);
+          if (name) showActivityToast(`${name} joined the kitchen.`);
         }
       })
       .subscribe();
@@ -1463,6 +1481,10 @@ export default function App() {
   useEffect(() => {
     if (!household) return;
     if (preferences.notifications_enabled === false) return; // user opted out
+    function otherName() {
+      const others = householdMembersRef.current.filter((m) => m.user_id !== user?.id);
+      return others.length === 1 ? (others[0].display_name || 'Your partner') : 'Your partner';
+    }
     function addNotification(message) {
       setNotifications((prev) => [
         { id: Date.now(), message, timestamp: new Date(), read: false, household_id: household.id },
@@ -1472,11 +1494,31 @@ export default function App() {
     const channel = supabase
       .channel(`notif-${household.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'meal_plan_items', filter: `household_id=eq.${household.id}` },
-        (p) => addNotification(`${p.new?.recipe_data?.name || 'A recipe'} was added to the meal plan`))
+        (p) => {
+          if (wasLocalWrite('meal_plan_items')) return;
+          const who = otherName();
+          const rd = p.new?.recipe_data;
+          const recipe = rd?.name;
+          const day = rd?._plannedDay;
+          if (rd?._notAtHome) addNotification(`${who} won't be home for dinner${day ? ` on ${day}` : ''}.`);
+          else if (recipe) addNotification(`${who} put ${recipe}${day ? ` on the plan for ${day}` : ' on the plan'}.`);
+        })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'meal_plan_items', filter: `household_id=eq.${household.id}` },
-        (p) => addNotification(`${p.old?.recipe_data?.name || 'A recipe'} was removed from the meal plan`))
+        (p) => {
+          if (wasLocalWrite('meal_plan_items')) return;
+          const who = otherName();
+          const rd = p.old?.recipe_data;
+          const recipe = rd?.name;
+          const day = rd?._plannedDay;
+          if (recipe) addNotification(`${who} took ${recipe}${day ? ` off ${day}` : ' off the plan'}.`);
+        })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'starred_recipes', filter: `household_id=eq.${household.id}` },
-        (p) => addNotification(`${p.new?.recipe_data?.name || 'A recipe'} was starred`))
+        (p) => {
+          if (wasLocalWrite('starred_recipes')) return;
+          const who = otherName();
+          const recipe = p.new?.recipe_data?.name;
+          if (recipe) addNotification(`${who} saved ${recipe} to the favourites.`);
+        })
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, [household?.id, preferences.notifications_enabled]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1660,6 +1702,7 @@ export default function App() {
   const basketToastTimer = useRef(null);
   const activityToastTimer = useRef(null);
   const localWriteTs = useRef({});
+  const householdMembersRef = useRef([]);
 
   function markLocalWrite(table) {
     localWriteTs.current[table] = Date.now();

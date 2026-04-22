@@ -346,14 +346,10 @@ Dietary constraints:
   Adaptive diets (gluten-free, dairy-free, vegan, etc.) — keep the dish concept, adapt the ingredients, name the adaptation in the title.
 
 Variety — applies across ALL meals chosen in the plan:
-  Look at every dinner, breakfast, lunch, and snack together. No hero ingredient should appear in two meals that are close together — not just dinner vs dinner, but across all meal types on nearby days.
+  Treat every dinner, breakfast, lunch, and snack as one unified weekly menu. No hero ingredient should appear in two meals close together — across all meal types, not just dinner vs dinner. Extras (breakfasts, lunches, snacks) must also be checked against each other: a hero ingredient used at breakfast cannot reappear at lunch the same day or at breakfast the following day.
   Examples of hero ingredients: eggs, chicken, beef, salmon, pasta, lentils, tofu, shrimp, pork.
   A dinner and an extra on the same day must be meaningfully different from each other.
   Vary cuisines across the week. Spread themed days (fish, vegetarian, etc.) naturally.
-
-  BREAKFAST VARIETY — MANDATORY:
-  Eggs (in any form: scrambled, fried, omelette, shakshuka, etc.) may appear at most ONCE across the entire week's breakfasts. If eggs appear as a dinner ingredient that week, do not use eggs as a breakfast at all.
-  Each breakfast must be a genuinely different dish category: e.g. one day porridge, one day yoghurt, one day toast/bread, one day pancakes, one day fruit bowl, one day smoothie bowl, one day granola. Never repeat a category two days in a row.
 
 Starred recipes:
   HIGH-priority starred recipes should appear in week 1. Respect rotation priorities.
