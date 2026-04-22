@@ -199,6 +199,44 @@ async function _handler(req, res) {
     }),
   }));
 
+  // ── Server-side time-limit enforcement ──────────────────────────────────────
+  // Parse weekday time caps from the user's "this week" text (e.g. "Weekdays less than 35 minutes").
+  // Any weekday whose prep+cook exceeds the cap gets swapped inline before we return.
+  const weekdayCap = parseWeekdayTimeCap(this_week_wishes);
+  if (weekdayCap !== null) {
+    const WEEKDAY_SET = new Set(['monday','tuesday','wednesday','thursday','friday']);
+    const allDayNames = enrichedWeeks.flatMap((w) => w.days.map((d) => d.recipe?.name).filter(Boolean));
+
+    const fixTasks = enrichedWeeks.flatMap((week) =>
+      week.days.map(async (day) => {
+        if (day.skip || !day.recipe) return;
+        if (!WEEKDAY_SET.has((day.day || '').toLowerCase())) return;
+        const total = (day.recipe.prepTime || 0) + (day.recipe.cookTime || 0);
+        if (total <= weekdayCap) return;
+
+        const fixPrompt = `Suggest ONE dinner recipe for ${day.day} that takes ${weekdayCap} minutes or less total (prep + cook combined).
+Context: ${preferences ? `Household preferences: ${preferences}.` : ''} Other meals this week: ${allDayNames.filter((n) => n !== day.recipe.name).slice(0, 6).join(', ') || 'none'}.
+Return ONLY valid JSON (no markdown): {"name":"...","overview":"...","prep_time":<number>,"cook_time":<number>}`;
+        try {
+          const fixText = await callAi(provider, token, fixPrompt);
+          const cleaned = (fixText || '').replace(/```json\n?|\n?```/g, '').trim();
+          const fix = JSON.parse(cleaned);
+          if (fix?.name && (fix.prep_time || 0) + (fix.cook_time || 0) <= weekdayCap) {
+            day.recipe = {
+              ...day.recipe,
+              id: `ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              name: fix.name,
+              overview: fix.overview || '',
+              prepTime: fix.prep_time || null,
+              cookTime: fix.cook_time || null,
+            };
+          }
+        } catch {}
+      })
+    );
+    await Promise.all(fixTasks);
+  }
+
   // Fire all Pexels lookups in parallel (dinner + extras); fails soft per item.
   await Promise.all(enrichedWeeks.flatMap((week) =>
     week.days.flatMap((day) => {
@@ -219,6 +257,23 @@ async function _handler(req, res) {
 // Basics assumed in every kitchen — exclude from the pantry hint so the AI
 // focuses on actual special ingredients the household has stocked.
 const _isKitchenBasic = (name) => /\boil\b|\bsalt\b|\bpepper\b|\bwater\b/i.test(name);
+
+function parseWeekdayTimeCap(text) {
+  if (!text) return null;
+  // Matches patterns like "weekdays under 35 min", "weekdays less than 35 minutes",
+  // "weekdays max 40 min", "under 35 min on weekdays", "less than 35 min weekdays"
+  const patterns = [
+    /weekdays?\s+(?:under|less\s+than|max|no\s+more\s+than|<|≤)\s*(\d+)\s*min/i,
+    /(?:under|less\s+than|max|no\s+more\s+than|<|≤)\s*(\d+)\s*min(?:utes?)?\s+(?:on\s+)?weekdays?/i,
+    /weekdays?\s+(\d+)\s*min(?:utes?)?\s+or\s+less/i,
+    /(\d+)\s*min(?:utes?)?\s+or\s+less\s+(?:on\s+)?weekdays?/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) return parseInt(m[1], 10);
+  }
+  return null;
+}
 
 function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English') {
   let starredSection = '';
