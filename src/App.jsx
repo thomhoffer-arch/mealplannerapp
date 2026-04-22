@@ -209,6 +209,8 @@ function ingredientKey(rawName) {
   while (parts.length > 1 && _FORM_TOKENS.has(parts[parts.length - 1])) parts.pop();
   // "fresh parsley" → "parsley"
   while (parts.length > 1 && _QUAL_TOKENS.has(parts[0])) parts.shift();
+  // "2 garlic" → "garlic" (embedded quantity didn't get extracted yet)
+  while (parts.length > 1 && /^[0-9½¼¾⅓⅔⅛\/]+$/.test(parts[0])) parts.shift();
   return parts.join(' ');
 }
 
@@ -315,9 +317,28 @@ function mergeAmounts(rawAmounts, system = 'metric') {
 
   const counts = specific.filter((p) => p.kind === 'count');
   if (counts.length) {
-    const byUnit = new Map();
-    for (const p of counts) byUnit.set(p.unit, (byUnit.get(p.unit) || 0) + p.qty);
-    for (const [u, total] of byUnit) parts.push(u ? `${_formatFrac(total)} ${u}` : _formatFrac(total));
+    // Normalize plurals so "1 clove" + "11 cloves" → "12 cloves"
+    const singularize = (u) => {
+      if (!u || u.length <= 2) return u;
+      if (u.endsWith('ves') && u.length > 3) return u.slice(0, -3) + 'f'; // halves→half
+      if ((u.endsWith('ches') || u.endsWith('ses')) && u.length > 4) return u.slice(0, -2); // bunches→bunch
+      if (u.endsWith('s')) return u.slice(0, -1);
+      return u;
+    };
+    const byUnit = new Map(); // singular key → { total, displayUnit }
+    for (const p of counts) {
+      const key = singularize(p.unit);
+      if (byUnit.has(key)) {
+        const e = byUnit.get(key);
+        e.total += p.qty;
+        if (p.unit.length > e.displayUnit.length) e.displayUnit = p.unit; // prefer plural form
+      } else {
+        byUnit.set(key, { total: p.qty, displayUnit: p.unit });
+      }
+    }
+    for (const { total, displayUnit } of byUnit.values()) {
+      parts.push(displayUnit ? `${_formatFrac(total)} ${displayUnit}` : _formatFrac(total));
+    }
   }
 
   const seen = new Set();
@@ -338,26 +359,42 @@ function consolidateIngredients(selectedRecipes, customIngredients, measurementS
 
   const addSingle = (rawName, amount, extra = {}) => {
     if (_SERVING_SUFFIX.test(rawName)) return;
-    const key = ingredientKey(rawName);
+    // If the AI baked a bare count into the name ("2 garlic cloves", amount="") extract it
+    // so "2 garlic cloves" and "1 garlic clove" consolidate to the same item with amount 3.
+    // Only do this when there is no explicit amount and the first token is purely numeric.
+    let name = rawName, amt = amount;
+    if (!amt) {
+      const spIdx = name.indexOf(' ');
+      if (spIdx > 0 && /^[0-9½¼¾⅓⅔⅛\/]+$/.test(name.slice(0, spIdx))) {
+        amt = name.slice(0, spIdx);
+        name = name.slice(spIdx + 1).trim();
+      }
+    }
+    const key = ingredientKey(name);
     if (!key || key.startsWith('leftover')) return;
     if (items[key]) {
-      items[key].amounts.push(amount);
+      items[key].amounts.push(amt);
     } else {
-      const displayName = normalizeIngredientName(rawName.split(/ or /i)[0].trim()).toLowerCase();
-      items[key] = { name: displayName, amounts: [amount], ...extra };
+      const displayName = normalizeIngredientName(name.split(/ or /i)[0].trim()).toLowerCase();
+      items[key] = { name: displayName, amounts: [amt], ...extra };
     }
   };
 
   // Split "X and Y" compound entries the AI occasionally generates as one ingredient.
   // Each part inherits the same amount so pantry matching and dedup work correctly.
-  // Only split on "and" in the base name (before the first comma) so that prep notes
-  // like "shrimp, peeled and deveined" don't produce a spurious "deveined" item.
+  // Guards:
+  //   1. Only split on "and" in the base name (before the first comma) so that prep notes
+  //      like "shrimp, peeled and deveined" don't produce a spurious "deveined" item.
+  //   2. Discard any part that consists entirely of PREP_WORDS (e.g. bare "deveined"
+  //      when there's no comma) — those are descriptors, not purchasable ingredients.
+  const _isPrepOnly = (s) => s.trim().toLowerCase().split(/\s+/).every((w) => PREP_WORDS.includes(w));
   const add = (rawName, amount, extra = {}) => {
     const commaIdx = rawName.indexOf(',');
     const baseForSplit = commaIdx > 0 ? rawName.slice(0, commaIdx).trim() : rawName;
     const parts = baseForSplit.split(/ and /i);
     if (parts.length > 1) {
-      parts.forEach((p) => addSingle(p.trim(), amount, extra));
+      const realParts = parts.map((p) => p.trim()).filter((p) => p && !_isPrepOnly(p));
+      (realParts.length ? realParts : [rawName]).forEach((p) => addSingle(p, amount, extra));
     } else {
       addSingle(rawName, amount, extra);
     }
