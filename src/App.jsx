@@ -996,6 +996,8 @@ export default function App() {
   const [joiningHousehold, setJoiningHousehold] = useState(false);
   const [joinHouseholdError, setJoinHouseholdError] = useState('');
   const [memberLanguage, setMemberLanguage] = useState('en');
+  const [macroTrackingEnabled, setMacroTrackingEnabled] = useState(false);
+  const [macroTargets, setMacroTargets] = useState({ calories: null, protein: null, carbs: null, fat: null });
   const [weeklyUsage, setWeeklyUsage] = useState(null); // { used, limit, unlimited, credits }
   const [creatingHousehold, setCreatingHousehold] = useState(false);
   const [newHouseholdName, setNewHouseholdName] = useState('');
@@ -1252,6 +1254,23 @@ export default function App() {
           setMemberProfile((m) => ({ ...m, language: data.language }));
         }
       });
+
+    supabase.from('household_members')
+      .select('macro_tracking_enabled, macro_target_calories, macro_target_protein, macro_target_carbs, macro_target_fat')
+      .eq('household_id', active.household_id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setMacroTrackingEnabled(data.macro_tracking_enabled || false);
+          setMacroTargets({
+            calories: data.macro_target_calories ?? null,
+            protein:  data.macro_target_protein  ?? null,
+            carbs:    data.macro_target_carbs    ?? null,
+            fat:      data.macro_target_fat      ?? null,
+          });
+        }
+      });
   }
 
   async function shareRecipe(recipe) {
@@ -1267,6 +1286,27 @@ export default function App() {
     setMemberProfile((m) => ({ ...m, language: code }));
     await supabase.from('household_members')
       .update({ language: code })
+      .eq('household_id', household.id)
+      .eq('user_id', user.id);
+  }
+
+  async function saveMacroTrackingEnabled(enabled) {
+    setMacroTrackingEnabled(enabled);
+    await supabase.from('household_members')
+      .update({ macro_tracking_enabled: enabled })
+      .eq('household_id', household.id)
+      .eq('user_id', user.id);
+  }
+
+  async function saveMacroTargets(targets) {
+    setMacroTargets(targets);
+    await supabase.from('household_members')
+      .update({
+        macro_target_calories: targets.calories || null,
+        macro_target_protein:  targets.protein  || null,
+        macro_target_carbs:    targets.carbs    || null,
+        macro_target_fat:      targets.fat      || null,
+      })
       .eq('household_id', household.id)
       .eq('user_id', user.id);
   }
@@ -2599,6 +2639,69 @@ export default function App() {
                   </select>
                 </div>
               </div>
+              {/* Macro tracking (premium) */}
+              {(() => {
+                const isUnlimited = !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+                return (
+                  <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Macro Tracking</p>
+                      {!isUnlimited && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-500 uppercase tracking-wide">Premium</span>
+                      )}
+                    </div>
+                    {!isUnlimited ? (
+                      <p className="text-xs text-orange-400 mt-1">Upgrade to track daily calories, protein, carbs and fat in the week view.</p>
+                    ) : (
+                      <div className="space-y-3 mt-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-sm text-orange-900 font-medium">Track daily macros</span>
+                            <p className="text-xs text-orange-400">Show nutrition totals per day in the week view</p>
+                          </div>
+                          <button
+                            onClick={() => saveMacroTrackingEnabled(!macroTrackingEnabled)}
+                            className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${macroTrackingEnabled ? 'bg-orange-500' : 'bg-orange-100'}`}
+                          >
+                            <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${macroTrackingEnabled ? 'left-5' : 'left-1'}`} />
+                          </button>
+                        </div>
+                        {macroTrackingEnabled && (
+                          <div className="border-t border-orange-50 pt-3 space-y-2">
+                            <p className="text-xs text-orange-400 font-medium">Daily targets (optional)</p>
+                            {[
+                              { key: 'calories', label: 'Calories', unit: 'kcal' },
+                              { key: 'protein',  label: 'Protein',  unit: 'g' },
+                              { key: 'carbs',    label: 'Carbs',    unit: 'g' },
+                              { key: 'fat',      label: 'Fat',      unit: 'g' },
+                            ].map(({ key, label, unit }) => (
+                              <div key={key} className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-orange-800 w-20 flex-shrink-0">{label}</span>
+                                <div className="flex items-center gap-1.5 flex-1 justify-end">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    placeholder="—"
+                                    value={macroTargets[key] ?? ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
+                                      const next = { ...macroTargets, [key]: val };
+                                      setMacroTargets(next);
+                                    }}
+                                    onBlur={() => saveMacroTargets(macroTargets)}
+                                    className="w-20 border border-orange-200 rounded-lg px-2 py-1 text-sm text-right text-orange-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                                  />
+                                  <span className="text-xs text-orange-400 w-8">{unit}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {/* Appearance: theme, units, Gemini key, Puter */}
               <div className="bg-white rounded-2xl border border-orange-100 p-4">
                 <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Appearance & AI</p>
@@ -3405,6 +3508,54 @@ export default function App() {
                                 className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">Away</button>
                             </div>
                           )}
+
+                          {/* Daily macro progress bars (premium, when tracking enabled) */}
+                          {macroTrackingEnabled && !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint) && !isNotAtHome && allDayItems.length > 0 && (() => {
+                            const dayMacros = allDayItems.reduce((acc, item) => {
+                              const m = item.recipe_data?.macros || {};
+                              const s = item.recipe_data?.servings || 1;
+                              return {
+                                calories: acc.calories + (m.calories || 0) * s,
+                                protein:  acc.protein  + (m.protein  || 0) * s,
+                                carbs:    acc.carbs    + (m.carbs    || 0) * s,
+                                fat:      acc.fat      + (m.fat      || 0) * s,
+                              };
+                            }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+                            const hasMacroData = dayMacros.calories > 0 || dayMacros.protein > 0;
+                            if (!hasMacroData) return null;
+                            const bars = [
+                              { key: 'calories', label: 'Cal',  unit: 'kcal', color: 'bg-orange-400' },
+                              { key: 'protein',  label: 'Pro',  unit: 'g',    color: 'bg-sage-500' },
+                              { key: 'carbs',    label: 'Carb', unit: 'g',    color: 'bg-amber-400' },
+                              { key: 'fat',      label: 'Fat',  unit: 'g',    color: 'bg-orange-300' },
+                            ];
+                            return (
+                              <div className="px-4 pb-3 pt-1 border-t border-orange-50">
+                                <div className="grid grid-cols-4 gap-2">
+                                  {bars.map(({ key, label, unit, color }) => {
+                                    const val = Math.round(dayMacros[key]);
+                                    const target = macroTargets[key];
+                                    const pct = target ? Math.min(100, (val / target) * 100) : null;
+                                    const over = target && val > target;
+                                    return (
+                                      <div key={key} className="flex flex-col gap-0.5">
+                                        <div className="flex items-baseline justify-between">
+                                          <span className="text-[10px] font-bold text-orange-400 uppercase">{label}</span>
+                                          <span className={`text-[10px] font-medium ${over ? 'text-red-400' : 'text-orange-600'}`}>{val}{unit === 'g' ? 'g' : ''}</span>
+                                        </div>
+                                        {pct !== null && (
+                                          <div className="w-full bg-orange-100 rounded-full h-1">
+                                            <div className={`h-1 rounded-full transition-all ${over ? 'bg-red-400' : color}`} style={{ width: `${pct}%` }} />
+                                          </div>
+                                        )}
+                                        {target && <span className="text-[9px] text-orange-300">/ {target}{unit === 'g' ? 'g' : ''}</span>}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
 
                           {/* Expanded dinner recipe */}
                           {!isNotAtHome && recipe && expandedRecipes[rid] && (
