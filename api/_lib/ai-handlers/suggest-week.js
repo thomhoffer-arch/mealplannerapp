@@ -43,7 +43,7 @@ async function _handler(req, res) {
   const { provider, token, usingSharedKey } = await resolveAiProvider(supabase, ctx.householdId);
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
-  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId))) {
+  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId, ctx.user.id))) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({

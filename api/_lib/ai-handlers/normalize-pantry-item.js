@@ -17,7 +17,7 @@ export default async function handleNormalizePantryItem(req, res) {
   const { provider, token, usingSharedKey } = await resolveAiProvider(supabase, ctx.householdId);
 
   // Only available for own-key users and gifted households — no shared quota spent.
-  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId))) {
+  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId, ctx.user.id))) {
     return res.status(403).json({ error: 'own_key_required' });
   }
 

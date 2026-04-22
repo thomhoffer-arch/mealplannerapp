@@ -1,5 +1,5 @@
 import { requireAuth } from '../_lib/auth.js';
-import { isGiftedHousehold, memberBasedLimit, currentWeekKey, weekStartDayFromReminder } from '../_lib/usage.js';
+import { isUserPremium, memberBasedLimit, currentWeekKey, weekStartDayFromReminder } from '../_lib/usage.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();
@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   const { supabase, householdId } = ctx;
 
   const [giftedResult, prefsResult, limit] = await Promise.all([
-    isGiftedHousehold(supabase, householdId),
+    isUserPremium(supabase, householdId, ctx.user.id),
     supabase.from('household_preferences')
       .select('gemini_api_key_hint, puter_token_hint, ai_credits, reminder_day')
       .eq('household_id', householdId)
