@@ -2641,7 +2641,7 @@ export default function App() {
               </div>
               {/* Macro tracking (premium) */}
               {(() => {
-                const isUnlimited = !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+                const isUnlimited = weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
                 return (
                   <div className="bg-white rounded-2xl border border-orange-100 p-4">
                     <div className="flex items-center justify-between mb-1">
@@ -3563,7 +3563,7 @@ export default function App() {
                           )}
 
                           {/* Daily macro progress bars (premium, when tracking enabled) */}
-                          {macroTrackingEnabled && !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint) && !isNotAtHome && allDayItems.length > 0 && (() => {
+                          {macroTrackingEnabled && (weeklyUsage?.unlimited ?? !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint)) && !isNotAtHome && allDayItems.length > 0 && (() => {
                             const dayMacros = allDayItems.reduce((acc, item) => {
                               const m = item.recipe_data?.macros || {};
                               const s = item.recipe_data?.servings || 1;
@@ -4299,6 +4299,11 @@ export default function App() {
                               <span className="text-xs font-bold text-orange-600">{(m.display_name || '?')[0].toUpperCase()}</span>
                             </div>
                             <span className="text-sm text-orange-900 flex-1">{m.display_name || 'Member'}{isSelf && ' (you)'}</span>
+                            {weeklyUsage?.unlimited && (
+                              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-orange-600 border border-orange-100 flex-shrink-0">
+                                {weeklyUsage.gifted ? 'Gifted' : 'Premium'}
+                              </span>
+                            )}
                             {!isSelf && householdMembers.length > 1 && (
                               <button
                                 onClick={() => removeMember(m.user_id, m.display_name)}
@@ -4438,20 +4443,6 @@ export default function App() {
                     onClose={loadPreferences}
                   />
                 </div>
-
-                {/* Premium badge for gifted households */}
-                {weeklyUsage?.unlimited && weeklyUsage?.gifted && (
-                  <div className="bg-white rounded-2xl border border-sage-200 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-semibold text-sage-700 uppercase tracking-wide mb-0.5">Plan</p>
-                        <p className="text-sm font-semibold text-orange-900">Premium</p>
-                      </div>
-                      <span className="text-xs font-medium text-sage-700 bg-sage-100 px-2.5 py-1 rounded-full">Active</span>
-                    </div>
-                    <p className="text-[11px] text-sage-600 mt-2 leading-relaxed">Unlimited AI · 8 recipe results · all features included.</p>
-                  </div>
-                )}
 
                 {/* AI usage */}
                 {weeklyUsage && !weeklyUsage.unlimited && (
