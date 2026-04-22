@@ -32,7 +32,7 @@ export default async function handleSuggestWeek(req, res) {
 async function _handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { weeks = 1, plan_extras_text = '', day_notes = {}, this_week_wishes = '', weekly_budget = null, simple_night = false, deals = [] } = req.body || {};
+  const { weeks = 1, plan_extras_text = '', day_notes = {}, this_week_wishes = '', weekly_budget = null, simple_night = false, deals = [], language = 'English' } = req.body || {};
   const numWeeks = Math.min(Math.max(Number(weeks) || 1, 1), 2);
 
   const ctx = await requireAuth(req, res);
@@ -97,7 +97,7 @@ async function _handler(req, res) {
   const recentNames = (recentPlanData || []).slice(0, 10).map((i) => i.recipe_data?.name).filter(Boolean);
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
 
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language);
 
   let rawText;
   try {
@@ -219,7 +219,7 @@ async function _handler(req, res) {
 // focuses on actual special ingredients the household has stocked.
 const _isKitchenBasic = (name) => /\boil\b|\bsalt\b|\bpepper\b|\bwater\b/i.test(name);
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric') {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English') {
   let starredSection = '';
   for (const [p, recipes] of Object.entries(byPriority)) {
     if (recipes.length === 0) continue;
@@ -254,6 +254,9 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, pl
 ---
 
 You plan meals for a household. Write dish names, overviews and notes in the voice above. Plan ${weeksText} of dinners, plus any extra meals (breakfast, lunch, snacks) the household has asked for.
+
+LANGUAGE: ${language}
+Write every dish name, description, overview, reason, and note in ${language}. Use natural native names for dishes where they exist. JSON field names and structure stay in English.
 
 MEASUREMENT SYSTEM: ${measurementSystem === 'imperial' ? 'Imperial (oz, lb, cups, tsp, tbsp, fl oz)' : 'Metric (g, kg, ml, L, tsp, tbsp)'}
 Use this system for all ingredient amounts in the plan.

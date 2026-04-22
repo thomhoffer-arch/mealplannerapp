@@ -25,6 +25,26 @@ import ThemeToggle from "./components/ThemeToggle";
 import { applyTheme } from "./lib/theme";
 import { GlyphPot, GlyphSpyglass, GlyphLink, GlyphBasket, Scribble } from "./components/glyphs";
 
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'nl', label: 'Nederlands' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'it', label: 'Italiano' },
+  { code: 'pt', label: 'Português' },
+  { code: 'pl', label: 'Polski' },
+  { code: 'sv', label: 'Svenska' },
+  { code: 'da', label: 'Dansk' },
+  { code: 'no', label: 'Norsk' },
+  { code: 'tr', label: 'Türkçe' },
+];
+const LANG_NAMES = {
+  en: 'English', nl: 'Dutch', de: 'German', fr: 'French',
+  es: 'Spanish', it: 'Italian', pt: 'Portuguese', pl: 'Polish',
+  sv: 'Swedish', da: 'Danish', no: 'Norwegian', tr: 'Turkish',
+};
+
 const SOURCE_COLORS = {
   "My Recipes":    "bg-orange-100 text-orange-600",
   "AI Suggestion": "bg-orange-100 text-orange-600",
@@ -967,7 +987,15 @@ export default function App() {
   const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [showAppInvitePanel, setShowAppInvitePanel] = useState(false);
   const [appInviteCopied, setAppInviteCopied] = useState(false);
-  const [profileSubTab, setProfileSubTab] = useState('personal');
+  const [profileSubTab, setProfileSubTab] = useState('household');
+  const [joinLinkInput, setJoinLinkInput] = useState('');
+  const [joiningHousehold, setJoiningHousehold] = useState(false);
+  const [joinHouseholdError, setJoinHouseholdError] = useState('');
+  const [memberLanguage, setMemberLanguage] = useState('en');
+  const [creatingHousehold, setCreatingHousehold] = useState(false);
+  const [newHouseholdName, setNewHouseholdName] = useState('');
+  const [savingNewHousehold, setSavingNewHousehold] = useState(false);
+  const [createHouseholdError, setCreateHouseholdError] = useState('');
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
@@ -1148,7 +1176,7 @@ export default function App() {
     async function readMemberships() {
       const { data, error } = await supabase
         .from("household_members")
-        .select("household_id, display_name, personal_prefs, onboarded_at, households(*)")
+        .select("household_id, display_name, personal_prefs, onboarded_at, language, households(*)")
         .eq("user_id", user.id);
       return { rows: (data || []).filter((r) => r.households), error };
     }
@@ -1199,7 +1227,9 @@ export default function App() {
       display_name:   active.display_name,
       personal_prefs: active.personal_prefs,
       onboarded_at:   active.onboarded_at,
+      language:       active.language || 'en',
     });
+    setMemberLanguage(active.language || 'en');
     setAuthLoading(false);
   }
 
@@ -1209,6 +1239,63 @@ export default function App() {
       body: { action: 'share', recipe },
     });
     return shareUrl;
+  }
+
+  async function saveLanguage(code) {
+    setMemberLanguage(code);
+    setMemberProfile((m) => ({ ...m, language: code }));
+    await supabase.from('household_members')
+      .update({ language: code })
+      .eq('household_id', household.id)
+      .eq('user_id', user.id);
+  }
+
+  async function createNewHousehold() {
+    if (!newHouseholdName.trim()) return;
+    setSavingNewHousehold(true);
+    setCreateHouseholdError('');
+    try {
+      const data = await apiFetch('/api/household/create', {
+        method: 'POST',
+        body: { name: newHouseholdName.trim() },
+      });
+      setNewHouseholdName('');
+      setCreatingHousehold(false);
+      loadHousehold();
+      // Switch immediately to the new household
+      if (data?.household?.id) setActiveHouseholdId(data.household.id);
+    } catch (err) {
+      setCreateHouseholdError(err.message || "Couldn't create the household — try again.");
+    } finally {
+      setSavingNewHousehold(false);
+    }
+  }
+
+  async function joinHouseholdByLink() {
+    setJoinHouseholdError('');
+    let token;
+    try {
+      const url = new URL(joinLinkInput.trim());
+      token = url.searchParams.get('invite');
+    } catch {
+      setJoinHouseholdError("That doesn't look like a valid link — try copying it again.");
+      return;
+    }
+    if (!token) {
+      setJoinHouseholdError("No invite token found in that link.");
+      return;
+    }
+    setJoiningHousehold(true);
+    try {
+      const { error } = await supabase.rpc('join_household_by_token', { p_token: token, p_user_id: user.id });
+      if (error) throw error;
+      setJoinLinkInput('');
+      loadHousehold();
+    } catch (err) {
+      setJoinHouseholdError(err.message || "Couldn't join — check the link and try again.");
+    } finally {
+      setJoiningHousehold(false);
+    }
   }
 
   async function leaveHousehold() {
@@ -1255,7 +1342,9 @@ export default function App() {
       display_name:   target.display_name,
       personal_prefs: target.personal_prefs,
       onboarded_at:   target.onboarded_at,
+      language:       target.language || 'en',
     });
+    setMemberLanguage(target.language || 'en');
     // Reset household-scoped UI state so we don't briefly show the wrong data.
     setMealPlanItems([]);
     setCustomIngredients({});
@@ -2514,6 +2603,7 @@ export default function App() {
           household={household}
           planExtrasText={planExtrasText}
           preferences={preferences}
+          language={LANG_NAMES[memberLanguage] || 'English'}
           onClose={() => setShowWeekSuggest(false)}
           onLoadPlan={async (recipes) => {
             setShowEmptyGrid(false);
@@ -3629,18 +3719,20 @@ export default function App() {
         {/* ── PROFILE TAB ── */}
         {activeTab === "profile" && (
           <div className="space-y-4 pb-4">
-            {/* Segmented toggle */}
-            <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
-              {["personal", "household"].map((s) => (
-                <button key={s} onClick={() => setProfileSubTab(s)}
-                  className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${profileSubTab === s ? "bg-white text-orange-900 shadow-warm" : "text-orange-400 hover:text-orange-600"}`}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              ))}
-            </div>
+            {/* Segmented toggle — only shown for multi-member households */}
+            {householdMembers.length > 1 && (
+              <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
+                {["household", "personal"].map((s) => (
+                  <button key={s} onClick={() => setProfileSubTab(s)}
+                    className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${profileSubTab === s ? "bg-white text-orange-900 shadow-warm" : "text-orange-400 hover:text-orange-600"}`}>
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
 
-            {/* ── PERSONAL ── */}
-            {profileSubTab === "personal" && (
+            {/* ── PERSONAL ── shown when: solo user, or multi-member on personal tab */}
+            {(householdMembers.length <= 1 || profileSubTab === "personal") && (
               <>
                 {/* User card */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
@@ -3713,15 +3805,35 @@ export default function App() {
 
                 {/* App settings */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">App settings</p>
-                  <PreferencesModal
-                    household={household}
-                    section="settings"
-                    inline={true}
-                    initialPrefs={preferences}
-                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
-                    onClose={loadPreferences}
-                  />
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Settings</p>
+                  {/* Language — personal, affects AI-generated content */}
+                  <div className="space-y-2 mb-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-sm text-orange-900 font-medium">Language</span>
+                        <p className="text-xs text-orange-400">Recipes and suggestions are generated in this language</p>
+                      </div>
+                      <select
+                        value={memberLanguage}
+                        onChange={(e) => saveLanguage(e.target.value)}
+                        className="border border-orange-200 rounded-xl px-3 py-1.5 text-sm text-orange-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
+                      >
+                        {LANGUAGES.map((l) => (
+                          <option key={l.code} value={l.code}>{l.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="border-t border-orange-100 pt-4">
+                    <PreferencesModal
+                      household={household}
+                      section="appearance"
+                      inline={true}
+                      initialPrefs={preferences}
+                      onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                      onClose={loadPreferences}
+                    />
+                  </div>
                 </div>
 
                 {/* Personal dietary wishes */}
@@ -3782,8 +3894,8 @@ export default function App() {
               </>
             )}
 
-            {/* ── HOUSEHOLD ── */}
-            {profileSubTab === "household" && (
+            {/* ── HOUSEHOLD ── shown when: multi-member AND on household tab */}
+            {householdMembers.length > 1 && profileSubTab === "household" && (
               <>
                 {/* Household switcher — only renders when user has 2+ households */}
                 <HouseholdSwitcher
@@ -3939,7 +4051,152 @@ export default function App() {
                   )}
                 </div>
 
+                {/* Planning & notifications settings */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Planning</p>
+                  <PreferencesModal
+                    household={household}
+                    section="reminder"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                  />
+                </div>
+
                 {/* Shared household dietary preferences */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <PreferencesModal
+                    household={household}
+                    section="household-dietary"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                    memberName={memberProfile?.display_name || ''}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* ── SOLO USER: household invite + dietary (shown without sub-tab toggle) ── */}
+            {householdMembers.length <= 1 && (
+              <>
+                {/* Invite to household */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Your kitchen</p>
+                  <button onClick={shareInviteLink}
+                    className="w-full px-3 py-2.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center justify-center gap-1.5">
+                    <Link2 size={12} />
+                    Invite someone to cook with you
+                  </button>
+                  {showInviteSharePanel && (
+                    <div className="bg-orange-50 rounded-2xl p-3 space-y-2 mt-2">
+                      <p className="text-[11px] text-orange-400 font-medium uppercase tracking-wide">Share via</p>
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts. ' + inviteUrl)}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                        >
+                          WhatsApp
+                        </a>
+                        <a
+                          href={`https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent('Come plan meals with me — one shared list, no more "what\'s for dinner?" texts.')}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                        >
+                          Telegram
+                        </a>
+                        <button
+                          onClick={copyInviteLink}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                        >
+                          {inviteCopied ? <Check size={11} className="text-sage-500" /> : <Link2 size={11} />}
+                          {inviteCopied ? 'Copied!' : 'Copy link'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Join another household */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">Join a household</p>
+                  <p className="text-xs text-orange-500 leading-relaxed mb-3">Got an invite link from someone? Paste it here.</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="Paste invite link…"
+                      value={joinLinkInput}
+                      onChange={(e) => { setJoinLinkInput(e.target.value); setJoinHouseholdError(''); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && joinLinkInput.trim()) joinHouseholdByLink(); }}
+                      className="flex-1 text-sm border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900 placeholder:text-orange-300 min-w-0"
+                    />
+                    <button
+                      onClick={joinHouseholdByLink}
+                      disabled={joiningHousehold || !joinLinkInput.trim()}
+                      className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition disabled:opacity-50"
+                    >
+                      {joiningHousehold ? 'Joining…' : 'Join'}
+                    </button>
+                  </div>
+                  {joinHouseholdError && <p className="text-xs text-red-500 mt-2">{joinHouseholdError}</p>}
+                </div>
+
+                {/* Create a new household */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">New household</p>
+                  <p className="text-xs text-orange-500 leading-relaxed mb-3">Start a fresh kitchen with its own plan, list, and preferences.</p>
+                  {creatingHousehold ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Give it a name…"
+                          value={newHouseholdName}
+                          onChange={(e) => { setNewHouseholdName(e.target.value); setCreateHouseholdError(''); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') createNewHousehold(); if (e.key === 'Escape') setCreatingHousehold(false); }}
+                          className="flex-1 text-sm border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900 placeholder:text-orange-300 min-w-0"
+                        />
+                        <button
+                          onClick={createNewHousehold}
+                          disabled={savingNewHousehold || !newHouseholdName.trim()}
+                          className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition disabled:opacity-50"
+                        >
+                          {savingNewHousehold ? 'Creating…' : 'Create'}
+                        </button>
+                      </div>
+                      <button onClick={() => { setCreatingHousehold(false); setNewHouseholdName(''); setCreateHouseholdError(''); }}
+                        className="text-xs text-orange-400 hover:text-orange-600 transition">Cancel</button>
+                      {createHouseholdError && <p className="text-xs text-red-500">{createHouseholdError}</p>}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setCreatingHousehold(true)}
+                      className="w-full px-3 py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-xs font-medium hover:border-orange-300 hover:bg-orange-100 transition flex items-center justify-center gap-1.5"
+                    >
+                      <Plus size={12} />
+                      Create a new household
+                    </button>
+                  )}
+                </div>
+
+                {/* Planning settings */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Planning</p>
+                  <PreferencesModal
+                    household={household}
+                    section="reminder"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                  />
+                </div>
+
+                {/* Household dietary preferences */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
                   <PreferencesModal
                     household={household}
