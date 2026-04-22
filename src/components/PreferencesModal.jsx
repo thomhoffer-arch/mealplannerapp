@@ -439,7 +439,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
                 </div>
                 {keyError && <p className="text-xs text-red-500">{keyError}</p>}
                 <button onClick={handleSaveKey} disabled={savingKey || !keyInput.trim()}
-                  className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+                  className="w-full py-2.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full font-medium text-sm hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
                   {savedKey ? <><Check size={14} /> Key saved</> : savingKey ? 'Validating…' : 'Save key'}
                 </button>
               </div>
@@ -494,7 +494,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
                     </div>
                     {puterError && <p className="text-red-500">{puterError}</p>}
                     <button onClick={handleSavePuter} disabled={savingPuter || !puterInput.trim()}
-                      className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2">
+                      className="w-full py-2.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full font-medium text-sm hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
                       {savingPuter ? 'Validating…' : 'Save token'}
                     </button>
                   </div>

@@ -377,17 +377,47 @@ to hard-coded UI copy:
 
 ---
 
-## CTA hierarchy
+## Button hierarchy
 
 One page, one primary action. Never two filled buttons competing.
 
-| Level     | Style                                                       | When                        |
-|-----------|-------------------------------------------------------------|-----------------------------|
-| Primary   | `bg-orange-500 text-white rounded-full px-8 shadow-warm-lg` | One per page/modal          |
-| Secondary | `border-orange-400 text-orange-700 rounded-full`            | Alongside primary           |
-| Tertiary  | Text link, underline, `text-orange-700 decoration-orange-300` | Sign in, dismiss, less-used |
+| Level          | Class recipe                                                                                                          | When                                            |
+|----------------|-----------------------------------------------------------------------------------------------------------------------|-------------------------------------------------|
+| Primary fill   | `bg-orange-500 text-white rounded-full px-8 shadow-warm-lg font-semibold`                                             | One per screen/modal — the unmissable action    |
+| In-card action | `border border-orange-200 text-orange-500 bg-orange-50 rounded-full font-medium text-sm hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600` | Section-level CTAs inside cards (invite, save key, send to grocer) |
+| Ghost pill     | `border border-orange-400 text-orange-700 rounded-full`                                                               | Alongside a primary — equal-weight choice       |
+| Tertiary       | Text link: `text-orange-700 underline decoration-orange-300`                                                          | Sign in, dismiss, rarely-used                   |
+| Destructive    | `text-red-400 hover:text-red-600 transition`                                                                          | Delete, disconnect, remove — no fill, no border |
 
-Rule: the hero must have exactly one explicitly styled pill button. The decorated text (`font-display`, `TextRotate` animation) is brand copy — not the click target.
+Rules:
+- A screen must have at most one **primary fill** button.
+- **In-card action** is the default for any button that lives inside a card — it reads as a gentle invitation, not a demand.
+- **Ghost pill** appears only when it sits beside a primary fill (e.g. "Cancel / Save").
+- **Destructive** is always icon-only or compact text — never a full-width filled button.
+
+---
+
+## Navigation / segmented toggle
+
+For in-page switching between two or more views (shopping ↔ pantry, household ↔ personal, week navigator).
+
+```
+<div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
+  <button className="flex-1 py-2 text-sm font-medium rounded-xl transition
+    bg-white text-orange-900 shadow-warm   /* active */
+    text-orange-400 hover:text-orange-600  /* inactive */
+  ">
+    Label
+  </button>
+</div>
+```
+
+- Outer track: `bg-orange-50 rounded-2xl p-1`
+- Active item: `bg-white text-orange-900 shadow-warm rounded-xl`
+- Inactive item: `text-orange-400 hover:text-orange-600 rounded-xl`
+- Arrow buttons inside a track (e.g. week navigator): `w-9 h-9 flex-shrink-0 rounded-xl text-orange-400 hover:text-orange-600 hover:bg-white/60`
+
+Never use a tab bar with underlines or coloured bottom borders — that's a web-browser pattern, not a notebook one.
 
 ---
 

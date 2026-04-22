@@ -39,10 +39,10 @@ export default function PuterConnect({ onConnected, label = 'Connect with Puter'
     }
   }
 
-  const base = 'w-full rounded-2xl font-medium transition text-sm flex items-center justify-center gap-2 disabled:opacity-50';
+  const base = 'w-full rounded-full font-medium transition text-sm flex items-center justify-center gap-2 disabled:opacity-50';
   const styles = variant === 'ghost'
-    ? `${base} border border-orange-200 bg-white text-orange-900 hover:bg-orange-50 px-4 py-3`
-    : `${base} bg-orange-900 text-white hover:bg-orange-800 px-4 py-3 shadow-warm`;
+    ? `${base} border border-orange-200 bg-white text-orange-900 hover:bg-orange-50 px-4 py-2.5`
+    : `${base} border border-orange-200 text-orange-500 bg-orange-50 hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 px-4 py-2.5`;
 
   return (
     <div>
