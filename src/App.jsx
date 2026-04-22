@@ -992,6 +992,7 @@ export default function App() {
   const [joiningHousehold, setJoiningHousehold] = useState(false);
   const [joinHouseholdError, setJoinHouseholdError] = useState('');
   const [memberLanguage, setMemberLanguage] = useState('en');
+  const [weeklyUsage, setWeeklyUsage] = useState(null); // { used, limit, unlimited, credits }
   const [creatingHousehold, setCreatingHousehold] = useState(false);
   const [newHouseholdName, setNewHouseholdName] = useState('');
   const [savingNewHousehold, setSavingNewHousehold] = useState(false);
@@ -1361,6 +1362,7 @@ export default function App() {
     loadCookedRecipes();
     loadCheckedItems();
     loadPreferences();
+    loadWeeklyUsage();
     loadStarred();
     loadPantry();
     loadTemplates();
@@ -1505,6 +1507,13 @@ export default function App() {
       .from("household_preferences").select("*").eq("household_id", household.id).maybeSingle();
     setPreferences(data || {});
     setPlanExtrasText(data?.plan_extras_text || '');
+  }
+
+  async function loadWeeklyUsage() {
+    try {
+      const data = await apiFetch('/api/household/usage');
+      setWeeklyUsage(data);
+    } catch { /* fail silently — usage display is non-critical */ }
   }
 
   // ── Post-signup Puter connect prompt ──────────────────────────────────────
@@ -2604,6 +2613,7 @@ export default function App() {
           planExtrasText={planExtrasText}
           preferences={preferences}
           language={LANG_NAMES[memberLanguage] || 'English'}
+          weeklyUsage={weeklyUsage}
           onClose={() => setShowWeekSuggest(false)}
           onLoadPlan={async (recipes) => {
             setShowEmptyGrid(false);
@@ -2677,6 +2687,7 @@ export default function App() {
                 }
               })();
             }
+            loadWeeklyUsage();
           }}
         />
       )}
@@ -3769,27 +3780,33 @@ export default function App() {
                         const isGifted = !!preferences?.is_gifted;
                         const hasPuter = !!preferences?.puter_token_hint;
                         const hasGemini = !!preferences?.gemini_api_key_hint;
-                        let label, labelClass, upgradeText;
-                        if (isGifted) {
-                          label = 'Gifted — unlimited AI';
-                          labelClass = 'text-orange-700 bg-amber-50';
-                        } else if (hasPuter) {
-                          label = 'Puter AI — unlimited';
-                          labelClass = 'text-orange-600 bg-orange-50';
-                        } else if (hasGemini) {
-                          label = 'Gemini key connected';
-                          labelClass = 'text-orange-600 bg-orange-50';
-                          upgradeText = 'Upgrade for more';
-                        } else {
-                          label = 'Free plan';
-                          labelClass = 'text-orange-400 bg-orange-50';
-                          upgradeText = 'Upgrade for more';
-                        }
+                        const unlimited = isGifted || hasPuter || hasGemini;
+                        let label, labelClass;
+                        if (isGifted) { label = 'Gifted — unlimited AI'; labelClass = 'text-orange-700 bg-amber-50'; }
+                        else if (hasPuter) { label = 'Puter AI — unlimited'; labelClass = 'text-orange-600 bg-orange-50'; }
+                        else if (hasGemini) { label = 'Gemini key — unlimited'; labelClass = 'text-orange-600 bg-orange-50'; }
+                        else { label = 'Free plan'; labelClass = 'text-orange-400 bg-orange-50'; }
                         return (
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <div className="mt-1.5 space-y-1.5">
                             <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${labelClass}`}>{label}</span>
-                            {upgradeText && (
-                              <span className="text-[11px] text-orange-400">— set an API key below</span>
+                            {!unlimited && weeklyUsage && (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[11px] text-orange-400">
+                                    {weeklyUsage.used} of {weeklyUsage.limit} AI uses this week
+                                  </span>
+                                  {weeklyUsage.used >= weeklyUsage.limit && (
+                                    <span className="text-[11px] font-medium text-red-500">Limit reached</span>
+                                  )}
+                                </div>
+                                <div className="w-full bg-orange-100 rounded-full h-1.5">
+                                  <div
+                                    className={`h-1.5 rounded-full transition-all ${weeklyUsage.used >= weeklyUsage.limit ? 'bg-red-400' : weeklyUsage.used / weeklyUsage.limit > 0.75 ? 'bg-orange-500' : 'bg-orange-400'}`}
+                                    style={{ width: `${Math.min(100, (weeklyUsage.used / weeklyUsage.limit) * 100)}%` }}
+                                  />
+                                </div>
+                                <p className="text-[11px] text-orange-400">Resets every {preferences.reminder_day ? (() => { const d = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; const idx = (d.indexOf(preferences.reminder_day) - 1 + 7) % 7; return d[idx].charAt(0).toUpperCase() + d[idx].slice(1); })() : 'Monday'} · <span className="text-orange-400">add an API key below for unlimited</span></p>
+                              </div>
                             )}
                           </div>
                         );
@@ -4063,6 +4080,29 @@ export default function App() {
                     onClose={loadPreferences}
                   />
                 </div>
+
+                {/* AI usage */}
+                {weeklyUsage && !weeklyUsage.unlimited && (
+                  <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">AI uses this week</p>
+                      <span className="text-xs font-semibold text-orange-900">
+                        {weeklyUsage.used} <span className="text-orange-400 font-normal">/ {weeklyUsage.limit}</span>
+                      </span>
+                    </div>
+                    <div className="w-full bg-orange-100 rounded-full h-2 mb-3">
+                      <div
+                        className={`h-2 rounded-full transition-all ${weeklyUsage.used >= weeklyUsage.limit ? 'bg-red-400' : weeklyUsage.used / weeklyUsage.limit > 0.75 ? 'bg-orange-500' : 'bg-orange-300'}`}
+                        style={{ width: `${Math.min(100, (weeklyUsage.used / weeklyUsage.limit) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-orange-400 mb-3">{(() => { const d = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; const idx = (d.indexOf(preferences.reminder_day) - 1 + 7) % 7; const name = d[idx].charAt(0).toUpperCase() + d[idx].slice(1); return `Resets every ${name}. Shared across the household.`; })()}</p>
+                    <button disabled
+                      className="w-full px-3 py-2.5 border border-orange-100 text-orange-300 bg-orange-50/50 rounded-full text-xs font-medium cursor-not-allowed flex items-center justify-center gap-1.5">
+                      Buy more uses — coming soon
+                    </button>
+                  </div>
+                )}
 
                 {/* Shared household dietary preferences */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
