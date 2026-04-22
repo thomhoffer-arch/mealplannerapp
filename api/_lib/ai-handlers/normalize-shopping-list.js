@@ -24,10 +24,11 @@ export default async function handleNormalizeShoppingList(req, res) {
 
   const listText = items.map((item, i) => `${i}: "${item.name}"`).join('\n');
 
-  const prompt = `You are a shopping list cleaner. Clean the ingredient names below so they read exactly as a person would write them on a handwritten shopping list — short, clean, lowercase, no prep instructions.
+  const prompt = `You are a shopping list cleaner. Clean the ingredient names below so they read exactly as a person would write them on a handwritten shopping list — short, clean, lowercase, no quantities, no prep instructions.
 
 Rules:
-- Remove preparation words (finely, roughly, sliced, chopped, diced, minced, grated, shredded, crushed, beaten, softened, melted, etc.)
+- Remove leading quantities and units (e.g. "300g large shrimp" → "large shrimp", "2 tbsp olive oil" → "olive oil", "500ml chicken stock" → "chicken stock")
+- Remove preparation words (finely, roughly, sliced, chopped, diced, minced, grated, shredded, crushed, beaten, softened, melted, peeled, deveined, trimmed, etc.)
 - Remove serving/garnish notes (for serving, to serve, for garnish, as needed, for topping)
 - Remove cooking state words that don't change what you buy (roasted, boiled, steamed) — but keep them when the cooked state IS the product (e.g. "cooked ham", "smoked salmon")
 - Never split or merge items — one cleaned name per index

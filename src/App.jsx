@@ -350,8 +350,12 @@ function consolidateIngredients(selectedRecipes, customIngredients, measurementS
 
   // Split "X and Y" compound entries the AI occasionally generates as one ingredient.
   // Each part inherits the same amount so pantry matching and dedup work correctly.
+  // Only split on "and" in the base name (before the first comma) so that prep notes
+  // like "shrimp, peeled and deveined" don't produce a spurious "deveined" item.
   const add = (rawName, amount, extra = {}) => {
-    const parts = rawName.split(/ and /i);
+    const commaIdx = rawName.indexOf(',');
+    const baseForSplit = commaIdx > 0 ? rawName.slice(0, commaIdx).trim() : rawName;
+    const parts = baseForSplit.split(/ and /i);
     if (parts.length > 1) {
       parts.forEach((p) => addSingle(p.trim(), amount, extra));
     } else {
@@ -2505,7 +2509,7 @@ export default function App() {
     const _PREP_BODY = /\b(finely|roughly|coarsely|thinly|thickly|sliced|diced|chopped|minced|grated|shredded|crushed|beaten|roasted|steamed|boiled|softened|melted|cooked)\b/i;
     const suspicious = shoppingList
       .filter((item) => !sentToNormalizeRef.current.has(item.name)) // only newly added items
-      .filter((item) => item.name.split(/\s+/).length > 4 || _PREP_BODY.test(item.name))
+      .filter((item) => item.name.split(/\s+/).length > 4 || _PREP_BODY.test(item.name) || /^\d/.test(item.name))
       .map((item) => ({ name: item.name, amount: item.amount }));
 
     if (!suspicious.length) return;
