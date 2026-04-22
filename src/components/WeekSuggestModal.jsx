@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Plus, Wand2, Tag } from 'lucide-react';
+import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Plus, Wand2, Tag, Lock } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 
@@ -107,6 +107,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   // expandedMeals: { [weekNum-dayName]: { dinner: bool, "breakfast-0": bool, ... } }
   const [expandedMeals, setExpandedMeals] = useState({});
   const [excludedMeals, setExcludedMeals] = useState(new Set()); // keys: "weekNum-dayName-dinner" or "weekNum-dayName-extra-N"
+  const [sideDishPanel, setSideDishPanel] = useState(null); // { key, weekNum, dayName, recipe, loading, suggestions, error, input }
   const [easterEggIdx, setEasterEggIdx] = useState(0);
 
   const EASTER_EGGS = [
@@ -159,6 +160,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     setDayNotes({});
     setExpandedMeals({});
     setExcludedMeals(new Set());
+    setSideDishPanel(null);
     try {
       const data = await apiFetch('/api/ai/suggest-week', {
         method: 'POST',
@@ -261,6 +263,39 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     } finally {
       setSwappingKey(null);
     }
+  }
+
+  async function fetchSideDish(key, weekNum, dayName, recipe, preference) {
+    setSideDishPanel({ key, weekNum, dayName, recipe, input: preference, loading: true, suggestions: [], error: '' });
+    try {
+      const data = await apiFetch('/api/ai/suggest-side', {
+        method: 'POST',
+        body: {
+          recipe: { name: recipe.name, cuisine_type: recipe.cuisineType, ingredients: recipe.ingredients },
+          preference,
+        },
+      });
+      setSideDishPanel((p) => p?.key === key ? { ...p, loading: false, suggestions: data.suggestions || [] } : p);
+    } catch (err) {
+      setSideDishPanel((p) => p?.key === key ? { ...p, loading: false, error: err.message } : p);
+    }
+  }
+
+  function applySideDish(weekNum, dayName, sideDish) {
+    setPlan((prev) => prev.map((w) => {
+      if (w.week !== weekNum) return w;
+      return {
+        ...w,
+        days: w.days.map((d) => {
+          if (d.day !== dayName) return d;
+          const recipe = { ...d.recipe };
+          if (sideDish) recipe._sideDish = sideDish;
+          else delete recipe._sideDish;
+          return { ...d, recipe };
+        }),
+      };
+    }));
+    setSideDishPanel(null);
   }
 
   function handleLoadPlan() {
@@ -673,8 +708,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           />
                         </div>
 
-                        {/* Options bar — only when day is selected */}
+                        {/* Options bar + side dish panel — only when day is selected */}
                         {isSelected && (
+                          <>
                           <div className="px-4 py-3 border-t border-orange-50 space-y-2">
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2 flex-1">
@@ -729,7 +765,89 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                                 {swappingKey === key ? '…' : 'Swap'}
                               </button>
                             </div>
+                            {/* Side dish row */}
+                            <div className="flex items-center gap-1.5">
+                              {recipe?._sideDish ? (
+                                <>
+                                  <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">
+                                    + {recipe._sideDish.name}
+                                  </span>
+                                  <button
+                                    onClick={() => applySideDish(week.week, day.day, null)}
+                                    className="text-orange-400 hover:text-orange-600 transition text-xs"
+                                    title="Remove side dish"
+                                  >×</button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    if (sideDishPanel?.key === key) { setSideDishPanel(null); return; }
+                                    fetchSideDish(key, week.week, day.day, recipe, '');
+                                  }}
+                                  className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400"
+                                >
+                                  + Add a side
+                                </button>
+                              )}
+                            </div>
                           </div>
+                          {/* Side dish suggestions panel */}
+                          {sideDishPanel?.key === key && (
+                            <div className="px-4 pb-3 border-t border-orange-50 pt-3 space-y-2">
+                              {sideDishPanel.loading && (
+                                <div className="flex items-center gap-2 py-1">
+                                  <div className="w-4 h-4 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
+                                  <p className="text-xs text-orange-400">Looking for a good side…</p>
+                                </div>
+                              )}
+                              {!sideDishPanel.loading && sideDishPanel.suggestions.length > 0 && (() => {
+                                const isUnlimited = !!(weeklyUsage?.unlimited);
+                                const visible = isUnlimited ? sideDishPanel.suggestions : sideDishPanel.suggestions.slice(0, 1);
+                                const locked = isUnlimited ? 0 : sideDishPanel.suggestions.length - 1;
+                                return (
+                                  <div className="space-y-1.5">
+                                    {visible.map((s) => (
+                                      <button
+                                        key={s.name}
+                                        onClick={() => applySideDish(week.week, day.day, s)}
+                                        className="w-full text-left px-3 py-2 rounded-xl border border-orange-100 hover:border-orange-300 hover:bg-orange-50/50 transition"
+                                      >
+                                        <p className="text-xs font-semibold text-orange-900">{s.name}</p>
+                                        {s.description && <p className="text-[10px] text-orange-500 mt-0.5 leading-snug">{s.description}</p>}
+                                      </button>
+                                    ))}
+                                    {locked > 0 && (
+                                      <button className="w-full text-left px-3 py-1.5 rounded-xl border border-dashed border-orange-100 text-orange-300 flex items-center gap-1.5 text-xs cursor-not-allowed">
+                                        <Lock size={11} className="flex-shrink-0" />
+                                        {locked} more option{locked !== 1 ? 's' : ''} — upgrade for all suggestions
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                              {sideDishPanel.error && <p className="text-xs text-red-500">{sideDishPanel.error}</p>}
+                              {!sideDishPanel.loading && (
+                                <div className="flex gap-1.5">
+                                  <input
+                                    type="text"
+                                    placeholder="Something light, or herby…"
+                                    value={sideDishPanel.input}
+                                    onChange={(e) => setSideDishPanel((p) => ({ ...p, input: e.target.value }))}
+                                    onKeyDown={(e) => e.key === 'Enter' && fetchSideDish(key, week.week, day.day, recipe, sideDishPanel.input)}
+                                    autoFocus={sideDishPanel.suggestions.length === 0}
+                                    className="flex-1 text-xs border border-orange-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 min-w-0"
+                                  />
+                                  <button
+                                    onClick={() => fetchSideDish(key, week.week, day.day, recipe, sideDishPanel.input)}
+                                    className="flex-shrink-0 px-3 py-1.5 bg-orange-500 text-white rounded-xl text-xs font-semibold hover:bg-orange-600 transition flex items-center gap-1"
+                                  >
+                                    <Sparkles size={11} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          </>
                         )}
                       </div>
                     </div>
