@@ -1,6 +1,6 @@
-export const WEEKLY_FREE_LIMIT = 15;
+export const WEEKLY_FREE_LIMIT = 40;
 
-function currentWeekKey() {
+export function currentWeekKey() {
   const date = new Date();
   const day = date.getUTCDay();
   const diff = day === 0 ? -6 : 1 - day;

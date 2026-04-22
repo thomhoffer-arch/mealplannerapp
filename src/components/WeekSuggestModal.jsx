@@ -66,7 +66,7 @@ function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor,
   );
 }
 
-export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences, language = 'English' }) {
+export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences, language = 'English', weeklyUsage = null }) {
   const hasDealsAccess = !!(preferences?.is_gifted || preferences?.gemini_api_key_hint);
   const [numWeeks, setNumWeeks]         = useState(1);
   const [loading, setLoading]           = useState(false);
@@ -317,11 +317,18 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                 {w} week{w > 1 ? 's' : ''}
               </button>
             ))}
-            <button onClick={generate} disabled={loading}
-              className="ml-auto px-4 py-1.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
-              <Sparkles size={12} />
-              {loading ? 'Planning…' : plan ? 'Regenerate' : 'Generate'}
-            </button>
+            <div className="ml-auto flex items-center gap-2">
+              {weeklyUsage && !weeklyUsage.unlimited && (
+                <span className={`text-xs ${weeklyUsage.used >= weeklyUsage.limit ? 'text-red-500 font-medium' : 'text-orange-400'}`}>
+                  {weeklyUsage.limit - weeklyUsage.used} left
+                </span>
+              )}
+              <button onClick={generate} disabled={loading}
+                className="px-4 py-1.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
+                <Sparkles size={12} />
+                {loading ? 'Planning…' : plan ? 'Regenerate' : 'Generate'}
+              </button>
+            </div>
           </div>
           <textarea
             rows={2}
