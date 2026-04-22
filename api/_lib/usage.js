@@ -2,6 +2,12 @@
 // 15 + 5 × memberCount  (solo = 20, couple = 25, 4-person = 35, etc.)
 export const WEEKLY_FREE_LIMIT = 20;
 
+// NOTE — premium status is currently household-level (is_gifted flag +
+// household-stored API keys). When the paid tier launches, premium must move
+// to user-level (household_members.is_premium) so that inviting someone to
+// a household does not grant them the inviter's premium status. New users
+// joining via invite should always start as free users until they pay.
+
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 // Returns the UTC day number (0=Sun … 6=Sat) that the usage week starts on,

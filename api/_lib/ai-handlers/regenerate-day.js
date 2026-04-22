@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '../auth.js';
 import { VOICE_GUIDE } from '../voice.js';
 import { resolveAiProvider, callAi } from '../ai-call.js';
+import { checkAndIncrementUsage, isGiftedHousehold } from '../usage.js';
 import { searchPhoto } from '../pexels.js';
 
 // Regenerate a single day of a week plan based on user feedback.
@@ -31,8 +32,18 @@ export default async function handleRegenerateDay(req, res) {
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  const { provider, token } = await resolveAiProvider(supabase, ctx.householdId);
+  const { provider, token, usingSharedKey } = await resolveAiProvider(supabase, ctx.householdId);
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
+
+  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId))) {
+    const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
+    if (limited) {
+      return res.status(429).json({
+        error: `Your kitchen's weekly AI limit has been reached. Upgrade for more, or wait until next week.`,
+        code: 'weekly_limit_reached',
+      });
+    }
+  }
 
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }, { data: pantryData }] = await Promise.all([
     supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
