@@ -1022,6 +1022,7 @@ export default function App() {
   const [wasteInsights, setWasteInsights] = useState(null); // null | { loading, insights, error }
   const [aiCleanNames, setAiCleanNames] = useState({}); // originalName → AI-cleaned name (premium only)
   const [showBagModal, setShowBagModal] = useState(false); // { key, mainRecipe, rid, input, loading, suggestions, error }
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // ── Search state
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -2632,6 +2633,59 @@ export default function App() {
         />
       )}
 
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)}>
+          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-warm-lg border border-orange-100 p-6 sm:p-8" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <p className="font-display italic text-orange-400 text-xs mb-0.5">— coming soon</p>
+                <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight">Premium</h2>
+              </div>
+              <button onClick={() => setShowUpgradeModal(false)} className="text-orange-300 hover:text-orange-600 transition mt-1">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex items-baseline gap-1.5 mb-5">
+              <p className="font-display text-3xl font-semibold text-orange-900">€2.99</p>
+              <span className="text-sm text-orange-600">/ month per person</span>
+            </div>
+
+            <ul className="space-y-2.5 mb-6">
+              {[
+                { ok: true,  text: '50 AI suggestions/week — 10× your free contribution' },
+                { ok: true,  text: 'Faster AI generation' },
+                { ok: true,  text: '8 recipe search results instead of 4' },
+                { ok: true,  text: 'Export meal plans to PDF or Google Calendar' },
+                { ok: true,  text: 'Recipe history & cooking insights' },
+                { ok: true,  text: 'Advanced recipe filters (cuisine, time, macros)' },
+                { ok: true,  text: 'Cross-household favourites sync' },
+              ].map((f) => (
+                <li key={f.text} className="flex items-start gap-2.5">
+                  <Check size={13} className="text-sage-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm text-orange-900 leading-snug">{f.text}</span>
+                </li>
+              ))}
+            </ul>
+
+            <p className="text-xs text-orange-600/80 bg-orange-50 rounded-2xl px-4 py-3 mb-4 leading-relaxed">
+              Your subscription follows you across all households you're in.
+              One upgrade contributes 50 suggestions to every shared kitchen you belong to.
+            </p>
+
+            <button
+              disabled
+              className="w-full py-3.5 bg-sage-500 text-white rounded-full font-medium text-sm opacity-60 cursor-not-allowed"
+            >
+              Coming soon — we'll notify you when it's ready
+            </button>
+            <p className="text-center text-xs text-orange-400 mt-3">
+              In the meantime, connect Puter or add your Gemini key in Settings for unlimited AI.
+            </p>
+          </div>
+        </div>
+      )}
+
       {showWeekSuggest && (
         <WeekSuggestModal
           household={household}
@@ -4102,6 +4156,20 @@ export default function App() {
                   />
                 </div>
 
+                {/* Premium badge for gifted households */}
+                {weeklyUsage?.unlimited && weeklyUsage?.gifted && (
+                  <div className="bg-white rounded-2xl border border-sage-200 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-sage-700 uppercase tracking-wide mb-0.5">Plan</p>
+                        <p className="text-sm font-semibold text-orange-900">Premium</p>
+                      </div>
+                      <span className="text-xs font-medium text-sage-700 bg-sage-100 px-2.5 py-1 rounded-full">Active</span>
+                    </div>
+                    <p className="text-[11px] text-sage-600 mt-2 leading-relaxed">Unlimited AI · 8 recipe results · all features included.</p>
+                  </div>
+                )}
+
                 {/* AI usage */}
                 {weeklyUsage && !weeklyUsage.unlimited && (
                   <div className="bg-white rounded-2xl border border-orange-100 p-4">
@@ -4113,11 +4181,19 @@ export default function App() {
                     </div>
                     <div className="w-full bg-orange-100 rounded-full h-2 mb-3">
                       <div
-                        className={`h-2 rounded-full transition-all ${weeklyUsage.used >= weeklyUsage.limit ? 'bg-red-400' : weeklyUsage.used / weeklyUsage.limit > 0.75 ? 'bg-orange-500' : 'bg-orange-300'}`}
+                        className={`h-2 rounded-full transition-all ${weeklyUsage.used >= weeklyUsage.limit ? 'bg-red-400' : weeklyUsage.used / weeklyUsage.limit > 0.60 ? 'bg-orange-500' : 'bg-orange-300'}`}
                         style={{ width: `${Math.min(100, (weeklyUsage.used / weeklyUsage.limit) * 100)}%` }}
                       />
                     </div>
-                    <p className="text-[11px] text-orange-400">{(() => { const d = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; const idx = (d.indexOf(preferences.reminder_day) - 1 + 7) % 7; const name = d[idx].charAt(0).toUpperCase() + d[idx].slice(1); return `Resets every ${name} · shared with your kitchen.`; })()}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] text-orange-400">{(() => { const d = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; const idx = (d.indexOf(preferences.reminder_day) - 1 + 7) % 7; const name = d[idx].charAt(0).toUpperCase() + d[idx].slice(1); return `5 per member · resets every ${name}.`; })()}</p>
+                      <button
+                        onClick={() => setShowUpgradeModal(true)}
+                        className="text-[11px] text-orange-500 font-medium hover:text-orange-700 transition flex-shrink-0"
+                      >
+                        Upgrade →
+                      </button>
+                    </div>
                   </div>
                 )}
 

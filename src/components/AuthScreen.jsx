@@ -55,8 +55,7 @@ const CHAPTERS = [
   },
 ];
 
-const PREMIUM_PRICE     = 5.99;
-const PREMIUM_OWN_PRICE = 4.99;
+const PREMIUM_PRICE = 2.99;
 
 // Static hero-sized preview of the notebook planner. Deliberately not
 // interactive — the real sandbox lives in NotebookWeekScene below. This
@@ -135,7 +134,6 @@ function GoogleMark() {
 export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null }) {
   const [view, setView] = useState('landing');
   const [selectedPlan, setSelectedPlan] = useState('free');
-  const [premiumOwnKey, setPremiumOwnKey] = useState(false);
   const [mode, setMode] = useState('register');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -508,13 +506,12 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
 
   // ── Plan selection ─────────────────────────────────────────────────────────
   if (view === 'plan') {
-    const displayPrice = premiumOwnKey ? `€${PREMIUM_OWN_PRICE.toFixed(2)}` : `€${PREMIUM_PRICE.toFixed(2)}`;
     return (
       <div className="min-h-screen bg-paper px-4 py-14">
         <div className="max-w-3xl mx-auto">
           <button onClick={() => setView('landing')} className="text-xs text-orange-600 hover:text-orange-900 mb-8 transition">← Back</button>
           <h2 className="font-display text-3xl font-semibold text-orange-900 mb-1.5">Choose your plan</h2>
-          <p className="text-sm text-orange-900/80 mb-8">All core features are included in every plan. AI is the only difference.</p>
+          <p className="text-sm text-orange-900/80 mb-8">All core features are free. Premium adds more AI for the whole kitchen and personal perks just for you.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
 
@@ -540,11 +537,11 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
               </p>
               <ul className="space-y-2 mt-5">
                 {[
-                  { ok: true,  text: '25 week plan suggestions free' },
+                  { ok: true,  text: '20 AI suggestions/week — grows with your kitchen' },
                   { ok: true,  text: 'Shared plan, list & pantry' },
-                  { ok: true,  text: 'Up to 4 recipe results per search' },
-                  { ok: false, text: 'Full recipe library' },
-                  { ok: false, text: 'All features' },
+                  { ok: true,  text: '4 recipe results per search' },
+                  { ok: false, text: 'Full recipe library (8 results)' },
+                  { ok: false, text: 'Exports, history & insights' },
                 ].map((f) => (
                   <li key={f.text} className="flex items-start gap-2">
                     {f.ok
@@ -556,53 +553,12 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
               </ul>
               {selectedPlan === 'free' && (
                 <p className="text-xs text-orange-600 mt-4 pt-3 border-t border-orange-100 italic leading-relaxed">
-                  Add your own Gemini key in Settings after signup — unlimited AI and up to 8 results per search.
+                  Your AI budget grows as you invite people — 5 per member, up to 35 for a 4-person household.
                 </p>
               )}
             </button>
 
-            {/* Paid — full access */}
-            <button
-              onClick={() => setSelectedPlan('puter')}
-              className={`text-left rounded-2xl border-2 p-5 transition-all ${
-                selectedPlan === 'puter'
-                  ? 'border-orange-900 bg-white shadow-warm-lg'
-                  : 'border-orange-100 bg-white/70 hover:border-orange-300'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-display text-base font-semibold text-orange-900">Full access</p>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
-                  selectedPlan === 'puter' ? 'bg-orange-900 border-orange-900' : 'border-orange-300'
-                }`}>
-                  {selectedPlan === 'puter' && <Check size={11} className="text-white" />}
-                </div>
-              </div>
-              <p className="font-display text-2xl font-semibold text-orange-900 mb-0.5">
-                Paid <span className="text-sm font-normal text-orange-600">— we provide the key</span>
-              </p>
-              <p className="text-[11px] text-orange-600 mb-4">Pay via Puter, or directly once billing is live.</p>
-              <ul className="space-y-2">
-                {[
-                  'Unlimited AI — no weekly cap',
-                  'Full recipe library, all results',
-                  'Everything included',
-                  'Shared plan, list & pantry',
-                ].map((t) => (
-                  <li key={t} className="flex items-start gap-2">
-                    <Check size={12} className="text-sage-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-xs leading-snug text-orange-900">{t}</span>
-                  </li>
-                ))}
-              </ul>
-              {selectedPlan === 'puter' && (
-                <p className="text-xs text-orange-600 mt-4 pt-3 border-t border-orange-100 italic leading-relaxed">
-                  Currently via Puter — connect after signup. Top up a couple of euros and it covers weeks of planning.
-                </p>
-              )}
-            </button>
-
-            {/* Premium */}
+            {/* Premium — coming soon */}
             <button
               onClick={() => setSelectedPlan('premium')}
               className={`text-left rounded-2xl border-2 p-5 transition-all ${
@@ -614,7 +570,7 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <p className="font-display text-base font-semibold text-orange-900">Premium</p>
-                  <span className="font-display italic text-sage-600 text-xs">— later this year</span>
+                  <span className="font-display italic text-sage-600 text-xs">— coming soon</span>
                 </div>
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
                   selectedPlan === 'premium' ? 'bg-sage-500 border-sage-500' : 'border-orange-300'
@@ -622,20 +578,18 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
                   {selectedPlan === 'premium' && <Check size={11} className="text-white" />}
                 </div>
               </div>
-              <div className="flex items-baseline gap-2 mb-0.5">
-                <p className="font-display text-2xl font-semibold text-orange-900">
-                  {displayPrice} <span className="text-sm font-normal text-orange-600">/ month</span>
-                </p>
-                {premiumOwnKey && (
-                  <span className="text-xs font-medium text-sage-600 bg-sage-100 px-1.5 py-0.5 rounded-full">16% off</span>
-                )}
-              </div>
-              <ul className="space-y-2 mt-5">
+              <p className="font-display text-2xl font-semibold text-orange-900 mb-0.5">
+                €{PREMIUM_PRICE.toFixed(2)} <span className="text-sm font-normal text-orange-600">/ month</span>
+              </p>
+              <p className="text-[11px] text-orange-500 mb-4">per person · your perks follow you everywhere</p>
+              <ul className="space-y-2">
                 {[
-                  'Unlimited AI suggestions',
-                  'Extended recipe database',
-                  'Shared plan, list & pantry',
-                  'All core features',
+                  '50 AI suggestions/week to your shared kitchen',
+                  '8 recipe results per search',
+                  'Faster AI generation',
+                  'Export plans to PDF or Google Calendar',
+                  'Recipe history & cooking insights',
+                  'Advanced filters & cross-household sync',
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2">
                     <Check size={12} className="text-sage-600 mt-0.5 flex-shrink-0" />
@@ -643,20 +597,47 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
                   </li>
                 ))}
               </ul>
-              <div className="mt-4 pt-3 border-t border-orange-100" onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={() => { setSelectedPlan('premium'); setPremiumOwnKey((v) => !v); }}
-                  className="flex items-center justify-between w-full group"
-                >
-                  <span className="text-xs text-orange-900 leading-snug text-left">
-                    I'll use my own Gemini key
-                    <span className="block text-orange-600 font-normal mt-0.5">Saves 16% — requires active key</span>
-                  </span>
-                  <div className={`relative flex-shrink-0 ml-3 h-5 w-9 rounded-full transition-colors ${premiumOwnKey ? 'bg-sage-500' : 'bg-orange-200'}`}>
-                    <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${premiumOwnKey ? 'translate-x-4' : ''}`} />
-                  </div>
-                </button>
+            </button>
+
+            {/* Bring-your-own-key / Puter */}
+            <button
+              onClick={() => setSelectedPlan('puter')}
+              className={`text-left rounded-2xl border-2 p-5 transition-all ${
+                selectedPlan === 'puter'
+                  ? 'border-orange-900 bg-white shadow-warm-lg'
+                  : 'border-orange-100 bg-white/70 hover:border-orange-300'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <p className="font-display text-base font-semibold text-orange-900">Unlimited</p>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
+                  selectedPlan === 'puter' ? 'bg-orange-900 border-orange-900' : 'border-orange-300'
+                }`}>
+                  {selectedPlan === 'puter' && <Check size={11} className="text-white" />}
+                </div>
               </div>
+              <p className="font-display text-2xl font-semibold text-orange-900 mb-0.5">
+                Bring your key
+              </p>
+              <p className="text-[11px] text-orange-600 mb-4">Puter or Gemini API key · pay-as-you-go</p>
+              <ul className="space-y-2">
+                {[
+                  'Unlimited AI — no weekly cap',
+                  '8 recipe results per search',
+                  'Faster AI generation',
+                  'Shared plan, list & pantry',
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-2">
+                    <Check size={12} className="text-sage-600 mt-0.5 flex-shrink-0" />
+                    <span className="text-xs leading-snug text-orange-900">{t}</span>
+                  </li>
+                ))}
+              </ul>
+              {selectedPlan === 'puter' && (
+                <p className="text-xs text-orange-600 mt-4 pt-3 border-t border-orange-100 italic leading-relaxed">
+                  Connect Puter after signup — a couple of euros covers weeks of planning.
+                </p>
+              )}
             </button>
           </div>
 
@@ -674,13 +655,13 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
               : 'bg-orange-500 hover:bg-orange-600'
             }`}
           >
-            {selectedPlan === 'premium' ? 'Join the waitlist'
+            {selectedPlan === 'premium' ? 'Start free — I want Premium when it launches'
              : selectedPlan === 'puter'  ? 'Create account & connect Puter'
              : 'Start for free'}
             <ArrowRight size={15} />
           </button>
           <p className="text-xs text-orange-600 text-center mt-4 leading-relaxed">
-            You can switch plans or add your own key any time in Settings.
+            You can connect a key or switch plans any time in Settings.
           </p>
         </div>
       </div>

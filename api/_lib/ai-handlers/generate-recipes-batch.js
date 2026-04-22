@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '../auth.js';
 import { VOICE_GUIDE } from '../voice.js';
 import { resolveAiProvider, callAi } from '../ai-call.js';
-import { checkAndIncrementUsage, isGiftedHousehold, WEEKLY_FREE_LIMIT } from '../usage.js';
+import { checkAndIncrementUsage, isGiftedHousehold } from '../usage.js';
 
 // Generates full recipe details for multiple AI stubs in one request.
 // The central rate limiter counts this as a single call regardless of batch size,
@@ -33,7 +33,8 @@ export default async function handleGenerateRecipesBatch(req, res) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({
-        error: `Weekly limit of ${WEEKLY_FREE_LIMIT} AI calls reached. Add your Gemini key or upgrade in Settings for unlimited use.`,
+        error: `Your kitchen's weekly AI limit has been reached. Upgrade for more, or wait until next week.`,
+        code: 'weekly_limit_reached',
       });
     }
   }

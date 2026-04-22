@@ -1,4 +1,6 @@
-export const WEEKLY_FREE_LIMIT = 25;
+// Solo baseline — the real per-household limit is computed by memberBasedLimit():
+// 15 + 5 × memberCount  (solo = 20, couple = 25, 4-person = 35, etc.)
+export const WEEKLY_FREE_LIMIT = 20;
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -22,7 +24,17 @@ export function currentWeekKey(weekStartDay = 1) {
   return date.toISOString().slice(0, 10);
 }
 
-export async function checkAndIncrementUsage(supabase, householdId, limit = WEEKLY_FREE_LIMIT) {
+// Returns the dynamic free-tier weekly limit for a household: 15 + 5 × memberCount.
+// Solo = 20, couple = 25, 4-person flatshare = 35, etc.
+export async function memberBasedLimit(supabase, householdId) {
+  const { count } = await supabase
+    .from('household_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('household_id', householdId);
+  return 15 + 5 * (count || 1);
+}
+
+export async function checkAndIncrementUsage(supabase, householdId, limit = null) {
   // Temporary test escape hatch: set DISABLE_AI_LIMIT=1 on Vercel to
   // bypass the free-tier cap without touching the household_preferences
   // is_gifted column (useful while the Supabase console is misbehaving
@@ -30,11 +42,14 @@ export async function checkAndIncrementUsage(supabase, householdId, limit = WEEK
   // back in play.
   if (process.env.DISABLE_AI_LIMIT === '1' || process.env.DISABLE_AI_LIMIT === 'true') return false;
 
-  const { data: prefs } = await supabase
-    .from('household_preferences')
-    .select('reminder_day')
-    .eq('household_id', householdId)
-    .maybeSingle();
+  const [{ data: prefs }, effectiveLimit] = await Promise.all([
+    supabase
+      .from('household_preferences')
+      .select('reminder_day')
+      .eq('household_id', householdId)
+      .maybeSingle(),
+    limit !== null ? Promise.resolve(limit) : memberBasedLimit(supabase, householdId),
+  ]);
 
   const weekKey = currentWeekKey(weekStartDayFromReminder(prefs?.reminder_day));
 
@@ -45,7 +60,7 @@ export async function checkAndIncrementUsage(supabase, householdId, limit = WEEK
     .eq('usage_date', weekKey)
     .single();
 
-  if (data && data.call_count >= limit) return true;
+  if (data && data.call_count >= effectiveLimit) return true;
 
   await supabase.from('ai_usage').upsert(
     { household_id: householdId, usage_date: weekKey, call_count: (data?.call_count || 0) + 1 },

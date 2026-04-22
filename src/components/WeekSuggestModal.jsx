@@ -73,6 +73,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [plan, setPlan]                 = useState(null);
   const [notes, setNotes]               = useState('');
   const [error, setError]               = useState('');
+  const [errorStatus, setErrorStatus]   = useState(null);
   const [selected, setSelected]         = useState({});   // { "1-Monday": true }
   const [servings, setServings]         = useState({});   // { "1-Monday": 4 }
   const [dayNotes, setDayNotes]         = useState({});
@@ -129,6 +130,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   async function generate() {
     setLoading(true);
     setError('');
+    setErrorStatus(null);
     setPlan(null);
     setSelected({});
     setServings({});
@@ -165,6 +167,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
       setExpandedMeals(defExpanded);
     } catch (err) {
       setError(err.message || 'Something went wrong');
+      setErrorStatus(err.status || null);
     } finally {
       setLoading(false);
     }
@@ -400,11 +403,32 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
 
         {/* Content area — scrolls vertically so cards expand to their full height */}
         <div className="flex-1 overflow-y-auto">
-          {error && (
+          {error && errorStatus === 429 ? (
+            <div className="px-5 pt-4">
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
+                <p className="text-sm font-semibold text-orange-900 mb-1">Kitchen limit reached</p>
+                <p className="text-xs text-orange-700 leading-relaxed mb-3">
+                  Your kitchen has used its {weeklyUsage?.limit ?? 'weekly'} AI suggestions for this week.
+                  {weeklyUsage?.limit != null && ` Suggestions reset every week — invite someone to cook with you to grow your shared budget (5 per member).`}
+                </p>
+                <div className="flex flex-col gap-2">
+                  <div className="bg-white rounded-xl border border-orange-200 px-3 py-2.5">
+                    <p className="text-[11px] font-semibold text-orange-900 uppercase tracking-wide mb-1.5">Premium — coming soon</p>
+                    <p className="text-xs text-orange-700 leading-relaxed">
+                      €2.99/month per person · contributes 50/week to your shared kitchen · faster AI · 8 recipe results · exports & insights
+                    </p>
+                  </div>
+                  <p className="text-[11px] text-orange-500 text-center">
+                    In the meantime, connect Puter or add your Gemini key in Settings for unlimited AI.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : error ? (
             <div className="px-5 pt-2">
               <div className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</div>
             </div>
-          )}
+          ) : null}
 
           {loading && (
             <div className="flex flex-col items-center justify-center gap-3 py-20">
