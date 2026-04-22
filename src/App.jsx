@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, AlertTriangle, MinusCircle, Mail,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, AlertTriangle, MinusCircle, Mail, Settings,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { apiFetch, setActiveHouseholdId, getActiveHouseholdId } from "./lib/api";
@@ -998,6 +998,7 @@ export default function App() {
   const [savingNewHousehold, setSavingNewHousehold] = useState(false);
   const [createHouseholdError, setCreateHouseholdError] = useState('');
   const [showPreferences, setShowPreferences] = useState(false);
+  const [showAppSettings, setShowAppSettings] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
   const [showStarred, setShowStarred] = useState(false);
@@ -2563,6 +2564,60 @@ export default function App() {
         />
       )}
 
+      {/* App settings overlay */}
+      {showAppSettings && (
+        <div className="fixed inset-0 z-50 bg-white flex flex-col font-outfit">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-orange-100 max-w-2xl mx-auto w-full">
+            <span className="font-semibold text-orange-900">Settings</span>
+            <button onClick={() => { setShowAppSettings(false); loadPreferences(); }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 hover:text-orange-600 transition">
+              <X size={18} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+              {/* Language */}
+              <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Language</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm text-orange-900 font-medium">Language</span>
+                    <p className="text-xs text-orange-400">Recipes and suggestions are generated in this language</p>
+                  </div>
+                  <select
+                    value={memberLanguage}
+                    onChange={(e) => saveLanguage(e.target.value)}
+                    className="border border-orange-200 rounded-xl px-3 py-1.5 text-sm text-orange-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  >
+                    {LANGUAGES.map((l) => (
+                      <option key={l.code} value={l.code}>{l.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {/* Appearance: theme, units, Gemini key, Puter */}
+              <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Appearance & AI</p>
+                <PreferencesModal
+                  household={household}
+                  section="appearance"
+                  inline={true}
+                  initialPrefs={preferences}
+                  onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                  onClose={loadPreferences}
+                />
+              </div>
+              {/* Sign out */}
+              <button onClick={() => supabase.auth.signOut()}
+                className="w-full py-2.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full text-sm font-medium hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition flex items-center justify-center gap-2">
+                <LogOut size={13} />
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Post-signup Puter connect */}
       {showPuterWelcome && (
         <PuterWelcomeModal
@@ -3861,44 +3916,11 @@ export default function App() {
                         );
                       })()}
                     </div>
-                    <button onClick={() => supabase.auth.signOut()}
+                    <button onClick={() => setShowAppSettings(true)}
                       className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 hover:text-orange-600 transition"
-                      title="Sign out">
-                      <LogOut size={15} />
+                      title="App settings">
+                      <Settings size={15} />
                     </button>
-                  </div>
-                </div>
-
-                {/* App settings */}
-                <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Settings</p>
-                  {/* Language — personal, affects AI-generated content */}
-                  <div className="space-y-2 mb-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-sm text-orange-900 font-medium">Language</span>
-                        <p className="text-xs text-orange-400">Recipes and suggestions are generated in this language</p>
-                      </div>
-                      <select
-                        value={memberLanguage}
-                        onChange={(e) => saveLanguage(e.target.value)}
-                        className="border border-orange-200 rounded-xl px-3 py-1.5 text-sm text-orange-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
-                      >
-                        {LANGUAGES.map((l) => (
-                          <option key={l.code} value={l.code}>{l.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="border-t border-orange-100 pt-4">
-                    <PreferencesModal
-                      household={household}
-                      section="appearance"
-                      inline={true}
-                      initialPrefs={preferences}
-                      onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
-                      onClose={loadPreferences}
-                    />
                   </div>
                 </div>
 
