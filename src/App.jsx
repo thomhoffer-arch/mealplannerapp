@@ -225,7 +225,7 @@ const _VOL = {
   cup: 240, cups: 240,
   pt: 473, pint: 473, pints: 473,
   qt: 946, quart: 946, quarts: 946,
-  floz: 29.57,
+  floz: 29.57, 'fl oz': 29.57,
 };
 // Weight units → base g
 const _WEIGHT = {
@@ -264,7 +264,11 @@ function _fmtVol(ml, sys) {
     if (ml < 946) return `${_formatFrac(cups)} cup${Math.abs(cups - 1) < 0.05 ? '' : 's'}`;
     return `${_formatFrac(ml / 473)} pt`;
   }
-  if (ml < 1000) return `${parseFloat(ml.toFixed(ml < 10 ? 1 : 0))} ml`;
+  // Metric: keep tsp/tbsp for small amounts — these are universal cooking conventions
+  // and far more readable than "1.25 ml salt"
+  if (ml <= 12) return `${_formatFrac(ml / 5)} tsp`;
+  if (ml < 60)  return `${_formatFrac(ml / 15)} tbsp`;
+  if (ml < 1000) return `${Math.round(ml)} ml`;
   return `${parseFloat((ml / 1000).toFixed(2)).toString().replace(/\.?0+$/, '')} L`;
 }
 
@@ -999,6 +1003,7 @@ export default function App() {
   const [createHouseholdError, setCreateHouseholdError] = useState('');
   const [showPreferences, setShowPreferences] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
   const [showStarred, setShowStarred] = useState(false);
@@ -2617,6 +2622,66 @@ export default function App() {
         </div>
       )}
 
+      {/* Upgrade / plan modal */}
+      {showUpgradeModal && (() => {
+        const isGifted = !!preferences?.is_gifted;
+        const hasPuter = !!preferences?.puter_token_hint;
+        const hasGemini = !!preferences?.gemini_api_key_hint;
+        const unlimited = isGifted || hasPuter || hasGemini;
+        return (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" onClick={() => setShowUpgradeModal(false)}>
+            <div className="bg-white rounded-t-2xl w-full max-w-lg p-5 font-outfit" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <span className="font-semibold text-orange-900">Your plan</span>
+                <button onClick={() => setShowUpgradeModal(false)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-orange-400 hover:bg-orange-50 transition">
+                  <X size={16} />
+                </button>
+              </div>
+
+              {unlimited ? (
+                <>
+                  <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium mb-3 ${isGifted ? 'bg-amber-50 text-orange-700' : 'bg-orange-50 text-orange-600'}`}>
+                    <Sparkles size={13} />
+                    {isGifted ? 'Gifted — unlimited' : hasPuter ? 'Puter AI — unlimited' : 'Gemini key — unlimited'}
+                  </div>
+                  <p className="text-sm text-orange-500 mb-4">You have unlimited AI suggestions. No weekly cap.</p>
+                  <button onClick={() => { setShowUpgradeModal(false); setShowAppSettings(true); }}
+                    className="w-full py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-sm font-medium hover:border-orange-300 hover:bg-orange-100 transition">
+                    Manage settings
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-orange-900">Free plan</span>
+                    <span className="text-xs text-orange-400">{weeklyUsage ? `${weeklyUsage.used} / ${weeklyUsage.limit} suggestions used` : '25 suggestions / week'}</span>
+                  </div>
+                  {weeklyUsage && (
+                    <div className="w-full bg-orange-100 rounded-full h-1.5 mb-4">
+                      <div className={`h-1.5 rounded-full ${weeklyUsage.used >= weeklyUsage.limit ? 'bg-red-400' : 'bg-orange-300'}`}
+                        style={{ width: `${Math.min(100, (weeklyUsage.used / weeklyUsage.limit) * 100)}%` }} />
+                    </div>
+                  )}
+                  <p className="text-xs text-orange-400 mb-4">Go unlimited — add your own AI key (free from Google) or connect Puter AI.</p>
+                  <div className="space-y-2">
+                    <button onClick={() => { setShowUpgradeModal(false); setShowAppSettings(true); }}
+                      className="w-full py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition flex items-center justify-center gap-2">
+                      <Sparkles size={14} />
+                      Add Gemini key — free &amp; unlimited
+                    </button>
+                    <button onClick={() => { setShowUpgradeModal(false); setShowAppSettings(true); }}
+                      className="w-full py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-sm font-medium hover:border-orange-300 hover:bg-orange-100 transition">
+                      Connect Puter AI
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Post-signup Puter connect */}
       {showPuterWelcome && (
         <PuterWelcomeModal
@@ -3851,13 +3916,17 @@ export default function App() {
                         const hasGemini = !!preferences?.gemini_api_key_hint;
                         const unlimited = isGifted || hasPuter || hasGemini;
                         let label, labelClass;
-                        if (isGifted) { label = 'Gifted — unlimited AI'; labelClass = 'text-orange-700 bg-amber-50'; }
+                        if (isGifted) { label = 'Gifted — unlimited'; labelClass = 'text-orange-700 bg-amber-50'; }
                         else if (hasPuter) { label = 'Puter AI — unlimited'; labelClass = 'text-orange-600 bg-orange-50'; }
                         else if (hasGemini) { label = 'Gemini key — unlimited'; labelClass = 'text-orange-600 bg-orange-50'; }
                         else { label = 'Free plan'; labelClass = 'text-orange-400 bg-orange-50'; }
                         return (
                           <div className="mt-1.5">
-                            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${labelClass}`}>{label}</span>
+                            <button onClick={() => setShowUpgradeModal(true)}
+                              className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${labelClass} hover:opacity-75 transition flex items-center gap-0.5`}>
+                              {label}
+                              {!unlimited && <ChevronRight size={10} />}
+                            </button>
                           </div>
                         );
                       })()}

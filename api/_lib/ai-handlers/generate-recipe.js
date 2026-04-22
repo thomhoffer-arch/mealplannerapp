@@ -19,9 +19,10 @@ export default async function handleGenerateRecipe(req, res) {
 
   const [{ provider, token, usingSharedKey }, { data: prefData }] = await Promise.all([
     resolveAiProvider(supabase, ctx.householdId),
-    supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_preferences').select('preferences_text, measurement_system').eq('household_id', ctx.householdId).maybeSingle(),
   ]);
   const householdPrefs = prefData?.preferences_text || '';
+  const measurementSystem = prefData?.measurement_system || 'metric';
 
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
@@ -34,7 +35,7 @@ export default async function handleGenerateRecipe(req, res) {
     }
   }
 
-  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim(), householdPrefs) : buildGeneratePrompt(recipe, householdPrefs);
+  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim(), householdPrefs, measurementSystem) : buildGeneratePrompt(recipe, householdPrefs, measurementSystem);
 
   let rawText;
   try {
@@ -52,7 +53,7 @@ export default async function handleGenerateRecipe(req, res) {
   res.json(result);
 }
 
-function buildGeneratePrompt(recipe, householdPrefs = '') {
+function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'metric') {
   const { name, overview, cuisineType, prepTime, cookTime, _sideDish } = recipe;
   const totalTime = (prepTime || 0) + (cookTime || 0);
   const timeHint = totalTime > 0 ? ` Total time around ${totalTime} minutes.` : '';
@@ -71,6 +72,9 @@ function buildGeneratePrompt(recipe, householdPrefs = '') {
   const prefsSection = householdPrefs
     ? `\nHOUSEHOLD PREFERENCES (dietary restrictions to respect):\n${householdPrefs}\n`
     : '';
+  const unitsLine = measurementSystem === 'imperial'
+    ? 'Use imperial units for ingredient amounts (oz, lb, cups, tsp, tbsp).'
+    : 'Use metric units for ingredient amounts (g, kg, ml, L). Use tsp/tbsp for small amounts like spices and seasonings.';
 
   return `${VOICE_GUIDE}
 
@@ -78,7 +82,7 @@ function buildGeneratePrompt(recipe, householdPrefs = '') {
 
 Write a complete dinner recipe for "${name}".${overviewHint}
 ${cuisineHint}${timeHint}
-Portions for 2 people.
+Portions for 2 people. ${unitsLine}
 ${prefsSection}${sideSection}
 If the dish name already implies a dietary adaptation (e.g. "with
 gluten-free pasta", "vegetarian lasagne"), reflect that in the
@@ -97,7 +101,7 @@ Return ONLY a JSON object, no markdown:
 }`;
 }
 
-function buildAdjustPrompt(recipe, request, householdPrefs = '') {
+function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric') {
   const ingredientsList = (recipe.ingredients || [])
     .map((i) => `  - ${i.amount ? `${i.amount} ` : ''}${i.name}`)
     .join('\n');
@@ -114,12 +118,15 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '') {
   const prefsSection = householdPrefs
     ? `\nHOUSEHOLD PREFERENCES (dietary restrictions to respect):\n${householdPrefs}\n`
     : '';
+  const unitsLine = measurementSystem === 'imperial'
+    ? 'Use imperial units for ingredient amounts (oz, lb, cups, tsp, tbsp).'
+    : 'Use metric units for ingredient amounts (g, kg, ml, L). Use tsp/tbsp for small amounts like spices and seasonings.';
 
   return `${VOICE_GUIDE}
 
 ---
 
-Adjust this recipe based on the user request. Change only what the request asks for.
+Adjust this recipe based on the user request. Change only what the request asks for. ${unitsLine}
 ${prefsSection}
 RECIPE: ${recipe.name}
 INGREDIENTS:
