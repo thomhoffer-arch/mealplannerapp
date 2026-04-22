@@ -2710,6 +2710,7 @@ export default function App() {
                                       setMacroTargets(next);
                                     }}
                                     onBlur={() => saveMacroTargets(macroTargets)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.target.blur(); } }}
                                     className="w-20 border border-orange-200 rounded-lg px-2 py-1 text-sm text-right text-orange-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
                                   />
                                   <span className="text-xs text-orange-400 w-8">{unit}</span>
