@@ -369,12 +369,11 @@ Waste-first thinking:
   One "cook once, eat twice" per week where natural. leftover_for can point at a meal 1 or 2 days later — don't force next-day if that creates awkward clusters. leftovers from different cook days can also be combined into one meal. leftover_for must point at a meal that was already going to be planned — never invent an extras entry just to receive leftovers.
   Side dishes and extras should reuse ingredients already in the week's plan where possible.
 
-Extras — only when there is a clear basis:
-  Every day's "extras" array is [] by default. Only add breakfast, lunch or snacks when you can point to a clear signal in the user's input:
-  • An explicit request this week ("waffles Saturday morning")
-  • A standing extras instruction that covers this day ("we always have a big brunch on weekends")
-  • A very consistent, long-standing pattern stated explicitly in household preferences (mentioned many times, not just 2–3 occurrences)
-  If there is no such signal, leave extras empty — including on weekends. Never invent extras that have no basis in anything the user has told you.
+Extras — default is ALWAYS empty. This is a strict rule:
+  Every day's "extras" array must be [] unless ALL of the following are true:
+  1. There is a verbatim request for that specific meal type (breakfast / lunch / snack) for that specific day or day group in the user's input OR in the standing extras text.
+  2. You can quote the exact words that justify it.
+  If you cannot quote a direct user request, the array is []. Do not infer, anticipate, or suggest extras on your own initiative — not for weekends, not for "balance", not for any reason. The user will ask when they want them.
 
 Learning from history — go slowly:
   The LOVED list and recent meal history show what the household has enjoyed, but 2–3 similar dishes is not a strong enough pattern to lock in a genre or style. Keep suggesting variety. Only lean heavily on a pattern when it is overwhelming (5+ clear data points pointing the same direction). Even then, don't abandon variety entirely — one week's plan should never feel monotone.
@@ -383,7 +382,7 @@ Real dishes only:
   Every suggestion must be a recognisable, real-world dish.`}
 
 SELF-CHECK BEFORE OUTPUT
-For every day confirm: (a) requested extras are in the "extras" array, not just in "notes"; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) extras=[] on days where no extra was explicitly requested; (e) leftover_for never points at a spontaneously invented meal; (f) if a time limit was stated in THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning.
+For every day confirm: (a) extras are in the "extras" array only when directly requested — if you added any extras without a verbatim user request, remove them now; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) leftover_for never points at a spontaneously invented meal; (e) if a time limit was stated in THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning.
 
 Return ONLY a JSON object, no markdown:
 {
