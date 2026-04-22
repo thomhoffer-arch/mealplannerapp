@@ -1030,7 +1030,6 @@ export default function App() {
   const [wasteInsights, setWasteInsights] = useState(null); // null | { loading, insights, error }
   const [aiCleanNames, setAiCleanNames] = useState({}); // originalName → AI-cleaned name (premium only)
   const [showBagModal, setShowBagModal] = useState(false); // { key, mainRecipe, rid, input, loading, suggestions, error }
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // ── Search state
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
