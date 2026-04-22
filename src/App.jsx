@@ -3302,7 +3302,7 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     {viewItems.length > 0 && (
                       <button onClick={() => setShowBagModal(true)}
-                        className="px-3 py-1.5 border border-dashed border-orange-200 text-orange-400 rounded-full text-xs hover:border-orange-400 hover:text-orange-600 transition">
+                        className="px-4 py-2 border border-dashed border-orange-200 text-orange-400 rounded-full text-sm font-semibold hover:border-orange-400 hover:text-orange-600 transition">
                         What've I got?
                       </button>
                     )}
