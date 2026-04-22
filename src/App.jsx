@@ -1029,6 +1029,7 @@ export default function App() {
   const [showEmptyGrid, setShowEmptyGrid] = useState(false);
   const [wasteInsights, setWasteInsights] = useState(null); // null | { loading, insights, error }
   const [aiCleanNames, setAiCleanNames] = useState({}); // originalName → AI-cleaned name (premium only)
+  const sentToNormalizeRef = React.useRef(new Set()); // item names already dispatched to normalize API this session
   const [showBagModal, setShowBagModal] = useState(false); // { key, mainRecipe, rid, input, loading, suggestions, error }
 
   // ── Search state
@@ -2482,20 +2483,24 @@ export default function App() {
   React.useEffect(() => { setWasteInsights(null); }, [shoppingList.length]);
 
   // AI polish pass — only for premium/gifted households.
-  // Sends items the heuristics couldn't fully clean (e.g. prep words in unusual positions,
-  // names > 4 words) to the AI endpoint and silently updates display names.
+  // Fires after each recipe generation (when the shopping list changes) and sends
+  // only newly added suspicious items — ones not yet seen this session.
   const _aiNormalizeKey = shoppingList.map((i) => i.name).join('|');
   React.useEffect(() => {
-    const hasUnlimitedAi = !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+    const hasUnlimitedAi = weeklyUsage ? weeklyUsage.unlimited
+      : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
     if (!hasUnlimitedAi || !shoppingList.length) return;
 
-    // Only items that look like heuristics left something unresolved.
     const _PREP_BODY = /\b(finely|roughly|coarsely|thinly|thickly|sliced|diced|chopped|minced|grated|shredded|crushed|beaten|roasted|steamed|boiled|softened|melted|cooked)\b/i;
     const suspicious = shoppingList
+      .filter((item) => !sentToNormalizeRef.current.has(item.name)) // only newly added items
       .filter((item) => item.name.split(/\s+/).length > 4 || _PREP_BODY.test(item.name))
       .map((item) => ({ name: item.name, amount: item.amount }));
 
     if (!suspicious.length) return;
+
+    // Mark as sent before the async call so concurrent renders don't re-dispatch
+    suspicious.forEach((item) => sentToNormalizeRef.current.add(item.name));
 
     apiFetch('/api/ai/normalize-shopping-list', { method: 'POST', body: { items: suspicious } })
       .then((data) => {
@@ -2509,7 +2514,10 @@ export default function App() {
           return next;
         });
       })
-      .catch(() => {});
+      .catch(() => {
+        // On failure let them be retried next time
+        suspicious.forEach((item) => sentToNormalizeRef.current.delete(item.name));
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [_aiNormalizeKey]);
 
