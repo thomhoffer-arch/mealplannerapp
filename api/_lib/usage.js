@@ -2,6 +2,22 @@
 // 15 + 5 × memberCount  (solo = 20, couple = 25, 4-person = 35, etc.)
 export const WEEKLY_FREE_LIMIT = 20;
 
+// Premium model:
+//   - Free     : default for all new users; weekly AI call limit applies.
+//   - Premium  : paid subscription (or admin-gifted). Per-user flag stored
+//                in household_members.is_premium. Joining a household as a
+//                new member always starts free — premium never transfers via
+//                invite.
+//   - BYOK     : user connected their own Gemini or Puter key. Stored on
+//                household_preferences (intentional — covers the whole
+//                household since the key owner is paying the API cost).
+//                BYOK bypasses the weekly limit and unlocks premium features
+//                for all household members. Not affected by this migration.
+//
+// To gift a user premium without payment: set household_members.is_premium
+// to true for that specific user row in Supabase. The old is_gifted column
+// on household_preferences is no longer read for access checks.
+
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 // Returns the UTC day number (0=Sun … 6=Sat) that the usage week starts on,
@@ -69,16 +85,27 @@ export async function checkAndIncrementUsage(supabase, householdId, limit = null
   return false;
 }
 
-export async function isGiftedHousehold(supabase, householdId) {
-  // Same escape hatch — pretend every household is gifted while the
-  // flag is on so downstream checks that short-circuit on isGifted
-  // also bypass the limit cleanly.
+// Check whether a specific user has premium access (paid or admin-gifted).
+// This is per-user — joining a household never transfers premium status.
+export async function isUserPremium(supabase, householdId, userId) {
   if (process.env.DISABLE_AI_LIMIT === '1' || process.env.DISABLE_AI_LIMIT === 'true') return true;
 
   const { data } = await supabase
-    .from('household_preferences')
-    .select('is_gifted')
+    .from('household_members')
+    .select('is_premium')
     .eq('household_id', householdId)
+    .eq('user_id', userId)
     .maybeSingle();
+  return !!(data?.is_premium);
+}
+
+// Deprecated shim — kept for any callsites not yet updated.
+// Prefer isUserPremium(supabase, householdId, userId).
+export async function isGiftedHousehold(supabase, householdId, userId) {
+  if (userId) return isUserPremium(supabase, householdId, userId);
+  if (process.env.DISABLE_AI_LIMIT === '1' || process.env.DISABLE_AI_LIMIT === 'true') return true;
+  const { data } = await supabase
+    .from('household_preferences').select('is_gifted')
+    .eq('household_id', householdId).maybeSingle();
   return !!(data?.is_gifted);
 }

@@ -21,7 +21,7 @@ export default async function handleSuggest(req, res) {
     : { provider: 'gemini', token: process.env.GEMINI_API_KEY || null, usingSharedKey: true };
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
-  if (usingSharedKey && ctx && !(await isGiftedHousehold(supabase, ctx.householdId))) {
+  if (usingSharedKey && ctx && !(await isGiftedHousehold(supabase, ctx.householdId, ctx.user.id))) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({

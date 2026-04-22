@@ -451,7 +451,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                   <div className="bg-white rounded-xl border border-orange-200 px-3 py-2.5">
                     <p className="text-[11px] font-semibold text-orange-900 uppercase tracking-wide mb-1.5">Premium — coming soon</p>
                     <p className="text-xs text-orange-700 leading-relaxed">
-                      €2.99/month per person · contributes 50/week to your shared kitchen · faster AI · 8 recipe results · exports & insights
+                      €4.99/month per person · contributes 50/week to your shared kitchen · unlimited search · macro tracking · exports & insights
                     </p>
                   </div>
                   <p className="text-[11px] text-orange-500 text-center">

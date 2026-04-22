@@ -29,7 +29,7 @@ export default async function handleGenerateRecipesBatch(req, res) {
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
   // One usage check for the entire batch — fair for users on shared free-tier key.
-  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId))) {
+  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId, ctx.user.id))) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({

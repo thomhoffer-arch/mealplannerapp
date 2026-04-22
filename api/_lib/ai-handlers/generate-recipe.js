@@ -26,7 +26,7 @@ export default async function handleGenerateRecipe(req, res) {
 
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
-  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId))) {
+  if (usingSharedKey && !(await isGiftedHousehold(supabase, ctx.householdId, ctx.user.id))) {
     const limited = await checkAndIncrementUsage(supabase, ctx.householdId);
     if (limited) {
       return res.status(429).json({

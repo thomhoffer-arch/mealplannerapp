@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, AlertTriangle, MinusCircle, Mail, Settings,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, AlertTriangle, MinusCircle, Mail, Settings, Lock,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { apiFetch, setActiveHouseholdId, getActiveHouseholdId } from "./lib/api";
@@ -1745,7 +1745,7 @@ export default function App() {
     if (match) { amount = match[0].trim(); name = raw.slice(match[0].length).trim() || raw; }
 
     // Premium/gifted: ask AI if the name is ambiguous before saving.
-    const hasUnlimitedAi = !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+    const hasUnlimitedAi = weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
     if (hasUnlimitedAi && name.split(/\s+/).length <= 2) {
       setPantryInput("");
       setPantryNudge({ original: name, amount, suggestions: [], loading: true });
@@ -2869,8 +2869,8 @@ export default function App() {
           <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-warm-lg border border-orange-100 p-6 sm:p-8" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-5">
               <div>
-                <p className="font-display italic text-orange-400 text-xs mb-0.5">— coming soon</p>
                 <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight">Premium</h2>
+                <p className="text-xs text-orange-400 mt-0.5">Payment coming soon — join the waitlist below</p>
               </div>
               <button onClick={() => setShowUpgradeModal(false)} className="text-orange-300 hover:text-orange-600 transition mt-1">
                 <X size={18} />
@@ -2878,40 +2878,45 @@ export default function App() {
             </div>
 
             <div className="flex items-baseline gap-1.5 mb-5">
-              <p className="font-display text-3xl font-semibold text-orange-900">€2.99</p>
+              <p className="font-display text-3xl font-semibold text-orange-900">€4.99</p>
               <span className="text-sm text-orange-600">/ month per person</span>
             </div>
 
-            <ul className="space-y-2.5 mb-6">
+            <ul className="space-y-2.5 mb-5">
               {[
-                { ok: true,  text: '50 AI suggestions/week — 10× your free contribution' },
-                { ok: true,  text: 'Faster AI generation' },
-                { ok: true,  text: '8 recipe search results instead of 4' },
-                { ok: true,  text: 'Export meal plans to PDF or Google Calendar' },
-                { ok: true,  text: 'Recipe history & cooking insights' },
-                { ok: true,  text: 'Advanced recipe filters (cuisine, time, macros)' },
-                { ok: true,  text: 'Cross-household favourites sync' },
+                { live: true,  text: '50 AI suggestions/week — 10× your free allowance' },
+                { live: true,  text: 'Unlimited recipe search results' },
+                { live: true,  text: 'Daily macro tracking' },
+                { live: true,  text: 'AI-cleaned shopping list ingredient names' },
+                { live: true,  text: 'AI pantry name disambiguation' },
+                { live: true,  text: 'All side dish suggestions (free tier shows 1 of 3)' },
+                { live: false, text: 'Export meal plans to PDF or Google Calendar' },
+                { live: false, text: 'Recipe history & cooking insights' },
+                { live: false, text: 'Advanced recipe filters (cuisine, time, macros)' },
+                { live: false, text: 'Cross-household favourites sync' },
               ].map((f) => (
                 <li key={f.text} className="flex items-start gap-2.5">
-                  <Check size={13} className="text-sage-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-orange-900 leading-snug">{f.text}</span>
+                  {f.live
+                    ? <Check size={13} className="text-sage-600 mt-0.5 flex-shrink-0" />
+                    : <span className="text-[10px] font-semibold text-orange-300 mt-0.5 flex-shrink-0 w-[13px] text-center">soon</span>
+                  }
+                  <span className={`text-sm leading-snug ${f.live ? 'text-orange-900' : 'text-orange-400'}`}>{f.text}</span>
                 </li>
               ))}
             </ul>
 
             <p className="text-xs text-orange-600/80 bg-orange-50 rounded-2xl px-4 py-3 mb-4 leading-relaxed">
-              Your subscription follows you across all households you're in.
-              One upgrade contributes 50 suggestions to every shared kitchen you belong to.
+              Your subscription follows you. One upgrade contributes 50 suggestions to every shared kitchen you're in.
             </p>
 
             <button
               disabled
-              className="w-full py-3.5 bg-sage-500 text-white rounded-full font-medium text-sm opacity-60 cursor-not-allowed"
+              className="w-full py-3.5 bg-orange-500 text-white rounded-full font-medium text-sm opacity-60 cursor-not-allowed"
             >
-              Coming soon — we'll notify you when it's ready
+              Notify me when payment is ready
             </button>
             <p className="text-center text-xs text-orange-400 mt-3">
-              In the meantime, connect Puter or add your Gemini key in Settings for unlimited AI.
+              For now, connect Puter or add your Gemini key in Settings for unlimited AI.
             </p>
           </div>
         </div>
@@ -3022,20 +3027,34 @@ export default function App() {
                 <p className="text-xs text-orange-400">Looking for a good side…</p>
               </div>
             )}
-            {!sideDishPanel.loading && sideDishPanel.suggestions.length > 0 && (
-              <div className="space-y-2 mb-3">
-                {sideDishPanel.suggestions.map((s) => (
-                  <button
-                    key={s.name}
-                    onClick={() => { saveSideDish(sideDishPanel.rid, s); setSideDishPanel(null); }}
-                    className="w-full text-left bg-orange-50 hover:bg-orange-100 rounded-xl px-3 py-2.5 transition border border-orange-100"
-                  >
-                    <p className="text-sm font-semibold text-orange-900">{s.name}</p>
-                    <p className="text-xs text-orange-600 mt-0.5">{s.description}</p>
-                  </button>
-                ))}
-              </div>
-            )}
+            {!sideDishPanel.loading && sideDishPanel.suggestions.length > 0 && (() => {
+              const isUnlimited = weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
+              const visible = isUnlimited ? sideDishPanel.suggestions : sideDishPanel.suggestions.slice(0, 1);
+              const locked = isUnlimited ? 0 : sideDishPanel.suggestions.length - 1;
+              return (
+                <div className="space-y-2 mb-3">
+                  {visible.map((s) => (
+                    <button
+                      key={s.name}
+                      onClick={() => { saveSideDish(sideDishPanel.rid, s); setSideDishPanel(null); }}
+                      className="w-full text-left bg-orange-50 hover:bg-orange-100 rounded-xl px-3 py-2.5 transition border border-orange-100"
+                    >
+                      <p className="text-sm font-semibold text-orange-900">{s.name}</p>
+                      <p className="text-xs text-orange-600 mt-0.5">{s.description}</p>
+                    </button>
+                  ))}
+                  {locked > 0 && (
+                    <button
+                      onClick={() => { setSideDishPanel(null); setShowUpgradeModal(true); }}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-orange-200 text-orange-400 hover:border-orange-400 hover:text-orange-600 transition"
+                    >
+                      <Lock size={11} className="flex-shrink-0" />
+                      <span className="text-xs">{locked} more option{locked !== 1 ? 's' : ''} — upgrade for all suggestions</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
 
             {sideDishPanel.error && <p className="text-xs text-red-500 mb-2">{sideDishPanel.error}</p>}
 
@@ -3242,7 +3261,7 @@ export default function App() {
                   </div>
                 ) : recipes.length > 0 ? (
                   (() => {
-                    const isPaid  = !!(preferences?.puter_token_hint || preferences?.is_gifted);
+                    const isPaid  = weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint);
                     const isBYOK  = !isPaid && !!(preferences?.gemini_api_key_hint);
                     const limit   = isPaid ? Infinity : isBYOK ? 8 : 4;
                     const visible = recipes.slice(0, limit);
@@ -3891,6 +3910,13 @@ export default function App() {
                   {checkedCount === shoppingList.length && shoppingList.length > 0 && (
                     <p className="text-center text-sm text-sage-600 font-semibold mt-2">All done! Happy cooking!</p>
                   )}
+                  {!(weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint)) && (
+                    <button onClick={() => setShowUpgradeModal(true)}
+                      className="w-full mt-2 flex items-center justify-center gap-1.5 text-xs text-orange-400 hover:text-orange-600 transition py-1">
+                      <Sparkles size={10} />
+                      Premium: AI cleans ingredient names on your list
+                    </button>
+                  )}
                   {shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length > 0 && (
                     <button
                       onClick={() => setShowGrocerHandoff(true)}
@@ -4037,6 +4063,13 @@ export default function App() {
                     </button>
                   </div>
                   <p className="text-xs text-orange-400 mt-2">Items here are skipped (greyed out) in your shopping list.</p>
+                  {!(weeklyUsage ? weeklyUsage.unlimited : !!(preferences?.puter_token_hint || preferences?.is_gifted || preferences?.gemini_api_key_hint)) && (
+                    <button onClick={() => setShowUpgradeModal(true)}
+                      className="mt-2 flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-600 transition">
+                      <Sparkles size={10} />
+                      Premium: AI clarifies ambiguous items as you add them
+                    </button>
+                  )}
                   {pantryNudge && (
                     <div className="mt-3 p-3 bg-orange-50 rounded-xl border border-orange-200">
                       {pantryNudge.loading ? (
