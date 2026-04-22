@@ -95,7 +95,14 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [dayNotes, setDayNotes]         = useState(() => initialDayNotes || {});
   const [swapInput, setSwapInput]       = useState({});
   const [swappingKey, setSwappingKey]   = useState(null);
-  const [thisWeekWishes, setThisWeekWishes] = useState('');
+  const [thisWeekWishes, setThisWeekWishes] = useState(() => {
+    // Pre-populate with any per-day hints set on the main week view
+    const hints = Object.entries(initialDayNotes || {})
+      .filter(([, v]) => v && v.trim())
+      .map(([day, note]) => `${day}: ${note.trim()}`)
+      .join('\n');
+    return hints || '';
+  });
   const [weeklyBudget, setWeeklyBudget]   = useState(() => {
     try { return localStorage.getItem(`${hhKey}:weeklyBudget`) || ''; } catch { return ''; }
   });
@@ -462,7 +469,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           </div>
           <textarea
             rows={2}
-            placeholder='Anything specific this week? Dietary requests, events, ingredients to use up…'
+            placeholder='Anything specific this week? e.g. "Monday: vegetarian, Friday: fish, weekdays under 35 min"…'
             value={thisWeekWishes}
             onChange={(e) => setThisWeekWishes(e.target.value)}
             className="w-full text-xs border border-orange-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
@@ -566,24 +573,10 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           )}
 
           {!loading && !plan && !error && (
-            <div className="px-5 py-4">
-              <p className="text-[11px] text-orange-400 text-center mb-3">
-                Set per-day rules before generating — the AI treats these as hard constraints.
-              </p>
-              <div className="space-y-1.5">
-                {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map((day) => (
-                  <div key={day} className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase text-orange-400 w-8 flex-shrink-0">{day.slice(0,3)}</span>
-                    <input
-                      type="text"
-                      value={dayNotes[day] || ''}
-                      onChange={(e) => setDayNotes((p) => ({ ...p, [day]: e.target.value }))}
-                      placeholder="e.g. vegetarian, under 30 min, fish night, away…"
-                      className="flex-1 text-xs border border-orange-200 rounded-full px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-300 placeholder-orange-200"
-                    />
-                  </div>
-                ))}
-              </div>
+            <div className="flex flex-col items-center justify-center px-5 text-center py-20">
+              <Sparkles size={40} className="mx-auto mb-3 text-orange-400" />
+              <p className="text-sm text-orange-600 font-medium">AI plans a varied week for you</p>
+              <p className="text-xs text-orange-400 mt-1 leading-relaxed">Use the box above for any rules — per-day too, e.g. "Monday: vegetarian, Friday: fish".</p>
             </div>
           )}
 
