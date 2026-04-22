@@ -92,7 +92,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const EASTER_EGGS = [
     "Consulting the pasta oracle…",
     "Arguing with the fridge about leftovers…",
-    "Bribing the AI with virtual stroopwafels…",
+    "Digging through the recipe box for something new…",
     "Googling 'what even is a balanced meal'…",
     "Convincing Monday it doesn't have to be sad…",
     "Teaching Tuesday to cook without burning things…",
@@ -103,8 +103,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     "Making sure Friday feels special…",
     "Sneaking a treat into the weekend…",
     "Asking the pantry what it really wants…",
-    "Cross-referencing grandma's recipes with NASA data…",
-    "Balancing flavor profiles and existential dread…",
+    "Making sure no one gets pasta three days running…",
+    "Checking the fridge knows what's coming…",
   ];
 
   useEffect(() => {
@@ -320,7 +320,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             <div className="ml-auto flex items-center gap-2">
               {weeklyUsage && !weeklyUsage.unlimited && (
                 <span className={`text-xs ${weeklyUsage.used >= weeklyUsage.limit ? 'text-red-500 font-medium' : 'text-orange-400'}`}>
-                  {weeklyUsage.limit - weeklyUsage.used} left
+                  {weeklyUsage.limit - weeklyUsage.used} left this week
                 </span>
               )}
               <button onClick={generate} disabled={loading}
