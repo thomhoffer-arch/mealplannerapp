@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Wand2, Tag } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
@@ -87,6 +87,34 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [showNotes, setShowNotes]       = useState(false);
   // expandedMeals: { [weekNum-dayName]: { dinner: bool, "breakfast-0": bool, ... } }
   const [expandedMeals, setExpandedMeals] = useState({});
+  const [easterEggIdx, setEasterEggIdx] = useState(0);
+
+  const EASTER_EGGS = [
+    "Consulting the pasta oracle…",
+    "Arguing with the fridge about leftovers…",
+    "Bribing the AI with virtual stroopwafels…",
+    "Googling 'what even is a balanced meal'…",
+    "Convincing Monday it doesn't have to be sad…",
+    "Teaching Tuesday to cook without burning things…",
+    "Checking if anyone actually eats Wednesday…",
+    "Negotiating with the spice rack…",
+    "Pretending vegetables are fun…",
+    "Avoiding yet another pasta on Thursday…",
+    "Making sure Friday feels special…",
+    "Sneaking a treat into the weekend…",
+    "Asking the pantry what it really wants…",
+    "Cross-referencing grandma's recipes with NASA data…",
+    "Balancing flavor profiles and existential dread…",
+  ];
+
+  useEffect(() => {
+    if (!loading) return;
+    setEasterEggIdx(Math.floor(Math.random() * EASTER_EGGS.length));
+    const id = setInterval(() => {
+      setEasterEggIdx((i) => (i + 1) % EASTER_EGGS.length);
+    }, 2200);
+    return () => clearInterval(id);
+  }, [loading]);
 
   function toggleMealPanel(dayKey, panelId) {
     setExpandedMeals((prev) => ({
@@ -366,7 +394,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             <div className="flex flex-col items-center justify-center gap-3 py-20">
               <div className="w-8 h-8 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
               <p className="text-sm text-orange-600">Planning your week…</p>
-              <p className="text-xs text-orange-400">Checking preferences and starred recipes</p>
+              <p className="text-xs text-orange-400 italic transition-all duration-500">{EASTER_EGGS[easterEggIdx]}</p>
             </div>
           )}
 

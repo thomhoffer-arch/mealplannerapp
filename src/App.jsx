@@ -963,6 +963,10 @@ export default function App() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [sendingEmailInvite, setSendingEmailInvite] = useState(false);
   const [emailInviteSent, setEmailInviteSent] = useState(false);
+  const [editingDisplayName, setEditingDisplayName] = useState(false);
+  const [displayNameDraft, setDisplayNameDraft] = useState('');
+  const [showAppInvitePanel, setShowAppInvitePanel] = useState(false);
+  const [appInviteCopied, setAppInviteCopied] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
@@ -2151,6 +2155,40 @@ export default function App() {
     setInviteCopied(true);
     setShowInviteSharePanel(false);
     setTimeout(() => setInviteCopied(false), 2000);
+  }
+
+  async function saveDisplayName() {
+    const name = displayNameDraft.trim();
+    if (!name || name === memberProfile?.display_name) { setEditingDisplayName(false); return; }
+    const { error } = await supabase.from('household_members')
+      .update({ display_name: name })
+      .eq('user_id', user.id)
+      .eq('household_id', household.id);
+    if (error) { console.error('[saveDisplayName]', error.message); return; }
+    setMemberProfile((m) => ({ ...m, display_name: name }));
+    setEditingDisplayName(false);
+  }
+
+  async function shareAppLink() {
+    const appUrl = window.location.origin;
+    const shareData = {
+      title: 'Meal Planner',
+      text: "I've been using this meal planner — plan your meals, build your shopping list, and never stress about dinner again.",
+      url: appUrl,
+    };
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try { await navigator.share(shareData); } catch (err) {
+        if (err.name !== 'AbortError') setShowAppInvitePanel(true);
+      }
+    } else {
+      setShowAppInvitePanel((v) => !v);
+    }
+  }
+
+  async function copyAppLink() {
+    await navigator.clipboard.writeText(window.location.origin);
+    setAppInviteCopied(true);
+    setTimeout(() => setAppInviteCopied(false), 2000);
   }
 
   async function savePersonalPrefs(text) {
@@ -3347,7 +3385,7 @@ export default function App() {
                   {shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length > 0 && (
                     <button
                       onClick={() => setShowGrocerHandoff(true)}
-                      className="w-full mt-3 py-2.5 bg-orange-900 text-white rounded-full font-semibold text-sm hover:bg-orange-800 transition flex items-center justify-center gap-2"
+                      className="w-full mt-3 py-2.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full font-medium text-sm hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition flex items-center justify-center gap-2"
                     >
                       <ShoppingBag size={14} />
                       Send to AH, Jumbo or Picnic
@@ -3539,7 +3577,27 @@ export default function App() {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
+                  {editingDisplayName ? (
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <input
+                        autoFocus
+                        value={displayNameDraft}
+                        onChange={(e) => setDisplayNameDraft(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveDisplayName(); if (e.key === 'Escape') setEditingDisplayName(false); }}
+                        className="flex-1 text-sm border border-orange-300 rounded-xl px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900 min-w-0"
+                      />
+                      <button onClick={saveDisplayName} className="px-2.5 py-1 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex-shrink-0">Save</button>
+                      <button onClick={() => setEditingDisplayName(false)} className="text-orange-400 hover:text-orange-600 transition flex-shrink-0"><X size={14} /></button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setDisplayNameDraft(memberProfile?.display_name || ''); setEditingDisplayName(true); }}
+                      className="flex items-center gap-1.5 mb-0.5 group"
+                    >
+                      <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
+                      <PenLine size={12} className="text-orange-400 opacity-0 group-hover:opacity-100 transition" />
+                    </button>
+                  )}
                   <p className="text-xs text-orange-400 truncate">{user?.email}</p>
                   {(() => {
                     const isGifted = !!preferences?.is_gifted;
@@ -3610,7 +3668,27 @@ export default function App() {
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
+                        {editingDisplayName ? (
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <input
+                              autoFocus
+                              value={displayNameDraft}
+                              onChange={(e) => setDisplayNameDraft(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') saveDisplayName(); if (e.key === 'Escape') setEditingDisplayName(false); }}
+                              className="flex-1 text-sm border border-orange-300 rounded-xl px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-orange-300/50 text-orange-900 min-w-0"
+                            />
+                            <button onClick={saveDisplayName} className="px-2.5 py-1 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex-shrink-0">Save</button>
+                            <button onClick={() => setEditingDisplayName(false)} className="text-orange-400 hover:text-orange-600 transition flex-shrink-0"><X size={14} /></button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setDisplayNameDraft(memberProfile?.display_name || ''); setEditingDisplayName(true); }}
+                            className="flex items-center gap-1.5 mb-0.5 group"
+                          >
+                            <p className="font-semibold text-orange-900 leading-snug">{memberProfile?.display_name || 'You'}</p>
+                            <PenLine size={12} className="text-orange-400 opacity-0 group-hover:opacity-100 transition" />
+                          </button>
+                        )}
                         <p className="text-xs text-orange-400 truncate">{user?.email}</p>
                       </div>
                       <button onClick={() => setShowSettings(false)}
@@ -3720,15 +3798,11 @@ export default function App() {
                 </div>
               )}
               <div className="border-t border-orange-50 pt-3 space-y-2">
-                <div className="flex gap-2">
-                  <input readOnly value={inviteUrl}
-                    className="flex-1 text-xs border border-orange-200 rounded-xl px-2 py-2 bg-orange-50 text-orange-900 truncate" />
-                  <button onClick={shareInviteLink}
-                    className="flex-shrink-0 px-3 py-2 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center gap-1.5">
-                    <Link2 size={12} />
-                    Invite
-                  </button>
-                </div>
+                <button onClick={shareInviteLink}
+                  className="w-full px-3 py-2.5 bg-orange-500 text-white rounded-full text-xs font-medium hover:bg-orange-600 transition flex items-center justify-center gap-1.5">
+                  <Link2 size={12} />
+                  Invite someone to this household
+                </button>
                 {/* Desktop share panel — shown when Web Share API isn't available */}
                 {showInviteSharePanel && (
                   <div className="bg-orange-50 rounded-2xl p-3 space-y-2">
@@ -3776,6 +3850,45 @@ export default function App() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Invite to app — solo users */}
+            <div className="bg-white rounded-2xl border border-orange-100 p-4">
+              <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-3">Invite a friend</p>
+              <p className="text-xs text-orange-500 leading-relaxed mb-3">Know someone who'd love this? Send them a link — they'll start with their own kitchen, no household joining required.</p>
+              <button onClick={shareAppLink}
+                className="w-full px-3 py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-xs font-medium hover:border-orange-300 hover:bg-orange-100 transition flex items-center justify-center gap-1.5">
+                <Link2 size={12} />
+                Invite someone to the app
+              </button>
+              {showAppInvitePanel && (
+                <div className="bg-orange-50 rounded-2xl p-3 space-y-2 mt-2">
+                  <p className="text-[11px] text-orange-400 font-medium uppercase tracking-wide">Share via</p>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent("I've been using this meal planner — plan your meals, build your shopping list, and never stress about dinner again. " + window.location.origin)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                    >
+                      WhatsApp
+                    </a>
+                    <a
+                      href={`https://t.me/share/url?url=${encodeURIComponent(window.location.origin)}&text=${encodeURIComponent("I've been using this meal planner — plan your meals, build your shopping list, and never stress about dinner again.")}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                    >
+                      Telegram
+                    </a>
+                    <button
+                      onClick={copyAppLink}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-white text-xs font-medium text-orange-900 hover:border-orange-400 transition"
+                    >
+                      {appInviteCopied ? <Check size={11} className="text-sage-500" /> : <Link2 size={11} />}
+                      {appInviteCopied ? 'Copied!' : 'Copy link'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Dietary wishes — always visible */}
