@@ -2915,6 +2915,7 @@ export default function App() {
           onLoadPlan={async (recipes) => {
             setShowEmptyGrid(false);
             // Optimistically clear existing items for this week
+            markLocalWrite('meal_plan_items');
             const oldIds = viewItems.map((i) => i.id).filter(Boolean);
             if (oldIds.length) {
               setMealPlanItems((prev) => prev.filter((i) => !oldIds.includes(i.id)));
@@ -4490,14 +4491,14 @@ export default function App() {
       <InstallBanner />
       <UpdateToast />
       {activityToast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-orange-800 text-white rounded-full shadow-warm-lg px-4 py-3 flex items-center gap-2.5 animate-slide-up whitespace-nowrap">
+        <div className="fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-sm bg-orange-800 text-white rounded-full shadow-warm-lg px-4 py-3 flex items-center gap-2.5 animate-slide-up">
           <Users size={15} className="flex-shrink-0" />
           <span className="text-sm font-medium">{activityToast}</span>
           <button onClick={() => setActivityToast(null)} className="text-white/60 hover:text-white transition ml-1"><X size={14} /></button>
         </div>
       )}
       {basketToast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-orange-900 text-white rounded-full shadow-warm-lg px-4 py-3 flex items-center gap-2.5 animate-slide-up whitespace-nowrap">
+        <div className="fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-sm bg-orange-900 text-white rounded-full shadow-warm-lg px-4 py-3 flex items-center gap-2.5 animate-slide-up">
           <ShoppingCart size={15} className="flex-shrink-0" />
           <span className="text-sm font-medium">
             {basketToast} added to shopping list
