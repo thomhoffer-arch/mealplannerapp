@@ -108,6 +108,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [expandedMeals, setExpandedMeals] = useState({});
   const [excludedMeals, setExcludedMeals] = useState(new Set()); // keys: "weekNum-dayName-dinner" or "weekNum-dayName-extra-N"
   const [sideDishPanel, setSideDishPanel] = useState(null); // { key, weekNum, dayName, recipe, loading, suggestions, error, input }
+  const [addingExtra, setAddingExtra]     = useState(null); // "weekNum-dayName-mealType"
   const [easterEggIdx, setEasterEggIdx] = useState(0);
 
   const EASTER_EGGS = [
@@ -298,7 +299,62 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     setSideDishPanel(null);
   }
 
-  function handleLoadPlan() {
+  async function addExtraMeal(weekNum, dayObj, mealType) {
+    const key = `${weekNum}-${dayObj.day}-${mealType}`;
+    setAddingExtra(key);
+    try {
+      const otherDays = plan
+        .flatMap((w) => w.days)
+        .map((d) => d.recipe?.name)
+        .filter(Boolean);
+      const data = await apiFetch('/api/ai/regenerate-day', {
+        method: 'POST',
+        body: {
+          day_name: dayObj.day,
+          current_recipe_name: '',
+          change_request: `A simple ${mealType} for ${dayObj.day}`,
+          other_days_names: otherDays,
+          meal_type: mealType,
+        },
+      });
+      if (data?.recipe) {
+        setPlan((prev) => prev.map((w) => {
+          if (w.week !== weekNum) return w;
+          return {
+            ...w,
+            days: w.days.map((d) => {
+              if (d.day !== dayObj.day) return d;
+              const extras = [...(d.extras || []), { ...data.recipe, _mealType: mealType, _extraReason: data.reason || null, photo: data.photo || null }];
+              return { ...d, extras };
+            }),
+          };
+        }));
+      }
+    } catch {
+      // fail silently
+    } finally {
+      setAddingExtra(null);
+    }
+  }
+
+  function removeExtra(weekNum, dayName, mealType) {
+    setPlan((prev) => prev.map((w) => {
+      if (w.week !== weekNum) return w;
+      return {
+        ...w,
+        days: w.days.map((d) => {
+          if (d.day !== dayName) return d;
+          // Remove the last extra with this mealType
+          const extras = [...(d.extras || [])];
+          const idx = extras.map((e) => e._mealType).lastIndexOf(mealType);
+          if (idx !== -1) extras.splice(idx, 1);
+          return { ...d, extras };
+        }),
+      };
+    }));
+  }
+
+
     if (!plan) return;
     const recipes = [];
     plan.forEach((week) => {
@@ -765,8 +821,51 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                                 {swappingKey === key ? '…' : 'Swap'}
                               </button>
                             </div>
-                            {/* Side dish row */}
-                            <div className="flex items-center gap-1.5">
+                            {/* Add extras row: breakfast · lunch · side */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {/* Breakfast */}
+                              {breakfastExtras.length > 0 ? (
+                                <>
+                                  <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">
+                                    Breakfast: {breakfastExtras[0].name}
+                                  </span>
+                                  <button
+                                    onClick={() => removeExtra(week.week, day.day, 'breakfast')}
+                                    className="text-orange-400 hover:text-orange-600 transition text-xs -ml-1"
+                                    title="Remove breakfast"
+                                  >×</button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => addExtraMeal(week.week, day, 'breakfast')}
+                                  disabled={addingExtra === `${key}-breakfast`}
+                                  className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400 disabled:opacity-50"
+                                >
+                                  {addingExtra === `${key}-breakfast` ? '…' : '+ Breakfast'}
+                                </button>
+                              )}
+                              {/* Lunch */}
+                              {lunchExtras.length > 0 ? (
+                                <>
+                                  <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">
+                                    Lunch: {lunchExtras[0].name}
+                                  </span>
+                                  <button
+                                    onClick={() => removeExtra(week.week, day.day, 'lunch')}
+                                    className="text-orange-400 hover:text-orange-600 transition text-xs -ml-1"
+                                    title="Remove lunch"
+                                  >×</button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => addExtraMeal(week.week, day, 'lunch')}
+                                  disabled={addingExtra === `${key}-lunch`}
+                                  className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400 disabled:opacity-50"
+                                >
+                                  {addingExtra === `${key}-lunch` ? '…' : '+ Lunch'}
+                                </button>
+                              )}
+                              {/* Side dish */}
                               {recipe?._sideDish ? (
                                 <>
                                   <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">
@@ -774,7 +873,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                                   </span>
                                   <button
                                     onClick={() => applySideDish(week.week, day.day, null)}
-                                    className="text-orange-400 hover:text-orange-600 transition text-xs"
+                                    className="text-orange-400 hover:text-orange-600 transition text-xs -ml-1"
                                     title="Remove side dish"
                                   >×</button>
                                 </>
