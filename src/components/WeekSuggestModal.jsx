@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Wand2, Tag } from 'lucide-react';
+import { X, Sparkles, Check, ChevronDown, ChevronUp, Users, MinusCircle, Plus, Wand2, Tag } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 
 // Single expandable meal row inside a day card
-function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor, sideDish, isExpanded, onToggle }) {
+function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor, sideDish, isExpanded, onToggle, isIncluded = true, onToggleInclude }) {
   const label = mealType === 'dinner' ? 'Dinner'
     : mealType === 'breakfast' ? 'Breakfast'
     : mealType === 'lunch' ? 'Lunch'
@@ -12,29 +12,42 @@ function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor,
   const isDinner = mealType === 'dinner';
 
   return (
-    <div className="border-b border-orange-50 last:border-b-0">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-orange-50/30 transition"
-      >
-        <span className={`text-[10px] font-bold uppercase tracking-wider w-14 flex-shrink-0 ${
-          isDinner ? 'text-orange-500' : 'text-orange-400'
-        }`}>
-          {label}
-        </span>
-        {photo?.thumbnail && !isDinner && (
-          <img src={photo.thumbnail} alt={name} className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
+    <div className={`border-b border-orange-50 last:border-b-0 ${!isIncluded ? 'opacity-40' : ''}`}>
+      <div className="flex items-center gap-1 px-4 py-2.5">
+        <button
+          onClick={onToggle}
+          className="flex items-center gap-2 flex-1 text-left hover:bg-orange-50/30 transition rounded min-w-0"
+        >
+          <span className={`text-[10px] font-bold uppercase tracking-wider w-14 flex-shrink-0 ${
+            isDinner ? 'text-orange-500' : 'text-orange-400'
+          }`}>
+            {label}
+          </span>
+          {photo?.thumbnail && !isDinner && (
+            <img src={photo.thumbnail} alt={name} className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
+          )}
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-semibold truncate ${isIncluded ? 'text-orange-900' : 'text-orange-400 line-through'}`}>{name}</p>
+            {time > 0 && <p className="text-[10px] text-orange-400">{time} min</p>}
+          </div>
+          {isIncluded && (isExpanded
+            ? <ChevronUp size={14} className="text-orange-400 flex-shrink-0" />
+            : <ChevronDown size={14} className="text-orange-400 flex-shrink-0" />)}
+        </button>
+        {onToggleInclude && (
+          <button
+            onClick={onToggleInclude}
+            className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition"
+            title={isIncluded ? 'Remove this meal' : 'Add back'}
+          >
+            {isIncluded
+              ? <MinusCircle size={14} className="text-orange-200 hover:text-red-400 transition" />
+              : <Plus size={14} className="text-orange-400 hover:text-orange-600 transition" />}
+          </button>
         )}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-orange-900 truncate">{name}</p>
-          {time > 0 && <p className="text-[10px] text-orange-400">{time} min</p>}
-        </div>
-        {isExpanded
-          ? <ChevronUp size={14} className="text-orange-400 flex-shrink-0" />
-          : <ChevronDown size={14} className="text-orange-400 flex-shrink-0" />}
-      </button>
+      </div>
 
-      {isExpanded && (
+      {isIncluded && isExpanded && (
         <div className="px-4 pb-3 space-y-2 border-t border-orange-50">
           {overview && (
             <p className="text-xs text-orange-700 leading-relaxed pt-2">{overview}</p>
@@ -88,6 +101,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [showNotes, setShowNotes]       = useState(false);
   // expandedMeals: { [weekNum-dayName]: { dinner: bool, "breakfast-0": bool, ... } }
   const [expandedMeals, setExpandedMeals] = useState({});
+  const [excludedMeals, setExcludedMeals] = useState(new Set()); // keys: "weekNum-dayName-dinner" or "weekNum-dayName-extra-N"
   const [easterEggIdx, setEasterEggIdx] = useState(0);
 
   const EASTER_EGGS = [
@@ -136,6 +150,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     setServings({});
     setDayNotes({});
     setExpandedMeals({});
+    setExcludedMeals(new Set());
     try {
       const data = await apiFetch('/api/ai/suggest-week', {
         method: 'POST',
@@ -247,7 +262,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
       week.days.forEach((day) => {
         const key = `${week.week}-${day.day}`;
         if (!selected[key]) return;
-        if (day.recipe) {
+        if (day.recipe && !excludedMeals.has(`${key}-dinner`)) {
           const override = servings[key];
           const base = override ? { ...day.recipe, servings: override } : day.recipe;
           recipes.push({
@@ -260,15 +275,17 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             _plannerPhoto:      day.photo || null,
           });
         }
-        (day.extras || []).forEach((extra) => {
-          recipes.push({
-            ...extra,
-            _plannedDay:        day.day,
-            _plannedWeek:       week.week,
-            _plannerReason:     extra._extraReason || null,
-            _plannerPhoto:      extra.photo || null,
-            _plannerUsesPantry: [],
-          });
+        (day.extras || []).forEach((extra, i) => {
+          if (!excludedMeals.has(`${key}-extra-${i}`)) {
+            recipes.push({
+              ...extra,
+              _plannedDay:        day.day,
+              _plannedWeek:       week.week,
+              _plannerReason:     extra._extraReason || null,
+              _plannerPhoto:      extra.photo || null,
+              _plannerUsesPantry: [],
+            });
+          }
         });
       });
     });
@@ -276,12 +293,23 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     onClose();
   }
 
+  function toggleMealExclusion(mealKey) {
+    setExcludedMeals((prev) => {
+      const next = new Set(prev);
+      if (next.has(mealKey)) next.delete(mealKey);
+      else next.add(mealKey);
+      return next;
+    });
+  }
+
   const selectedCount = Object.values(selected).filter(Boolean).length;
   const selectedMealCount = plan
     ? plan.reduce((acc, week) => week.days.reduce((a, day) => {
         const key = `${week.week}-${day.day}`;
         if (!selected[key]) return a;
-        return a + (day.recipe ? 1 : 0) + (day.extras?.length || 0);
+        const dinnerCount = day.recipe && !excludedMeals.has(`${key}-dinner`) ? 1 : 0;
+        const extrasCount = (day.extras || []).filter((_, i) => !excludedMeals.has(`${key}-extra-${i}`)).length;
+        return a + dinnerCount + extrasCount;
       }, acc), 0)
     : selectedCount;
 
@@ -310,11 +338,11 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
               )}
             </div>
           )}
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-orange-900">Plan:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-orange-900">Plan:</span>
             {[1, 2].map((w) => (
               <button key={w} onClick={() => setNumWeeks(w)}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition border-2 ${
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition border-2 ${
                   numWeeks === w ? 'bg-orange-500 text-white border-orange-500' : 'border-orange-200 text-orange-900 hover:border-orange-400'
                 }`}>
                 {w} week{w > 1 ? 's' : ''}
@@ -327,7 +355,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                 </span>
               )}
               <button onClick={generate} disabled={loading}
-                className="px-4 py-1.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
+                className="px-3 py-1.5 bg-orange-500 text-white rounded-full text-xs font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center gap-1.5">
                 <Sparkles size={12} />
                 {loading ? 'Planning…' : plan ? 'Regenerate' : 'Generate'}
               </button>
@@ -562,47 +590,65 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                         {/* Stacked expandable meal panels */}
                         <div className="border-t border-orange-50">
                           {/* Breakfast extras */}
-                          {breakfastExtras.map((extra, i) => (
-                            <MealPanel
-                              key={`bf-${i}`}
-                              mealType="breakfast"
-                              name={extra.name}
-                              time={(extra.prepTime || 0) + (extra.cookTime || 0)}
-                              photo={extra.photo}
-                              overview={extra.overview}
-                              reason={extra._extraReason}
-                              isExpanded={!!dayExpanded[`breakfast-${i}`]}
-                              onToggle={() => toggleMealPanel(key, `breakfast-${i}`)}
-                            />
-                          ))}
+                          {breakfastExtras.map((extra, i) => {
+                            const origIdx = extras.indexOf(extra);
+                            const mealKey = `${key}-extra-${origIdx}`;
+                            return (
+                              <MealPanel
+                                key={`bf-${i}`}
+                                mealType="breakfast"
+                                name={extra.name}
+                                time={(extra.prepTime || 0) + (extra.cookTime || 0)}
+                                photo={extra.photo}
+                                overview={extra.overview}
+                                reason={extra._extraReason}
+                                isExpanded={!!dayExpanded[`breakfast-${i}`]}
+                                onToggle={() => toggleMealPanel(key, `breakfast-${i}`)}
+                                isIncluded={!excludedMeals.has(mealKey)}
+                                onToggleInclude={() => toggleMealExclusion(mealKey)}
+                              />
+                            );
+                          })}
                           {/* Lunch extras */}
-                          {lunchExtras.map((extra, i) => (
-                            <MealPanel
-                              key={`lu-${i}`}
-                              mealType="lunch"
-                              name={extra.name}
-                              time={(extra.prepTime || 0) + (extra.cookTime || 0)}
-                              photo={extra.photo}
-                              overview={extra.overview}
-                              reason={extra._extraReason}
-                              isExpanded={!!dayExpanded[`lunch-${i}`]}
-                              onToggle={() => toggleMealPanel(key, `lunch-${i}`)}
-                            />
-                          ))}
+                          {lunchExtras.map((extra, i) => {
+                            const origIdx = extras.indexOf(extra);
+                            const mealKey = `${key}-extra-${origIdx}`;
+                            return (
+                              <MealPanel
+                                key={`lu-${i}`}
+                                mealType="lunch"
+                                name={extra.name}
+                                time={(extra.prepTime || 0) + (extra.cookTime || 0)}
+                                photo={extra.photo}
+                                overview={extra.overview}
+                                reason={extra._extraReason}
+                                isExpanded={!!dayExpanded[`lunch-${i}`]}
+                                onToggle={() => toggleMealPanel(key, `lunch-${i}`)}
+                                isIncluded={!excludedMeals.has(mealKey)}
+                                onToggleInclude={() => toggleMealExclusion(mealKey)}
+                              />
+                            );
+                          })}
                           {/* Other extras (snacks etc.) */}
-                          {otherExtras.map((extra, i) => (
-                            <MealPanel
-                              key={`ot-${i}`}
-                              mealType={extra._mealType || 'snack'}
-                              name={extra.name}
-                              time={(extra.prepTime || 0) + (extra.cookTime || 0)}
-                              photo={extra.photo}
-                              overview={extra.overview}
-                              reason={extra._extraReason}
-                              isExpanded={!!dayExpanded[`other-${i}`]}
-                              onToggle={() => toggleMealPanel(key, `other-${i}`)}
-                            />
-                          ))}
+                          {otherExtras.map((extra, i) => {
+                            const origIdx = extras.indexOf(extra);
+                            const mealKey = `${key}-extra-${origIdx}`;
+                            return (
+                              <MealPanel
+                                key={`ot-${i}`}
+                                mealType={extra._mealType || 'snack'}
+                                name={extra.name}
+                                time={(extra.prepTime || 0) + (extra.cookTime || 0)}
+                                photo={extra.photo}
+                                overview={extra.overview}
+                                reason={extra._extraReason}
+                                isExpanded={!!dayExpanded[`other-${i}`]}
+                                onToggle={() => toggleMealPanel(key, `other-${i}`)}
+                                isIncluded={!excludedMeals.has(mealKey)}
+                                onToggleInclude={() => toggleMealExclusion(mealKey)}
+                              />
+                            );
+                          })}
                           {/* Dinner — always present */}
                           <MealPanel
                             mealType="dinner"
@@ -614,6 +660,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                             sideDish={recipe?._sideDish}
                             isExpanded={!!dayExpanded.dinner}
                             onToggle={() => toggleMealPanel(key, 'dinner')}
+                            isIncluded={!excludedMeals.has(`${key}-dinner`)}
+                            onToggleInclude={() => toggleMealExclusion(`${key}-dinner`)}
                           />
                         </div>
 

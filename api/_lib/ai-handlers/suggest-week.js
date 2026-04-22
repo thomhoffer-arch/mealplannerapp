@@ -281,10 +281,17 @@ ${disliked.length ? `  DISLIKED (1-2★): ${disliked.slice(0, 15).join(', ')} �
 PANTRY (special ingredients already on the shelf — prefer recipes that use these):
 ${pantryFiltered.length ? `  ${pantryFiltered.slice(0, 30).join(', ')}` : '  (nothing special on the shelf)'}
 ${deals.length ? `\nDEALS THIS WEEK (items on offer at local supermarkets — prioritise these ingredients where they fit):\n  ${deals.map((d) => `${d.item}${d.store ? ` (${d.store})` : ''}${d.price ? ` ${d.price}` : ''}`).join(', ')}` : ''}
-${weeklyBudget ? `\nWEEKLY BUDGET: €${weeklyBudget} — keep the shopping list affordable; favour seasonal produce, cheaper cuts, and pulses where possible. Include an estimated_cost for each dinner (rough ingredient cost, e.g. "€6–9").` : ''}
+${weeklyBudget ? `\nWEEKLY BUDGET: €${weeklyBudget} — keep the shopping list affordable; favour seasonal produce, cheaper cuts, and pulses where possible. Include an estimated_cost for each day covering all meals that day combined (dinner + any extras, rough ingredient cost, e.g. "€6–9").` : ''}
 ${simpleNight ? `\nEASY NIGHT: include one night this week where dinner is genuinely minimal effort — a good supermarket pizza, assembled wraps, beans on toast, or similar. Mark the reason as "easy night" for that day.` : ''}
 ${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED (standing instructions, apply every week):\n${planExtrasText}` : ''}
-${thisWeekWishes?.trim() ? `\nTHIS WEEK SPECIFICALLY (one-off wishes — weight these above everything else):\n${thisWeekWishes.trim()}` : ''}
+${thisWeekWishes?.trim() ? `\nTHIS WEEK SPECIFICALLY — HARD CONSTRAINTS (treat every instruction here as a strict rule, not a suggestion):
+${thisWeekWishes.trim()}
+
+Enforcement rules:
+• Time limits (e.g. "weekdays under 35 min", "quick meals", "under 20 min Thursday") are hard caps — if the user says weekdays under 35 minutes, every weekday dinner must have prep_time + cook_time ≤ 35. Do not suggest a dish that exceeds this even if it is otherwise ideal.
+• Dietary or ingredient constraints apply to every meal for the specified scope.
+• Day-specific instructions override all defaults for that day.
+• When in doubt, err on the side of shorter / simpler / stricter — never assume the user is OK with bending these rules.` : ''}
 ${dayNotesSection ? `\nPER-DAY NOTES:\n${dayNotesSection}` : ''}
 
 HOW TO READ USER INPUT
@@ -366,14 +373,17 @@ Extras — only when there is a clear basis:
   Every day's "extras" array is [] by default. Only add breakfast, lunch or snacks when you can point to a clear signal in the user's input:
   • An explicit request this week ("waffles Saturday morning")
   • A standing extras instruction that covers this day ("we always have a big brunch on weekends")
-  • A strong, repeated pattern in household preferences (e.g. the preferences text or standing extras frequently mention weekend breakfasts — honour that rhythm)
+  • A very consistent, long-standing pattern stated explicitly in household preferences (mentioned many times, not just 2–3 occurrences)
   If there is no such signal, leave extras empty — including on weekends. Never invent extras that have no basis in anything the user has told you.
+
+Learning from history — go slowly:
+  The LOVED list and recent meal history show what the household has enjoyed, but 2–3 similar dishes is not a strong enough pattern to lock in a genre or style. Keep suggesting variety. Only lean heavily on a pattern when it is overwhelming (5+ clear data points pointing the same direction). Even then, don't abandon variety entirely — one week's plan should never feel monotone.
 
 Real dishes only:
   Every suggestion must be a recognisable, real-world dish.`}
 
 SELF-CHECK BEFORE OUTPUT
-For every day confirm: (a) requested extras are in the "extras" array, not just in "notes"; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) extras=[] on days where no extra was explicitly requested; (e) leftover_for never points at a spontaneously invented meal.
+For every day confirm: (a) requested extras are in the "extras" array, not just in "notes"; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) extras=[] on days where no extra was explicitly requested; (e) leftover_for never points at a spontaneously invented meal; (f) if a time limit was stated in THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning.
 
 Return ONLY a JSON object, no markdown:
 {

@@ -2319,6 +2319,7 @@ export default function App() {
       if (isBulkStaple(itemName)) {
         const alreadyInPantry = pantryItems.some((p) => p.name.toLowerCase().trim() === itemName.toLowerCase().trim());
         if (!alreadyInPantry) {
+          markLocalWrite('pantry_items');
           const { data: inserted } = await supabase.from('pantry_items')
             .insert({ household_id: household.id, name: itemName, amount: '' })
             .select('id, name, amount').single();
@@ -2727,10 +2728,10 @@ export default function App() {
 
       {/* Upgrade / plan modal */}
       {showUpgradeModal && (() => {
-        const isGifted = !!preferences?.is_gifted;
+        const isGifted = weeklyUsage ? !!weeklyUsage.gifted : !!preferences?.is_gifted;
         const hasPuter = !!preferences?.puter_token_hint;
         const hasGemini = !!preferences?.gemini_api_key_hint;
-        const unlimited = isGifted || hasPuter || hasGemini;
+        const unlimited = weeklyUsage ? weeklyUsage.unlimited : (isGifted || hasPuter || hasGemini);
         return (
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" onClick={() => setShowUpgradeModal(false)}>
             <div className="bg-white rounded-t-2xl w-full max-w-lg p-5 font-outfit" onClick={(e) => e.stopPropagation()}>
@@ -4115,10 +4116,10 @@ export default function App() {
                       )}
                       <p className="text-xs text-orange-400 truncate">{user?.email}</p>
                       {(() => {
-                        const isGifted = !!preferences?.is_gifted;
+                        const isGifted = weeklyUsage ? !!weeklyUsage.gifted : !!preferences?.is_gifted;
                         const hasPuter = !!preferences?.puter_token_hint;
                         const hasGemini = !!preferences?.gemini_api_key_hint;
-                        const unlimited = isGifted || hasPuter || hasGemini;
+                        const unlimited = weeklyUsage ? weeklyUsage.unlimited : (isGifted || hasPuter || hasGemini);
                         let label, labelClass;
                         if (isGifted) { label = 'Gifted — unlimited'; labelClass = 'text-orange-700 bg-amber-50'; }
                         else if (hasPuter) { label = 'Puter AI — unlimited'; labelClass = 'text-orange-600 bg-orange-50'; }
