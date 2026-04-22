@@ -3993,19 +3993,6 @@ export default function App() {
                   onSwitch={switchHousehold}
                 />
 
-                {/* Shared household dietary preferences */}
-                <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                  <PreferencesModal
-                    household={household}
-                    section="household-dietary"
-                    inline={true}
-                    initialPrefs={preferences}
-                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
-                    onClose={loadPreferences}
-                    memberName={memberProfile?.display_name || ''}
-                  />
-                </div>
-
                 {/* Household card */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
                   {editingHouseholdName ? (
@@ -4113,6 +4100,19 @@ export default function App() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Shared household dietary preferences */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <PreferencesModal
+                    household={household}
+                    section="household-dietary"
+                    inline={true}
+                    initialPrefs={preferences}
+                    onPrefsChange={(p) => setPreferences((prev) => ({ ...prev, ...p }))}
+                    onClose={loadPreferences}
+                    memberName={memberProfile?.display_name || ''}
+                  />
                 </div>
 
                 {/* Notifications */}
