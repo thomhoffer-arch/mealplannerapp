@@ -1238,14 +1238,34 @@ export default function App() {
     let { rows, error: memberErr } = await readMemberships();
     if (memberErr) {
       console.error("[auth] household_members read failed:", memberErr, "\n" + RLS_HINT);
-      await supabase.auth.signOut();
+      // Only sign out on clear auth/permission failures — not on transient network errors.
+      const isAuthError = /permission denied|403|unauthorized|jwt expired|invalid token/i.test(memberErr.message || '');
+      if (isAuthError) {
+        await supabase.auth.signOut();
+        setAuthLoading(false);
+        return;
+      }
+      // Transient error — retry after a short delay instead of signing the user out.
       setAuthLoading(false);
+      loadingForUser.current = null; // allow retry
+      setTimeout(() => loadHousehold(), 3000);
       return;
     }
 
     // Self-heal: no memberships → create a personal household. The RPC is
     // idempotent (see supabase/migration_idempotent_create_household.sql), so
     // a concurrent retry won't create stray households.
+    // Guard: retry once before self-healing — a momentary auth refresh can cause
+    // a legitimate member to temporarily appear to have no memberships, and we
+    // must not create a new empty household for them in that case.
+    if (rows.length === 0) {
+      await new Promise((r) => setTimeout(r, 1200));
+      const retry = await readMemberships();
+      if (!retry.error && retry.rows.length > 0) {
+        rows = retry.rows; // transient — recovered on retry
+      }
+    }
+
     if (rows.length === 0) {
       const { error: rpcError } = await supabase.rpc("create_household_for_user", { uid: user.id });
       if (rpcError) {
@@ -1788,30 +1808,28 @@ export default function App() {
     let amount = "", name = raw;
     if (match) { amount = match[0].trim(); name = raw.slice(match[0].length).trim() || raw; }
 
-    // Premium/gifted: ask AI if the name is ambiguous before saving.
-    const hasUnlimitedAi = !!(weeklyUsage?.unlimited);
-    if (hasUnlimitedAi && name.split(/\s+/).length <= 2) {
-      setPantryInput("");
-      setPantryNudge({ original: name, amount, suggestions: [], loading: true });
-      try {
-        const data = await apiFetch('/api/ai/normalize-pantry-item', { method: 'POST', body: { name } });
-        if (data.ambiguous && data.alternatives?.length > 0) {
-          setPantryNudge({ original: name, amount, suggestions: [data.canonical, ...data.alternatives], loading: false });
-          return; // wait for user to pick
-        }
-        // Unambiguous — save canonical name directly
-        await savePantryName(data.canonical || name, amount);
-      } catch {
-        // AI unavailable — fall back to raw name
-        await savePantryName(name, amount);
-      } finally {
-        setPantryNudge(null);
-      }
-      return;
-    }
-
-    await savePantryName(name, amount);
+    // Save to pantry immediately so the user sees it right away.
     setPantryInput("");
+    const savedId = await savePantryName(name, amount);
+
+    // Premium/gifted: run AI disambiguation in the background after saving.
+    const hasUnlimitedAi = !!(weeklyUsage?.unlimited);
+    if (!hasUnlimitedAi || name.split(/\s+/).length > 2) return;
+
+    setPantryNudge({ itemId: savedId, original: name, amount, suggestions: [], loading: true });
+    try {
+      const data = await apiFetch('/api/ai/normalize-pantry-item', { method: 'POST', body: { name } });
+      if (data.ambiguous && data.alternatives?.length > 0) {
+        // Show disambiguation — item is already in pantry; user picks which type to rename it to.
+        setPantryNudge({ itemId: savedId, original: name, amount, suggestions: [data.canonical, ...data.alternatives], loading: false });
+        return; // leave nudge open until user picks
+      }
+      // Unambiguous — silently rename to canonical if it differs.
+      if (data.canonical && data.canonical.toLowerCase() !== name.toLowerCase()) {
+        await renamePantryItem(savedId, data.canonical);
+      }
+    } catch { /* AI unavailable — keep the raw name as saved */ }
+    setPantryNudge(null);
   }
 
   async function savePantryName(name, amount) {
@@ -1819,14 +1837,31 @@ export default function App() {
     const tempId = `optimistic-${Date.now()}`;
     setPantryItems((prev) => [...prev, { id: tempId, name: normalizedName, amount }]);
     markLocalWrite('pantry_items');
-    await supabase.from("pantry_items").insert({ household_id: household.id, name: normalizedName, amount });
+    const { data } = await supabase
+      .from("pantry_items")
+      .insert({ household_id: household.id, name: normalizedName, amount })
+      .select('id')
+      .single();
+    if (data?.id) {
+      setPantryItems((prev) => prev.map((i) => i.id === tempId ? { ...i, id: data.id } : i));
+      return data.id;
+    }
+    return tempId;
+  }
+
+  async function renamePantryItem(id, newName) {
+    const normalizedName = newName.toLowerCase().trim();
+    setPantryItems((prev) => prev.map((i) => i.id === id ? { ...i, name: normalizedName } : i));
+    if (!String(id).startsWith('optimistic-')) {
+      await supabase.from("pantry_items").update({ name: normalizedName }).eq("id", id);
+    }
   }
 
   async function confirmPantryNudge(chosenName) {
     if (!pantryNudge) return;
-    const { amount } = pantryNudge;
+    const { itemId } = pantryNudge;
     setPantryNudge(null);
-    await savePantryName(chosenName, amount);
+    await renamePantryItem(itemId, chosenName);
   }
 
   async function submitQuickEntry(day) {

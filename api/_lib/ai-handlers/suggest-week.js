@@ -4,6 +4,7 @@ import { VOICE_GUIDE } from '../voice.js';
 import { resolveAiProvider, callAi } from '../ai-call.js';
 import { checkAndIncrementUsage, isGiftedHousehold } from '../usage.js';
 import { searchPhoto } from '../pexels.js';
+import { buildDietaryGuardrails } from '../dietary-guardrails.js';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_SHORT_TO_LONG = {
@@ -111,7 +112,8 @@ async function _handler(req, res) {
   const recentNames = [...recentBuckets.week1, ...recentBuckets.week2, ...recentBuckets.older];
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
 
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language, recentBuckets);
+  const dietaryGuardrails = buildDietaryGuardrails(preferences, members);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language, recentBuckets, dietaryGuardrails);
 
   let rawText;
   try {
@@ -301,7 +303,7 @@ const _VARIETY_SEEDS = [
   { cuisine: 'Northern European — Scandinavian, German, or Eastern European', protein: 'pork or root vegetables' },
 ];
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null) {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null, dietaryGuardrails = '') {
   const _weekNum = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
   const _seed = _VARIETY_SEEDS[_weekNum % _VARIETY_SEEDS.length];
   const _noHistory = loved.length === 0 && recentNames.length === 0;
@@ -350,7 +352,7 @@ Use this system for all ingredient amounts in the plan.
 HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}
 Any time limits stated above (e.g. "weekdays under 40 min", "max 30 min school nights") are hard caps — every applicable day must have prep_time + cook_time within that limit, same as constraints in THIS WEEK SPECIFICALLY.
-
+${dietaryGuardrails ? `\n${dietaryGuardrails}\n` : ''}
 WHO'S EATING:
 ${membersSection || '  - (no individual preferences on file)'}
 
