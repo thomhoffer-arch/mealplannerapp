@@ -15,11 +15,37 @@ import { normalizeSpoonacular, normalizeHelloFresh } from '../normalize.js';
 //
 // To disable a source, just leave its env var unset — the code stays in
 // place for when you add the key back.
+const CHEF_NAMES = {
+  'ottolenghi':       'Yotam Ottolenghi',
+  'nigella':          'Nigella Lawson',
+  'samin-nosrat':     'Samin Nosrat',
+  'gordon-ramsay':    'Gordon Ramsay',
+  'ixta-belfrage':    'Ixta Belfrage',
+  'edna-lewis':       'Edna Lewis',
+  'marcella-hazan':   'Marcella Hazan',
+  'marco-pierre':     'Marco Pierre White',
+  'nobu':             'Nobu Matsuhisa',
+  'masaharu-morimoto':'Masaharu Morimoto',
+};
+
+const SPECIALTY_LABELS = {
+  quick:      'quick and easy (under 30 minutes)',
+  comfort:    'comfort food',
+  light:      'light and healthy',
+  baking:     'baking (cakes, cookies, pastries, tarts)',
+  bread:      'bread making (sourdough, focaccia, rolls, loaves)',
+  fermenting: 'fermentation (kimchi, sauerkraut, kombucha, miso)',
+  bbq:        'BBQ and smoking (grilled meats, smoked dishes, barbecue sides)',
+  pasta:      'homemade pasta (fresh pasta, gnocchi, filled pasta)',
+  japanese:   'Japanese craft cooking (ramen, sushi, tempura, dashi-based dishes)',
+  pickling:   'pickling and preserves (pickles, chutneys, jams, relishes)',
+};
+
 export default async function handleSearch(req, res) {
-  const { q = '', dietary = '', time = '', cuisine = '', source = 'all' } = req.query;
+  const { q = '', dietary = '', time = '', cuisine = '', specialty = '', chef = '', source = 'all' } = req.query;
 
   const hasQuery = q.trim().length > 0;
-  const hasFilters = dietary || time || cuisine;
+  const hasFilters = dietary || time || cuisine || specialty || chef;
   if (!hasQuery && !hasFilters) return res.json([]);
 
   const ctx = await requireAuth(req, res);
@@ -28,7 +54,7 @@ export default async function handleSearch(req, res) {
   const [spoonResults, hfResults, aiResults] = await Promise.all([
     source !== 'hellofresh' && source !== 'ai' ? searchSpoonacular(q, dietary, time, cuisine) : Promise.resolve([]),
     source !== 'spoonacular' && source !== 'ai' ? searchHelloFresh(q, dietary, time, cuisine) : Promise.resolve([]),
-    source !== 'spoonacular' && source !== 'hellofresh' ? searchAi(q, dietary, time, cuisine, ctx) : Promise.resolve([]),
+    source !== 'spoonacular' && source !== 'hellofresh' ? searchAi(q, dietary, time, cuisine, specialty, chef, ctx) : Promise.resolve([]),
   ]);
 
   // External sources first, then AI stubs — so when Spoonacular is active,
@@ -64,7 +90,7 @@ async function searchSpoonacular(q, dietary, time, cuisine) {
   return (data.results || []).map(normalizeSpoonacular);
 }
 
-async function searchAi(q, dietary, time, cuisine, ctx) {
+async function searchAi(q, dietary, time, cuisine, specialty, chef, ctx) {
   const { provider, token } = await resolveAiProvider(ctx.supabase, ctx.householdId);
   if (!token) return [];
 
@@ -79,6 +105,7 @@ async function searchAi(q, dietary, time, cuisine, ctx) {
     .filter(Boolean)
     .join('; ');
 
+  const specialtyLabel = specialty && SPECIALTY_LABELS[specialty];
   const constraints = [
     time === '<20min' && 'under 20 minutes total',
     time === '20-40min' && '20-40 minutes total',
@@ -89,6 +116,7 @@ async function searchAi(q, dietary, time, cuisine, ctx) {
     (dietary || '').split(',').includes('vegetarian') && 'vegetarian',
     (dietary || '').split(',').includes('gluten-free') && 'gluten-free',
     (dietary || '').split(',').includes('high-protein') && 'high-protein (30g+ per serving)',
+    specialtyLabel && `category: ${specialtyLabel}`,
   ].filter(Boolean).join(', ');
 
   const householdContext = [
@@ -96,7 +124,14 @@ async function searchAi(q, dietary, time, cuisine, ctx) {
     memberPrefs && `Individual preferences: ${memberPrefs}`,
   ].filter(Boolean).join('\n');
 
-  const prompt = `You are a dinner-search assistant. Suggest 8 real, well-known dishes matching this query: "${q || '(no query, use constraints below)'}".${constraints ? ` Must be: ${constraints}.` : ''}
+  const chefName = chef && CHEF_NAMES[chef];
+  const categoryNote = specialtyLabel
+    ? ` Focus on ${specialtyLabel} — return authentic, technique-driven recipes from this category.`
+    : '';
+  const chefNote = chefName
+    ? ` Return recipes that are characteristic of ${chefName}'s cooking style — use their signature flavours, techniques, and ingredient combinations. Name the chef in the overview if helpful.`
+    : '';
+  const prompt = `You are a recipe-search assistant. Suggest 8 real, well-known recipes matching this query: "${q || '(no query, use constraints below)'}".${constraints ? ` Must be: ${constraints}.` : ''}${categoryNote}${chefNote}
 
 Adapt every dish to honour the household's dietary wishes below — keep the dish concept but reformulate ingredients as needed (e.g. a gluten-free pasta uses rice pasta; a dairy-free risotto uses olive oil). Do NOT exclude a dish just because of a dietary constraint — adapt it instead. Name the adaptation in the dish title when the change is significant.
 ${householdContext ? `\n${householdContext}\n` : ''}
