@@ -110,6 +110,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [deals, setDeals]               = useState([]);    // fetched supermarket deals
   const [dealsLoading, setDealsLoading] = useState(false);
   const [dealsError, setDealsError]     = useState('');
+  const [showDealsUpsell, setShowDealsUpsell] = useState(false);
   const [showNotes, setShowNotes]       = useState(false);
   // expandedMeals: { [weekNum-dayName]: { dinner: bool, "breakfast-0": bool, ... } }
   const [expandedMeals, setExpandedMeals] = useState({});
@@ -500,22 +501,35 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             >
               {simpleNight ? '✓ ' : ''}Easy night
             </button>
-            <button
-              type="button"
-              onClick={hasDealsAccess ? fetchDeals : undefined}
-              disabled={dealsLoading || !hasDealsAccess}
-              title={!hasDealsAccess ? 'Requires your own Gemini API key — add one in Settings' : undefined}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition ${
-                !hasDealsAccess
-                  ? 'border-orange-100 text-orange-300 cursor-not-allowed'
-                  : deals.length
-                    ? 'bg-green-50 border-green-300 text-green-700 hover:border-green-400'
-                    : 'border-orange-200 text-orange-600 hover:border-orange-400 disabled:opacity-50'
-              }`}
-            >
-              <Tag size={12} />
-              {dealsLoading ? 'Finding deals…' : deals.length ? 'Refresh deals' : 'This week\'s deals'}
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={hasDealsAccess ? fetchDeals : () => setShowDealsUpsell((v) => !v)}
+                disabled={dealsLoading}
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition ${
+                  !hasDealsAccess
+                    ? 'border-orange-200 text-orange-400 hover:border-orange-400 hover:text-orange-600'
+                    : deals.length
+                      ? 'bg-green-50 border-green-300 text-green-700 hover:border-green-400'
+                      : 'border-orange-200 text-orange-600 hover:border-orange-400 disabled:opacity-50'
+                }`}
+              >
+                <Tag size={12} />
+                {dealsLoading ? 'Finding deals…' : deals.length ? 'Refresh deals' : 'This week\'s deals'}
+              </button>
+              {showDealsUpsell && (
+                <div className="absolute left-0 top-full mt-1.5 z-20 w-56 bg-white border border-orange-200 rounded-2xl shadow-lg p-3">
+                  <button
+                    className="absolute top-2 right-2 text-orange-300 hover:text-orange-500 transition"
+                    onClick={() => setShowDealsUpsell(false)}
+                  ><X size={13} /></button>
+                  <p className="text-xs font-semibold text-orange-900 mb-1">Premium feature</p>
+                  <p className="text-[11px] text-orange-600 leading-relaxed">
+                    Supermarket deal scanning is available on Premium. Upgrade to let the AI build your plan around what's on offer this week.
+                  </p>
+                </div>
+              )}
+            </div>
             {dealsError && <span className="text-[11px] text-red-400">{dealsError}</span>}
           </div>
 

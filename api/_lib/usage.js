@@ -86,17 +86,25 @@ export async function checkAndIncrementUsage(supabase, householdId, limit = null
 }
 
 // Check whether a specific user has premium access (paid or admin-gifted).
-// This is per-user — joining a household never transfers premium status.
+// Checks both the per-user is_premium flag and the legacy household-level
+// is_gifted flag so either route grants access.
 export async function isUserPremium(supabase, householdId, userId) {
   if (process.env.DISABLE_AI_LIMIT === '1' || process.env.DISABLE_AI_LIMIT === 'true') return true;
 
-  const { data } = await supabase
-    .from('household_members')
-    .select('is_premium')
-    .eq('household_id', householdId)
-    .eq('user_id', userId)
-    .maybeSingle();
-  return !!(data?.is_premium);
+  const [{ data: memberData }, { data: prefsData }] = await Promise.all([
+    supabase
+      .from('household_members')
+      .select('is_premium')
+      .eq('household_id', householdId)
+      .eq('user_id', userId)
+      .maybeSingle(),
+    supabase
+      .from('household_preferences')
+      .select('is_gifted')
+      .eq('household_id', householdId)
+      .maybeSingle(),
+  ]);
+  return !!(memberData?.is_premium || prefsData?.is_gifted);
 }
 
 // Deprecated shim — kept for any callsites not yet updated.
