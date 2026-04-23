@@ -523,6 +523,7 @@ function SelectedRecipeCard({
   newIngredientInput, onInputChange, preferences, starredRecipes, onAcceptSubstitution,
   rating, onGenerateRecipe, onShareRecipe,
   onSwapRecipe, swapping,
+  onAssignDay,
   inlineExpanded,
 }) {
   const [sharing, setSharing] = useState(false);
@@ -1023,6 +1024,27 @@ function SelectedRecipeCard({
           </>
           )}
 
+          {onAssignDay && (
+            <div>
+              <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-2">Assign to day</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => onAssignDay(rid, d)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${
+                      recipe._plannedDay?.toLowerCase().startsWith(d.toLowerCase().slice(0, 3))
+                        ? 'bg-orange-500 text-white border-orange-500'
+                        : 'border-orange-200 text-orange-600 hover:border-orange-400 hover:bg-orange-50'
+                    }`}
+                  >
+                    {d.slice(0, 3)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <button
             onClick={() => onRemove(recipe)}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-red-200 text-red-500 hover:bg-red-50 transition text-sm font-medium"
@@ -1180,6 +1202,8 @@ export default function App() {
   const [newIngredientInput, setNewIngredientInput] = useState({});
   const [listExtraInput, setListExtraInput] = useState('');
   const [generatingExtra, setGeneratingExtra] = useState(null); // "Monday-breakfast" while generating
+  const [undoRemove, setUndoRemove] = useState(null); // { recipe, dbId } — shows for 5s after removal
+  const undoTimer = useRef(null);
 
   useEffect(() => { localStorage.setItem('mp:activeTab', activeTab); }, [activeTab]);
 
@@ -2078,7 +2102,20 @@ export default function App() {
 
   const [swappingRecipeId, setSwappingRecipeId] = useState(null);
 
+  function hasCheckedIngredients(recipe) {
+    return (recipe?.ingredients || []).some((i) => {
+      const name = (i.name || '').toLowerCase().trim();
+      return name && checkedItems[name];
+    });
+  }
+
   async function swapAndSaveRecipe(recipe) {
+    if (hasCheckedIngredients(recipe)) {
+      const ok = window.confirm(
+        `You've already checked off some ingredients for ${recipe.name}. Swapping this recipe may mean those items are no longer needed.\n\nSwap anyway?`
+      );
+      if (!ok) return;
+    }
     const rid = String(recipe.id);
     setSwappingRecipeId(rid);
     try {
@@ -2253,10 +2290,20 @@ export default function App() {
     const rid = String(recipe.id);
     const existing = mealPlanItems.find((i) => i.recipe_id === rid);
     if (existing) {
+      if (hasCheckedIngredients(existing.recipe_data)) {
+        const ok = window.confirm(
+          `You've already checked off some ingredients for ${existing.recipe_data?.name || 'this recipe'}. Removing it may mean those items are no longer needed.\n\nRemove anyway?`
+        );
+        if (!ok) return;
+      }
       markLocalWrite('meal_plan_items');
       setMealPlanItems((prev) => prev.filter((i) => i.recipe_id !== rid));
       setExpandedRecipes((p) => { const n = { ...p }; delete n[rid]; return n; });
       await supabase.from("meal_plan_items").delete().eq("id", existing.id);
+      // Show undo snackbar for 5 seconds
+      clearTimeout(undoTimer.current);
+      setUndoRemove({ recipe: existing.recipe_data, dbId: existing.id });
+      undoTimer.current = setTimeout(() => setUndoRemove(null), 5000);
       return;
     }
     // Hard dietary guardrail — runs deterministically on top of the LLM's
@@ -2502,6 +2549,20 @@ export default function App() {
       _reviewFeedback: [...prevFeedback, { stars, note: feedback.trim(), at: Date.now() }],
     };
     setMealPlanItems((prev) => prev.map((i) => i.recipe_id === rid ? { ...i, recipe_data: updatedRecipeData } : i));
+    if (!String(item.id).startsWith('optimistic-')) {
+      await supabase.from('meal_plan_items').update({ recipe_data: updatedRecipeData }).eq('id', item.id);
+    }
+  }
+
+  async function assignRecipeToDay(rid, day) {
+    const item = mealPlanItems.find((i) => String(i.recipe_data?.id) === rid || String(i.recipe_id) === rid);
+    if (!item) return;
+    const updatedRecipeData = { ...item.recipe_data, _plannedDay: day };
+    setMealPlanItems((prev) => prev.map((i) =>
+      (String(i.recipe_id) === rid || String(i.recipe_data?.id) === rid)
+        ? { ...i, recipe_data: updatedRecipeData }
+        : i
+    ));
     if (!String(item.id).startsWith('optimistic-')) {
       await supabase.from('meal_plan_items').update({ recipe_data: updatedRecipeData }).eq('id', item.id);
     }
@@ -3381,6 +3442,24 @@ export default function App() {
         </div>
       )}
 
+      {/* Undo remove snackbar */}
+      {undoRemove && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-orange-900 text-white text-sm px-4 py-2.5 rounded-full shadow-warm-lg animate-fade-in">
+          <span className="truncate max-w-[160px]">{undoRemove.recipe?.name || 'Recipe'} removed</span>
+          <button
+            onClick={() => {
+              clearTimeout(undoTimer.current);
+              const r = undoRemove.recipe;
+              setUndoRemove(null);
+              if (r) toggleSelectedRecipe(r);
+            }}
+            className="flex-shrink-0 font-semibold text-orange-300 hover:text-white transition text-sm"
+          >
+            Undo
+          </button>
+        </div>
+      )}
+
       {/* Main content */}
       <main className="max-w-2xl mx-auto px-4 pt-4 pb-28">
 
@@ -3657,7 +3736,7 @@ export default function App() {
                 </div>
 
                 {viewItems.length > 0 && preferences.show_weekly_macros !== false && (
-                  <WeeklyNutritionCard recipes={viewItems.map((i) => i.recipe_data)} />
+                  <WeeklyNutritionCard recipes={viewRecipeObjects} />
                 )}
 
                 {/* Day-by-day calendar */}
@@ -4067,7 +4146,9 @@ export default function App() {
                             starredRecipes={starredRecipes}
                             onAcceptSubstitution={acceptSubstitution}
                             onGenerateRecipe={generateAndSaveRecipe}
+                            onShareRecipe={shareRecipe}
                             rating={recipeRatings[rid] || null}
+                            onAssignDay={assignRecipeToDay}
                           />
                         );
                       })}
