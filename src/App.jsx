@@ -1112,9 +1112,37 @@ export default function App() {
   const searchInputRef = useRef(null);
   const fetchedPhotoIds = useRef(new Set()); // prevents re-fetching on realtime updates
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchSpecialty, setSearchSpecialty] = useState('');
+  const [searchChef, setSearchChef] = useState('');
   const [recipes, setRecipes] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchTimer = useRef(null);
+
+  const SEARCH_CATEGORIES = [
+    { id: 'quick',      label: 'Quick & Easy',    emoji: '⚡',  premium: false },
+    { id: 'comfort',    label: 'Comfort Food',     emoji: '🍲',  premium: false },
+    { id: 'light',      label: 'Light & Fresh',    emoji: '🥗',  premium: false },
+    { id: 'baking',     label: 'Baking',           emoji: '🥐',  premium: true  },
+    { id: 'bread',      label: 'Bread Making',     emoji: '🍞',  premium: true  },
+    { id: 'fermenting', label: 'Fermenting',       emoji: '🫙',  premium: true  },
+    { id: 'bbq',        label: 'BBQ & Smoking',    emoji: '🔥',  premium: true  },
+    { id: 'pasta',      label: 'Homemade Pasta',   emoji: '🍝',  premium: true  },
+    { id: 'japanese',   label: 'Japanese Craft',   emoji: '🍱',  premium: true  },
+    { id: 'pickling',   label: 'Pickling & Preserves', emoji: '🥒', premium: true },
+  ];
+
+  const CHEF_WHITELIST = [
+    { id: 'ottolenghi',    label: 'Ottolenghi',       premium: false },
+    { id: 'nigella',       label: 'Nigella Lawson',   premium: false },
+    { id: 'samin-nosrat',  label: 'Samin Nosrat',     premium: false },
+    { id: 'gordon-ramsay', label: 'Gordon Ramsay',    premium: true  },
+    { id: 'ixta-belfrage', label: 'Ixta Belfrage',   premium: true  },
+    { id: 'edna-lewis',    label: 'Edna Lewis',       premium: true  },
+    { id: 'marcella-hazan',label: 'Marcella Hazan',   premium: true  },
+    { id: 'marco-pierre',  label: 'Marco Pierre White', premium: true },
+    { id: 'nobu',          label: 'Nobu Matsuhisa',   premium: true  },
+    { id: 'masaharu-morimoto', label: 'Morimoto',     premium: true  },
+  ];
   const [importUrl, setImportUrl] = useState("");
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState("");
@@ -1130,6 +1158,8 @@ export default function App() {
   const [recipeRatings, setRecipeRatings] = useState({});  // { recipe_id: 1-5 }
   const [ratingPrompt, setRatingPrompt] = useState(null);  // recipe_id awaiting rating
   const [shareOffer, setShareOffer] = useState(null);       // { recipe, stars } after a 4-5★ cook
+  const [improvementPrompt, setImprovementPrompt] = useState(null); // { rid, stars }
+  const [improvementInput, setImprovementInput] = useState('');
   const [pantryItems, setPantryItems] = useState([]);      // [{ id, name, amount }]
   const [pantryInput, setPantryInput] = useState("");
   const [pantryNudge, setPantryNudge] = useState(null);   // { original, amount, suggestions, loading }
@@ -2194,13 +2224,14 @@ export default function App() {
     }
   }
 
-  const fetchRecipes = useCallback(async (query) => {
-    if (!query.trim()) { setRecipes([]); return; }
+  const fetchRecipes = useCallback(async (query, specialty, chef) => {
+    if (!query.trim() && !specialty && !chef) { setRecipes([]); return; }
     setSearchLoading(true);
     try {
-      // apiFetch attaches bearer + X-Household-Id so the search endpoint can
-      // resolve the household's AI provider for the LLM-suggestion fallback.
-      const data = await apiFetch(`/api/recipes?${new URLSearchParams({ q: query })}`);
+      const params = { q: query };
+      if (specialty) params.specialty = specialty;
+      if (chef) params.chef = chef;
+      const data = await apiFetch(`/api/recipes?${new URLSearchParams(params)}`);
       setRecipes(data);
     } catch {
       setRecipes([]);
@@ -2211,9 +2242,9 @@ export default function App() {
 
   useEffect(() => {
     clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => fetchRecipes(searchQuery), 400);
+    searchTimer.current = setTimeout(() => fetchRecipes(searchQuery, searchSpecialty, searchChef), 400);
     return () => clearTimeout(searchTimer.current);
-  }, [searchQuery, fetchRecipes]);
+  }, [searchQuery, searchSpecialty, searchChef, fetchRecipes]);
 
   // ── Meal plan handlers ────────────────────────────────────────────────────
   async function toggleSelectedRecipe(recipe) {
@@ -2447,11 +2478,30 @@ export default function App() {
     await supabase.from("cooked_recipes")
       .update({ rating: stars })
       .eq("household_id", household.id).eq("recipe_id", rid);
-    // If they loved it, offer to share — explicit, opt-in "share this win"
-    // rather than an ambient activity feed.
     if (stars >= 4) {
       const item = mealPlanItems.find((i) => i.recipe_id === rid);
       if (item?.recipe_data) setShareOffer({ recipe: item.recipe_data, stars });
+    }
+    if (stars < 5) {
+      setImprovementPrompt({ rid, stars });
+      setImprovementInput('');
+    }
+  }
+
+  async function saveImprovement(rid, feedback) {
+    setImprovementPrompt(null);
+    if (!feedback.trim()) return;
+    const item = mealPlanItems.find((i) => i.recipe_id === rid);
+    if (!item) return;
+    const prevFeedback = item.recipe_data._reviewFeedback || [];
+    const stars = improvementPrompt?.stars;
+    const updatedRecipeData = {
+      ...item.recipe_data,
+      _reviewFeedback: [...prevFeedback, { stars, note: feedback.trim(), at: Date.now() }],
+    };
+    setMealPlanItems((prev) => prev.map((i) => i.recipe_id === rid ? { ...i, recipe_data: updatedRecipeData } : i));
+    if (!String(item.id).startsWith('optimistic-')) {
+      await supabase.from('meal_plan_items').update({ recipe_data: updatedRecipeData }).eq('id', item.id);
     }
   }
 
@@ -3268,6 +3318,35 @@ export default function App() {
         </div>
       )}
 
+      {/* Improvement prompt after <5★ cook */}
+      {improvementPrompt && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-warm-lg w-full max-w-xs p-6 text-center">
+            <p className="font-display italic text-orange-600 text-xs tracking-wide mb-3">— let's learn</p>
+            <h3 className="font-display text-xl font-semibold text-orange-900 mb-2 leading-tight">What could be better?</h3>
+            <p className="text-xs text-orange-600 mb-4 leading-relaxed">Your note helps the AI improve this recipe next time it's generated.</p>
+            <textarea
+              value={improvementInput}
+              onChange={(e) => setImprovementInput(e.target.value)}
+              placeholder="e.g. too spicy, chicken was dry, needed more sauce…"
+              rows={3}
+              className="w-full border border-orange-200 rounded-xl px-3 py-2.5 text-sm text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 resize-none mb-3"
+              autoFocus
+            />
+            <button
+              onClick={() => saveImprovement(improvementPrompt.rid, improvementInput)}
+              className="w-full py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition mb-2"
+            >
+              Save feedback
+            </button>
+            <button onClick={() => setImprovementPrompt(null)}
+              className="text-xs text-orange-400 hover:text-orange-600 transition">
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Share-this-win offer after a 4-5★ cook */}
       {shareOffer && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
@@ -3347,8 +3426,8 @@ export default function App() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-11 pr-10 py-3 rounded-2xl border border-orange-200 bg-white text-orange-900 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 text-sm"
                 />
-                {searchQuery && (
-                  <button onClick={() => { setSearchQuery(''); setSearchTargetDay(null); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 hover:text-orange-600 transition">
+                {(searchQuery || searchSpecialty || searchChef) && (
+                  <button onClick={() => { setSearchQuery(''); setSearchSpecialty(''); setSearchChef(''); setSearchTargetDay(null); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 hover:text-orange-600 transition">
                     <X size={16} />
                   </button>
                 )}
@@ -3365,7 +3444,67 @@ export default function App() {
               </button>
             </div>
 
-            {searchQuery ? (
+            {/* Category filter chips */}
+            <div className="flex gap-2 overflow-x-auto pb-1 mb-3 scrollbar-hide -mx-1 px-1">
+              {SEARCH_CATEGORIES.map((cat) => {
+                const isPremium = !!(weeklyUsage?.unlimited);
+                const locked = cat.premium && !isPremium;
+                const active = searchSpecialty === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => {
+                      if (locked) { setActiveTab('profile'); return; }
+                      setSearchSpecialty(active ? '' : cat.id);
+                    }}
+                    className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition whitespace-nowrap ${
+                      active
+                        ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                        : locked
+                          ? 'bg-white text-orange-300 border-orange-100'
+                          : 'bg-white text-orange-700 border-orange-200 hover:border-orange-400 hover:text-orange-900'
+                    }`}
+                    title={locked ? 'Premium feature — upgrade to unlock' : cat.label}
+                  >
+                    <span>{cat.emoji}</span>
+                    <span>{cat.label}</span>
+                    {locked && <span className="text-[9px] opacity-60">🔒</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Chef filter chips */}
+            <div className="flex gap-2 overflow-x-auto pb-1 mb-3 scrollbar-hide -mx-1 px-1">
+              <span className="flex-shrink-0 text-[10px] font-semibold text-orange-400 uppercase tracking-wide self-center pr-1">Chef</span>
+              {CHEF_WHITELIST.map((chef) => {
+                const isPremium = !!(weeklyUsage?.unlimited);
+                const locked = chef.premium && !isPremium;
+                const active = searchChef === chef.id;
+                return (
+                  <button
+                    key={chef.id}
+                    onClick={() => {
+                      if (locked) { setActiveTab('profile'); return; }
+                      setSearchChef(active ? '' : chef.id);
+                    }}
+                    className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition whitespace-nowrap ${
+                      active
+                        ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                        : locked
+                          ? 'bg-white text-orange-300 border-orange-100'
+                          : 'bg-white text-orange-700 border-orange-200 hover:border-orange-400 hover:text-orange-900'
+                    }`}
+                    title={locked ? 'Premium feature — upgrade to unlock' : chef.label}
+                  >
+                    {chef.label}
+                    {locked && <span className="text-[9px] opacity-60 ml-0.5">🔒</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {(searchQuery || searchSpecialty || searchChef) ? (
               <div>
                 {/* Day-assignment banner — shown when search was opened from a day slot */}
                 {searchTargetDay && (

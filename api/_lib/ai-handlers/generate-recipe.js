@@ -57,6 +57,12 @@ export default async function handleGenerateRecipe(req, res) {
   res.json(result);
 }
 
+function buildReviewFeedbackSection(recipe) {
+  const feedback = (recipe._reviewFeedback || []).filter((f) => f?.note);
+  if (!feedback.length) return '';
+  return `\nPAST COOK FEEDBACK (apply these improvements — the household cooked this before and left notes):\n${feedback.map((f) => `  - [${f.stars}★] "${f.note}"`).join('\n')}\n`;
+}
+
 function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '') {
   const { name, overview, cuisineType, prepTime, cookTime, _sideDish } = recipe;
   const totalTime = (prepTime || 0) + (cookTime || 0);
@@ -77,6 +83,7 @@ function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'm
     ? `\nHOUSEHOLD PREFERENCES:\n${householdPrefs}\n`
     : '';
   const guardrailsSection = dietaryGuardrails ? `\n${dietaryGuardrails}\n` : '';
+  const reviewFeedbackSection = buildReviewFeedbackSection(recipe);
   const unitsLine = measurementSystem === 'imperial'
     ? 'Use imperial units for ingredient amounts (oz, lb, cups, tsp, tbsp).'
     : 'Use metric units for ingredient amounts (g, kg, ml, L). Use tsp/tbsp for small amounts like spices and seasonings.';
@@ -88,7 +95,7 @@ function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'm
 Write a complete dinner recipe for "${name}".${overviewHint}
 ${cuisineHint}${timeHint}
 Portions for 2 people. ${unitsLine}
-${prefsSection}${guardrailsSection}${sideSection}
+${prefsSection}${guardrailsSection}${reviewFeedbackSection}${sideSection}
 If the dish name already implies a dietary adaptation (e.g. "with
 gluten-free pasta", "vegetarian lasagne"), reflect that in the
 ingredient list — label GF pasta as "gluten-free pasta", label
@@ -131,6 +138,7 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSyst
     ? `\nHOUSEHOLD PREFERENCES:\n${householdPrefs}\n`
     : '';
   const guardrailsSection = dietaryGuardrails ? `\n${dietaryGuardrails}\n` : '';
+  const reviewFeedbackSection = buildReviewFeedbackSection(recipe);
   const unitsLine = measurementSystem === 'imperial'
     ? 'Use imperial units for ingredient amounts (oz, lb, cups, tsp, tbsp).'
     : 'Use metric units for ingredient amounts (g, kg, ml, L). Use tsp/tbsp for small amounts like spices and seasonings.';
@@ -140,7 +148,7 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSyst
 ---
 
 Adjust this recipe based on the user request. Change only what the request asks for. ${unitsLine}
-${prefsSection}${guardrailsSection}${adjustmentSection}
+${prefsSection}${guardrailsSection}${reviewFeedbackSection}${adjustmentSection}
 RECIPE: ${recipe.name}
 INGREDIENTS:
 ${ingredientsList || '  (none listed)'}
