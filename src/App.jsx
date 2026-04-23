@@ -851,16 +851,18 @@ function SelectedRecipeCard({
             {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
           </button>
         </div>
-        <div className="flex flex-wrap gap-1 mt-3">
-          {(recipe.ingredients || []).map((ing) => (
-            <span key={ing.name} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
-              {ing.amount ? <span className="font-semibold">{ing.amount} </span> : null}{ing.name}
-            </span>
-          ))}
-          {customs.map((c) => (
-            <span key={c.id} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{c.name}</span>
-          ))}
-        </div>
+        {expanded && (
+          <div className="flex flex-wrap gap-1 mt-3">
+            {(recipe.ingredients || []).map((ing) => (
+              <span key={ing.name} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+                {ing.amount ? <span className="font-semibold">{ing.amount} </span> : null}{ing.name}
+              </span>
+            ))}
+            {customs.map((c) => (
+              <span key={c.id} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{c.name}</span>
+            ))}
+          </div>
+        )}
       </div>
 
       {expanded && (
