@@ -166,6 +166,7 @@ async function _handler(req, res) {
           keywords: day.cuisine_type ? [day.cuisine_type] : [],
           macros: {},
           _aiSuggestion: true,
+          ...(day.english_name && day.english_name !== day.name ? { _englishName: day.english_name } : {}),
         };
       }
       // Parse extra meals (breakfast/lunch/snacks requested for this day)
@@ -253,14 +254,18 @@ Return ONLY valid JSON (no markdown): {"name":"...","overview":"...","prep_time"
   }
 
   // Fire all Pexels lookups in parallel (dinner + extras); fails soft per item.
+  // Always use the english_name for photo search so non-English recipes get food
+  // photos rather than spurious matches (e.g. "citroen" → Citroën car in Dutch).
   await Promise.all(enrichedWeeks.flatMap((week) =>
     week.days.flatMap((day) => {
       const tasks = [];
       if (day.recipe?.name) {
-        tasks.push((async () => { const p = await searchPhoto(day.recipe.name); if (p) day.photo = p; })());
+        const photoQuery = day.english_name || day.recipe._englishName || day.recipe.name;
+        tasks.push((async () => { const p = await searchPhoto(photoQuery); if (p) day.photo = p; })());
       }
       (day.extras || []).forEach((extra, i) => {
-        tasks.push((async () => { const p = await searchPhoto(extra.name); if (p) day.extras[i].photo = p; })());
+        const extraQuery = extra._englishName || extra.name;
+        tasks.push((async () => { const p = await searchPhoto(extraQuery); if (p) day.extras[i].photo = p; })());
       });
       return tasks;
     })
@@ -496,7 +501,8 @@ Return ONLY a JSON object, no markdown:
           "day": "Monday",
           "skip": false,
           "starred_id": "<exact recipe id from starred list, or null if new suggestion>",
-          "name": "<dinner recipe name, or null if skip=true>",
+          "name": "<dinner recipe name in ${language}>",
+          "english_name": "<dinner recipe name in English — always required, used for photo search>",
           "overview": "<one sentence description, or null if skip=true>",
           "cuisine_type": "<Italian / Asian / etc., or null if skip=true>",
           "prep_time": <minutes or null>,

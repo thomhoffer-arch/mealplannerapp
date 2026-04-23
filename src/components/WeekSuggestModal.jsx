@@ -80,7 +80,7 @@ function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor,
 }
 
 export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences, language = 'English', weeklyUsage = null, initialDayNotes = {} }) {
-  const hasDealsAccess = !!(preferences?.is_gifted || preferences?.gemini_api_key_hint);
+  const hasDealsAccess = !!(weeklyUsage?.unlimited || preferences?.is_gifted || preferences?.gemini_api_key_hint);
   const hhKey = household?.id ? `mp:hh:${household.id}` : null;
   const [numWeeks, setNumWeeks]         = useState(() => {
     try { return Number(localStorage.getItem(`${hhKey}:numWeeks`)) || 1; } catch { return 1; }
