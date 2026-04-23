@@ -552,7 +552,7 @@ function SelectedRecipeCard({
         method: 'POST',
         body: { recipe, request },
       });
-      onGenerateRecipe(rid, data);
+      onGenerateRecipe(rid, data, { isAdjust: true, request });
       setAdjustInput('');
     } catch (err) {
       setAdjustError(err.message || 'Something went wrong. Try again.');
@@ -853,7 +853,9 @@ function SelectedRecipeCard({
         </div>
         <div className="flex flex-wrap gap-1 mt-3">
           {(recipe.ingredients || []).map((ing) => (
-            <span key={ing.name} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{ing.name}</span>
+            <span key={ing.name} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+              {ing.amount ? <span className="font-semibold">{ing.amount} </span> : null}{ing.name}
+            </span>
           ))}
           {customs.map((c) => (
             <span key={c.id} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{c.name}</span>
@@ -1552,7 +1554,11 @@ export default function App() {
           } else if (payload.eventType === 'UPDATE') {
             const oldSkipped = payload.old?.recipe_data?._skipped;
             const newSkipped = payload.new?.recipe_data?._skipped;
-            if (oldSkipped !== newSkipped && recipe) {
+            const oldAdjusted = payload.old?.recipe_data?._lastAdjustedAt;
+            const newAdjusted = payload.new?.recipe_data?._lastAdjustedAt;
+            if (newAdjusted && newAdjusted !== oldAdjusted && recipe) {
+              showActivityToast(`${who} adjusted the recipe for ${recipe}${day ? ` on ${day}` : ''}.`);
+            } else if (oldSkipped !== newSkipped && recipe) {
               showActivityToast(newSkipped
                 ? `${who} skipped ${recipe}${day ? ` on ${day}` : ''}.`
                 : `${who} put ${recipe}${day ? ` on ${day}` : ''} back.`);
@@ -2005,10 +2011,23 @@ export default function App() {
     basketToastTimer.current = setTimeout(() => setBasketToast(null), 4000);
   }
 
-  async function generateAndSaveRecipe(rid, fullData) {
+  async function generateAndSaveRecipe(rid, fullData, opts = {}) {
     const item = mealPlanItems.find((i) => i.recipe_id === rid);
     if (!item) return;
-    const updatedRecipe = { ...item.recipe_data, ...fullData };
+    const { isAdjust = false, request = '' } = opts;
+
+    // Append to the adjustment log so the LLM can learn from it on future calls.
+    const prevLog = item.recipe_data._adjustmentLog || [];
+    const adjustmentLog = isAdjust && request ? [...prevLog, request] : prevLog;
+
+    const updatedRecipe = {
+      ...item.recipe_data,
+      ...fullData,
+      ...(adjustmentLog.length ? { _adjustmentLog: adjustmentLog } : {}),
+      // Stamp the update so the realtime handler can detect it for other members.
+      ...(isAdjust ? { _lastAdjustedAt: Date.now() } : {}),
+    };
+    markLocalWrite('meal_plan_items');
     const { error } = await supabase.from("meal_plan_items")
       .update({ recipe_data: updatedRecipe })
       .eq("id", item.id);
@@ -2017,7 +2036,11 @@ export default function App() {
       i.id === item.id ? { ...i, recipe_data: updatedRecipe } : i
     ));
     if ((fullData.ingredients || []).length > 0) {
-      showBasketToast(updatedRecipe.name);
+      if (isAdjust) {
+        showActivityToast('Recipe adjusted.');
+      } else {
+        showBasketToast('Shopping list updated');
+      }
     }
   }
 
@@ -4766,7 +4789,7 @@ export default function App() {
         <div className="fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-sm bg-orange-900 text-white rounded-full shadow-warm-lg px-4 py-3 flex items-center gap-2.5 animate-slide-up">
           <ShoppingCart size={15} className="flex-shrink-0" />
           <span className="text-sm font-medium">
-            {basketToast} added to shopping list
+            {basketToast}
           </span>
           <button onClick={() => setBasketToast(null)} className="text-white/60 hover:text-white transition ml-1">
             <X size={14} />

@@ -97,13 +97,15 @@ regular version.
 
 Return ONLY a JSON object, no markdown:
 {
-  "ingredients": [{ "name": "chicken thighs, bone-in skin-on", "amount": "2" }],
+  "ingredients": [{ "name": "chicken thighs, bone-in skin-on", "amount": "600 g" }],
   "steps": ["Pat the chicken dry and season generously on both sides..."],
   "servings": 2,
   "prepTime": <minutes as integer>,
   "cookTime": <minutes as integer>,
   "macros": { "calories": 520, "protein": 38, "carbs": 22, "fat": 28 }${sideSchema}
-}`;
+}
+
+IMPORTANT: Every ingredient MUST have a specific amount with a unit (e.g. "200 g", "2 tbsp", "1 tsp", "3 cloves", "400 ml"). Never leave amount empty or omit units. For whole items use count + unit (e.g. "2 chicken thighs" not just "2").`;
 }
 
 function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '') {
@@ -114,6 +116,11 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSyst
   const stepsList = (recipe.steps || [])
     .map((s, i) => `  ${i + 1}. ${s}`)
     .join('\n');
+
+  const adjustmentLog = (recipe._adjustmentLog || []).filter(Boolean);
+  const adjustmentSection = adjustmentLog.length
+    ? `\nPREVIOUS ADJUSTMENTS (already applied — keep these changes, don't revert them):\n${adjustmentLog.map((r) => `  - "${r}"`).join('\n')}\n`
+    : '';
 
   const existingMacros = recipe.macros || {};
   const macroHint = existingMacros.calories
@@ -133,7 +140,7 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSyst
 ---
 
 Adjust this recipe based on the user request. Change only what the request asks for. ${unitsLine}
-${prefsSection}${guardrailsSection}
+${prefsSection}${guardrailsSection}${adjustmentSection}
 RECIPE: ${recipe.name}
 INGREDIENTS:
 ${ingredientsList || '  (none listed)'}
