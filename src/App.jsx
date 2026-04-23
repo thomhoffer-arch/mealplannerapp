@@ -897,7 +897,7 @@ function SelectedRecipeCard({
           {isStub ? (
             <div className="text-center py-4">
               <p className="text-sm text-orange-900 mb-1 font-display italic">Full recipe not written yet.</p>
-              <p className="text-xs text-orange-600 mb-4">The AI will write ingredients and steps now — takes about 10 seconds.</p>
+              <p className="text-xs text-orange-600 mb-4">We'll write the ingredients and steps now — takes about 10 seconds.</p>
               {generateError && <p className="text-xs text-red-500 mb-3">{generateError}</p>}
               <button
                 onClick={generateFullRecipe}
@@ -3052,7 +3052,7 @@ export default function App() {
               })()}
               {/* Appearance: theme, units, Gemini key, Puter */}
               <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Appearance & AI</p>
+                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-4">Appearance & Settings</p>
                 <PreferencesModal
                   household={household}
                   section="appearance"
@@ -3147,7 +3147,7 @@ export default function App() {
                     <Sparkles size={13} />
                     Premium
                   </div>
-                  <p className="text-sm text-orange-500 mb-4">All features unlocked. No weekly AI cap.</p>
+                  <p className="text-sm text-orange-500 mb-4">All features unlocked. No weekly cap.</p>
                   <button onClick={() => { setShowUpgradeModal(false); setShowAppSettings(true); }}
                     className="w-full py-2.5 border border-orange-200 text-orange-600 bg-orange-50 rounded-full text-sm font-medium hover:border-orange-300 hover:bg-orange-100 transition">
                     Manage settings
@@ -3161,9 +3161,9 @@ export default function App() {
                   </div>
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium mb-3 bg-orange-50 text-orange-600">
                     <Sparkles size={13} />
-                    Your AI key — no weekly cap
+                    Your key — no weekly cap
                   </div>
-                  <p className="text-sm text-orange-500 mb-4">You've connected your own API key. AI suggestions aren't capped. Premium features — recipe depth, side dish options, pantry smarts — need an upgrade.</p>
+                  <p className="text-sm text-orange-500 mb-4">You've connected your own API key. Suggestions aren't capped. Premium features — recipe depth, side dish options, pantry smarts — need an upgrade.</p>
                   <button disabled className="w-full py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold opacity-60 cursor-not-allowed flex items-center justify-center gap-2 mb-2">
                     <Sparkles size={14} />
                     Get Premium — €4.99/month (coming soon)
@@ -3188,11 +3188,11 @@ export default function App() {
                   </div>
                   <ul className="space-y-2.5 mb-5">
                     {[
-                      { live: true,  text: 'Unlimited AI suggestions — no weekly cap' },
+                      { live: true,  text: 'Unlimited suggestions — no weekly cap' },
                       { live: true,  text: 'Unlimited recipe search results' },
                       { live: true,  text: 'Daily macro tracking' },
-                      { live: true,  text: 'AI-cleaned shopping list ingredient names' },
-                      { live: true,  text: 'AI pantry item disambiguation' },
+                      { live: true,  text: 'Smart shopping list ingredient names' },
+                      { live: true,  text: 'Smart pantry matching' },
                       { live: true,  text: 'All side dish suggestions (free shows 1)' },
                       { live: false, text: 'Export meal plans to PDF or Google Calendar' },
                       { live: false, text: 'Recipe history & cooking insights' },
@@ -3215,7 +3215,7 @@ export default function App() {
                     Notify me when payment is ready
                   </button>
                   <p className="text-center text-xs text-orange-400 mt-3">
-                    Add your own AI key in Settings to remove the weekly cap.
+                    Add your own key in Settings to remove the weekly cap.
                   </p>
                 </>
               )}
@@ -3417,7 +3417,7 @@ export default function App() {
           <div className="bg-white rounded-2xl shadow-warm-lg w-full max-w-xs p-6 text-center">
             <p className="font-display italic text-orange-600 text-xs tracking-wide mb-3">— let's learn</p>
             <h3 className="font-display text-xl font-semibold text-orange-900 mb-2 leading-tight">What could be better?</h3>
-            <p className="text-xs text-orange-600 mb-4 leading-relaxed">Your note helps the AI improve this recipe next time it's generated.</p>
+            <p className="text-xs text-orange-600 mb-4 leading-relaxed">Your note helps us improve this recipe next time it's generated.</p>
             <textarea
               value={improvementInput}
               onChange={(e) => setImprovementInput(e.target.value)}
@@ -3945,7 +3945,7 @@ export default function App() {
                                     onChange={(e) => setWeekDayNotes((p) => ({ ...p, [day]: e.target.value }))}
                                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingDayNote(null); }}
                                     onBlur={() => setEditingDayNote(null)}
-                                    placeholder="AI hint for this day (e.g. vegetarian, under 30 min)…"
+                                    placeholder="Hint for this day (e.g. vegetarian, under 30 min)…"
                                     className="flex-1 text-xs border-b border-orange-300 bg-transparent focus:outline-none text-orange-700 placeholder-orange-200 py-0.5"
                                   />
                                   {weekDayNotes[day] && (
@@ -3965,7 +3965,7 @@ export default function App() {
                                   onClick={() => setEditingDayNote(day)}
                                   className="text-[11px] text-orange-200 hover:text-orange-400 transition"
                                 >
-                                  + AI hint
+                                  + Hint
                                 </button>
                               )}
                             </div>
@@ -4238,7 +4238,7 @@ export default function App() {
                       <span className="font-display italic text-4xl sm:text-5xl text-orange-400 group-hover:text-orange-600 leading-none pt-1 select-none transition-colors">01</span>
                       <span className="pt-1">
                         {/* TODO: replace "Let AI plan the week" with app-name-driven copy */}
-                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Let AI plan the week</span>
+                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Let us plan the week</span>
                         <span className="block text-sm text-orange-900/80 leading-relaxed max-w-md">Seven dinners picked to your household's taste. Swap anything you don't fancy.</span>
                       </span>
                       <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphPot /></span>
@@ -4324,7 +4324,7 @@ export default function App() {
                     <button onClick={() => setShowUpgradeModal(true)}
                       className="w-full mt-2 flex items-center justify-center gap-1.5 text-xs text-orange-400 hover:text-orange-600 transition py-1">
                       <Sparkles size={10} />
-                      Premium: AI cleans ingredient names on your list
+                      Premium: we clean ingredient names on your list
                     </button>
                   )}
                   {shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length > 0 && (
@@ -4524,7 +4524,7 @@ export default function App() {
                     <button onClick={() => setShowUpgradeModal(true)}
                       className="mt-2 flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-600 transition">
                       <Sparkles size={10} />
-                      Premium: AI clarifies ambiguous items as you add them
+                      Premium: we clarify ambiguous items as you add them
                     </button>
                   )}
                   {pantryNudge && (
@@ -4636,7 +4636,7 @@ export default function App() {
                         const unlimited = isPremium;
                         let label, labelClass;
                         if (isPremium) { label = 'Premium'; labelClass = 'text-orange-700 bg-amber-50'; }
-                        else if (isByokBadge) { label = 'Your AI key'; labelClass = 'text-orange-600 bg-orange-50'; }
+                        else if (isByokBadge) { label = 'Your key'; labelClass = 'text-orange-600 bg-orange-50'; }
                         else { label = 'Free plan'; labelClass = 'text-orange-400 bg-orange-50'; }
                         return (
                           <div className="mt-1.5">

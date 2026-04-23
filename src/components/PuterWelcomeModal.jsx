@@ -25,10 +25,10 @@ export default function PuterWelcomeModal({ onClose }) {
           <>
             <p className="font-display italic text-orange-600/80 text-xs tracking-wide mb-2">One last step</p>
             <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight mb-2">
-              Connect Puter to use the AI.
+              Connect Puter to get started.
             </h2>
             <p className="text-sm text-orange-900/80 leading-relaxed mb-5">
-              Puter runs the AI for your household and bills you directly. A popup will open — sign in or create a Puter account, then come back here. You can top up a few euros and it'll cover weeks of planning.
+              Puter powers everything for your household and bills you directly. A popup will open — sign in or create a Puter account, then come back here. You can top up a few euros and it'll cover weeks of planning.
             </p>
             <PuterConnect
               label="Open Puter and connect"
@@ -45,7 +45,7 @@ export default function PuterWelcomeModal({ onClose }) {
             </div>
             <h2 className="font-display text-2xl font-semibold text-orange-900 leading-tight mb-2">You're in.</h2>
             <p className="text-sm text-orange-900/80 leading-relaxed mb-5">
-              Puter is connected{hint && <> (ending <code className="text-xs bg-orange-50 px-1.5 py-0.5 rounded">…{hint}</code>)</>}. Your household can now use unlimited AI — pick a recipe and hit <em>Suggest adaptations</em> to try it.
+              Puter is connected{hint && <> (ending <code className="text-xs bg-orange-50 px-1.5 py-0.5 rounded">…{hint}</code>)</>}. Your household is all set — pick a recipe and hit <em>Suggest adaptations</em> to try it.
             </p>
             <button
               onClick={dismiss}

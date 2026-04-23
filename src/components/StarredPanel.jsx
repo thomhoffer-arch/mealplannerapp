@@ -90,7 +90,7 @@ export default function StarredPanel({ starredItems, household, onClose, onAddTo
             className="w-full py-3 bg-orange-500 text-white rounded-full font-semibold text-sm hover:bg-orange-600 transition flex items-center justify-center gap-2"
           >
             <Sparkles size={15} />
-            Plan my week with AI
+            Plan my week
           </button>
         </div>
       </div>
