@@ -511,7 +511,7 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
         <div className="max-w-3xl mx-auto">
           <button onClick={() => setView('landing')} className="text-xs text-orange-600 hover:text-orange-900 mb-8 transition">← Back</button>
           <h2 className="font-display text-3xl font-semibold text-orange-900 mb-1.5">Choose your plan</h2>
-          <p className="text-sm text-orange-900/80 mb-8">All core features are free. Premium adds more AI for the whole kitchen and personal perks just for you.</p>
+          <p className="text-sm text-orange-900/80 mb-8">All core features are free. Premium unlocks more for the whole kitchen and personal perks just for you.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
 
@@ -537,11 +537,11 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
               </p>
               <ul className="space-y-2 mt-5">
                 {[
-                  { ok: true,  text: '20 AI suggestions/week — grows with your kitchen' },
+                  { ok: true,  text: '20 suggestions/week — grows with your kitchen' },
                   { ok: true,  text: 'Shared plan, list & pantry' },
                   { ok: true,  text: '4 recipe results per search' },
                   { ok: false, text: 'Unlimited recipe search results' },
-                  { ok: false, text: 'AI shopping, pantry & side dish extras' },
+                  { ok: false, text: 'Smart shopping, pantry & side dish extras' },
                   { ok: false, text: 'Exports, history & insights' },
                 ].map((f) => (
                   <li key={f.text} className="flex items-start gap-2">
@@ -585,10 +585,10 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
               <p className="text-[11px] text-orange-500 mb-4">per person · your perks follow you everywhere</p>
               <ul className="space-y-2">
                 {[
-                  { live: true,  text: 'Unlimited AI suggestions — no weekly cap' },
+                  { live: true,  text: 'Unlimited suggestions — no weekly cap' },
                   { live: true,  text: 'Unlimited recipe search results' },
                   { live: true,  text: 'Daily macro tracking' },
-                  { live: true,  text: 'AI-cleaned shopping list & pantry smarts' },
+                  { live: true,  text: 'Smart shopping list & pantry matching' },
                   { live: true,  text: 'All side dish suggestions' },
                   { live: false, text: 'Export to PDF or Google Calendar' },
                   { live: false, text: 'Recipe history & cooking insights' },
@@ -627,9 +627,9 @@ export default function AuthScreen({ recoveryMode = false, onRecoveryDone = null
               <p className="text-[11px] text-orange-600 mb-4">Puter or Gemini API key · pay-as-you-go</p>
               <ul className="space-y-2">
                 {[
-                  'Unlimited AI — no weekly cap',
+                  'Unlimited suggestions — no weekly cap',
                   '8 recipe results per search',
-                  'Faster AI generation',
+                  'Faster results',
                   'Shared plan, list & pantry',
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2">

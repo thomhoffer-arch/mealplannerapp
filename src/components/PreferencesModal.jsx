@@ -451,7 +451,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
             <div>
               <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">Pay-as-you-go via Puter</p>
               <p className="text-xs text-orange-400 mt-0.5">
-                Connect a Puter account for unlimited AI — Claude, GPT, Gemini and more. Puter bills you directly for what you use. Overrides the Gemini key above when set.
+                Connect a Puter account for unlimited suggestions — Claude, GPT, Gemini and more. Puter bills you directly for what you use. Overrides the Gemini key above when set.
               </p>
             </div>
 

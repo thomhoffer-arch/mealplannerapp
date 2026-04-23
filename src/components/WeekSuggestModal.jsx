@@ -525,7 +525,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                   ><X size={13} /></button>
                   <p className="text-xs font-semibold text-orange-900 mb-1">Premium feature</p>
                   <p className="text-[11px] text-orange-600 leading-relaxed">
-                    Supermarket deal scanning is available on Premium. Upgrade to let the AI build your plan around what's on offer this week.
+                    Supermarket deal scanning is available on Premium. Upgrade to let us build your plan around what's on offer this week.
                   </p>
                 </div>
               )}
@@ -558,7 +558,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
               <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
                 <p className="text-sm font-semibold text-orange-900 mb-1">Kitchen limit reached</p>
                 <p className="text-xs text-orange-700 leading-relaxed mb-3">
-                  Your kitchen has used its {weeklyUsage?.limit ?? 'weekly'} AI suggestions for this week.
+                  Your kitchen has used its {weeklyUsage?.limit ?? 'weekly'} suggestions for this week.
                   {weeklyUsage?.limit != null && ` Suggestions reset every week — invite someone to cook with you to grow your shared budget (5 per member).`}
                 </p>
                 <div className="flex flex-col gap-2">
@@ -569,7 +569,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                     </p>
                   </div>
                   <p className="text-[11px] text-orange-500 text-center">
-                    In the meantime, connect Puter or add your Gemini key in Settings for unlimited AI.
+                    In the meantime, connect Puter or add your Gemini key in Settings for unlimited suggestions.
                   </p>
                 </div>
               </div>
@@ -591,7 +591,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           {!loading && !plan && !error && (
             <div className="flex flex-col items-center justify-center px-5 text-center py-20">
               <Sparkles size={40} className="mx-auto mb-3 text-orange-400" />
-              <p className="text-sm text-orange-600 font-medium">AI plans a varied week for you</p>
+              <p className="text-sm text-orange-600 font-medium">We'll plan a varied week for you</p>
               <p className="text-xs text-orange-400 mt-1 leading-relaxed">Use the box above for any rules — per-day too, e.g. "Monday: vegetarian, Friday: fish".</p>
             </div>
           )}
@@ -701,7 +701,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           </button>
                           <div className="flex items-center gap-1.5 flex-wrap flex-1">
                             {isStarred && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">Starred</span>}
-                            {isAI && !isStarred && <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">AI</span>}
+                            {isAI && !isStarred && <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">Suggested</span>}
                             {day.estimated_cost && <span className="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full font-semibold border border-green-100">{day.estimated_cost}</span>}
                           </div>
                           {swappingKey === key && (

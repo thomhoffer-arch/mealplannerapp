@@ -93,9 +93,9 @@ export default function WillingnessModal({ household, onClose }) {
                 We're considering a <span className="font-semibold">premium tier</span> with:
               </p>
               <ul className="text-sm text-orange-900 space-y-1 mb-4 ml-1">
-                <li>✦ Unlimited AI recipe suggestions</li>
+                <li>✦ Unlimited recipe suggestions</li>
                 <li>✦ Expanded recipe library</li>
-                <li>✦ A more powerful AI model</li>
+                <li>✦ Smarter, deeper recipes</li>
               </ul>
               <p className="text-sm font-semibold text-orange-900 mb-3">Would you pay for this?</p>
               <div className="space-y-2">
