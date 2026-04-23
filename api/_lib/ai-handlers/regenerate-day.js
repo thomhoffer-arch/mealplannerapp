@@ -22,6 +22,7 @@ export default async function handleRegenerateDay(req, res) {
     change_request,         // "too heavy, give me something lighter"
     other_days_names = [],  // Names of other days in the plan, to avoid collisions
     meal_type,              // "breakfast" | "lunch" | undefined (= dinner)
+    language = 'English',
   } = req.body || {};
 
   if (!day_name) return res.status(400).json({ error: 'day_name is required' });
@@ -103,10 +104,14 @@ export default async function handleRegenerateDay(req, res) {
     ? `Suggest a ${mealLabel} for ${day_name}.${change_request?.trim() ? ` Household preference: "${change_request.trim()}"` : ''}`
     : `The household had "${current_recipe_name}" planned for ${day_name}. They want to swap it.\n\nTheir request: "${change_request.trim()}"`;
 
+  const langLine = language && language !== 'English'
+    ? `\nLANGUAGE: ${language}\nWrite the dish name, overview, and reason in ${language}. Always also include english_name with the English dish name (for image search). JSON field names stay in English.\n`
+    : '';
+
   const prompt = `${VOICE_GUIDE}
 
 ---
-
+${langLine}
 ${taskLine}
 
 ${isMealType ? `Suggest a ${mealLabel} dish that:` : 'Replace the dish with something that:'}
@@ -158,12 +163,13 @@ Return ONLY JSON, no markdown:
 {
   "day": "${day_name}",
   "starred_id": "<id from list above if one fits, else null>",
-  "name": "<recipe name>",
-  "overview": "<one short sentence>",
+  "name": "<recipe name in ${language}>",
+  "english_name": "<recipe name in English — always required, used for image search>",
+  "overview": "<one short sentence in ${language}>",
   "cuisine_type": "<Italian / Asian / etc.>",
   "prep_time": <minutes or null>,
   "cook_time": <minutes or null>,
-  "reason": "<one short sentence — why this dish satisfies the request>",
+  "reason": "<one short sentence in ${language} — why this dish satisfies the request>",
   "leftover_for": null,
   "uses_pantry": ["<pantry item this uses>"]
 }`;
@@ -198,10 +204,12 @@ Return ONLY JSON, no markdown:
       keywords: parsed.cuisine_type ? [parsed.cuisine_type] : [],
       macros: {},
       _aiSuggestion: true,
+      ...(parsed.english_name && parsed.english_name !== parsed.name ? { _englishName: parsed.english_name } : {}),
     };
   }
 
-  const photo = recipe?.name ? await searchPhoto(recipe.name) : null;
+  const photoQuery = parsed.english_name || recipe?._englishName || recipe?.name;
+  const photo = photoQuery ? await searchPhoto(photoQuery) : null;
 
   return res.json({
     day: parsed.day || day_name,

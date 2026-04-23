@@ -247,6 +247,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           current_recipe_name: dayObj.recipe?.name || dayObj.name || '',
           change_request: request,
           other_days_names: otherDays,
+          language,
         },
       });
       setPlan((prev) => prev.map((w) => {
@@ -322,6 +323,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           change_request: `A simple ${mealType} for ${dayObj.day}`,
           other_days_names: otherDays,
           meal_type: mealType,
+          language,
         },
       });
       if (data?.recipe) {
