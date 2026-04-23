@@ -3555,35 +3555,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* Category filter chips */}
-            <div className="flex gap-2 overflow-x-auto pb-1 mb-3 scrollbar-hide -mx-1 px-1">
-              {SEARCH_CATEGORIES.map((cat) => {
-                const isPremium = !!(weeklyUsage?.unlimited);
-                const locked = cat.premium && !isPremium;
-                const active = searchSpecialty === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => {
-                      if (locked) { setActiveTab('profile'); return; }
-                      setSearchSpecialty(active ? '' : cat.id);
-                    }}
-                    className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition whitespace-nowrap ${
-                      active
-                        ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                        : locked
-                          ? 'bg-white text-orange-300 border-orange-100'
-                          : 'bg-white text-orange-700 border-orange-200 hover:border-orange-400 hover:text-orange-900'
-                    }`}
-                    title={locked ? 'Premium feature — upgrade to unlock' : cat.label}
-                  >
-                    <span>{cat.emoji}</span>
-                    <span>{cat.label}</span>
-                    {locked && <span className="text-[9px] opacity-60">🔒</span>}
-                  </button>
-                );
-              })}
-            </div>
 
 
             {(searchQuery || searchSpecialty || searchChef) ? (
