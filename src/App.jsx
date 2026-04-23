@@ -524,6 +524,7 @@ function SelectedRecipeCard({
   rating, onGenerateRecipe, onShareRecipe,
   onSwapRecipe, swapping,
   onAssignDay,
+  language,
   inlineExpanded,
 }) {
   const [sharing, setSharing] = useState(false);
@@ -551,7 +552,7 @@ function SelectedRecipeCard({
     try {
       const data = await apiFetch('/api/ai/generate-recipe', {
         method: 'POST',
-        body: { recipe, request },
+        body: { recipe, request, ...(language ? { language } : {}) },
       });
       onGenerateRecipe(rid, data, { isAdjust: true, request });
       setAdjustInput('');
@@ -570,7 +571,7 @@ function SelectedRecipeCard({
     try {
       const data = await apiFetch('/api/ai/generate-recipe', {
         method: 'POST',
-        body: { recipe },
+        body: { recipe, ...(language ? { language } : {}) },
       });
       onGenerateRecipe(rid, data);
     } catch (err) {
@@ -1603,9 +1604,11 @@ export default function App() {
           const day = rd?._plannedDay;
           if (payload.eventType === 'INSERT') {
             if (rd?._notAtHome) showActivityToast(`${who} won't be home for dinner${day ? ` on ${day}` : ''}.`);
+            else if (rd?._eatingOut) showActivityToast(`${who} is eating out${day ? ` on ${day}` : ''}.`);
             else if (recipe) showActivityToast(`${who} put ${recipe}${day ? ` on ${day}` : ''} on the plan.`);
           } else if (payload.eventType === 'DELETE') {
             if (rd?._notAtHome) showActivityToast(`${who}'s back for dinner${day ? ` on ${day}` : ''}.`);
+            else if (rd?._eatingOut) showActivityToast(`${who} is cooking at home${day ? ` on ${day}` : ''} after all.`);
             else if (recipe) showActivityToast(`${who} took ${recipe} off the plan.`);
           } else if (payload.eventType === 'UPDATE') {
             const oldSkipped = payload.old?.recipe_data?._skipped;
@@ -1679,12 +1682,12 @@ export default function App() {
     if (!household) return;
     mealPlanItems.forEach((item) => {
       const rd = item.recipe_data;
-      if (!rd || rd._plannerPhoto || rd._notAtHome || rd._isLeftovers) return;
+      if (!rd || rd._plannerPhoto || rd._notAtHome || rd._eatingOut || rd._isLeftovers) return;
       const key = item.id || rd.id;
       if (!key || fetchedPhotoIds.current.has(String(key))) return;
       if (!rd.name) return;
       fetchedPhotoIds.current.add(String(key));
-      apiFetch(`/api/photo?name=${encodeURIComponent(rd.name)}`)
+      apiFetch(`/api/photo?name=${encodeURIComponent(rd._englishName || rd.name)}`)
         .then(({ photo }) => {
           if (!photo) return;
           const withPhoto = { ...rd, _plannerPhoto: photo };
@@ -1826,6 +1829,7 @@ export default function App() {
           const recipe = rd?.name;
           const day = rd?._plannedDay;
           if (rd?._notAtHome) addNotification(`${who} won't be home for dinner${day ? ` on ${day}` : ''}.`);
+          else if (rd?._eatingOut) addNotification(`${who} is eating out${day ? ` on ${day}` : ''}.`);
           else if (recipe) addNotification(`${who} put ${recipe}${day ? ` on the plan for ${day}` : ' on the plan'}.`);
         })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'meal_plan_items', filter: `household_id=eq.${household.id}` },
@@ -2157,7 +2161,7 @@ export default function App() {
       if (result.recipe._aiSuggestion && !(result.recipe.ingredients?.length)) {
         (async () => {
           try {
-            const data = await apiFetch('/api/ai/generate-recipe', { method: 'POST', body: { recipe: result.recipe } });
+            const data = await apiFetch('/api/ai/generate-recipe', { method: 'POST', body: { recipe: result.recipe, language: LANG_NAMES[memberLanguage] || 'English' } });
             const enriched = {
               ...newRecipeData,
               ingredients: data.ingredients || [],
@@ -2338,7 +2342,7 @@ export default function App() {
     }
     // Background Pexels photo fetch for manually-added recipes (no planner photo yet)
     if (!recipeData._plannerPhoto && recipeData.name) {
-      apiFetch(`/api/photo?name=${encodeURIComponent(recipeData.name)}`)
+      apiFetch(`/api/photo?name=${encodeURIComponent(recipeData._englishName || recipeData.name)}`)
         .then(({ photo }) => {
           if (!photo) return;
           const withPhoto = { ...recipeData, _plannerPhoto: photo };
@@ -2356,7 +2360,7 @@ export default function App() {
       const dbRowId = inserted?.id;
       (async () => {
         try {
-          const data = await apiFetch('/api/ai/generate-recipe', { method: 'POST', body: { recipe } });
+          const data = await apiFetch('/api/ai/generate-recipe', { method: 'POST', body: { recipe, language: LANG_NAMES[memberLanguage] || 'English' } });
           const enriched = {
             ...recipeData,
             ingredients: data.ingredients || [],
@@ -2505,6 +2509,31 @@ export default function App() {
     markLocalWrite('meal_plan_items');
     const { data: inserted } = await supabase.from('meal_plan_items').insert({
       household_id: household.id, recipe_id: 'not-at-home', recipe_data: markerData,
+    }).select('id').single();
+    if (inserted?.id) {
+      setMealPlanItems((prev) => prev.map((i) => i.id === tempId ? { ...i, id: inserted.id } : i));
+    }
+  }
+
+  async function toggleEatingOut(day) {
+    const dayPrefix = day.toLowerCase().slice(0, 3);
+    const existing = mealPlanItems.find(
+      (i) => i.recipe_data?._eatingOut &&
+        String(i.recipe_data._plannedDay).toLowerCase().startsWith(dayPrefix) &&
+        i.recipe_data._weekStart === viewWeek
+    );
+    if (existing) {
+      setMealPlanItems((prev) => prev.filter((i) => i.id !== existing.id));
+      markLocalWrite('meal_plan_items');
+      await supabase.from('meal_plan_items').delete().eq('id', existing.id);
+      return;
+    }
+    const markerData = { id: `eating-out-${day}`, _eatingOut: true, _plannedDay: day, _weekStart: viewWeek, name: 'Eating out' };
+    const tempId = `optimistic-eating-out-${day}`;
+    setMealPlanItems((prev) => [...prev, { id: tempId, recipe_id: 'eating-out', recipe_data: markerData, household_id: household.id }]);
+    markLocalWrite('meal_plan_items');
+    const { data: inserted } = await supabase.from('meal_plan_items').insert({
+      household_id: household.id, recipe_id: 'eating-out', recipe_data: markerData,
     }).select('id').single();
     if (inserted?.id) {
       setMealPlanItems((prev) => prev.map((i) => i.id === tempId ? { ...i, id: inserted.id } : i));
@@ -2773,12 +2802,13 @@ export default function App() {
   // Days marked as "not at home" are excluded — no point buying ingredients for them.
   const notAtHomeDaySet = new Set(
     viewItems
-      .filter((i) => i.recipe_data?._notAtHome)
+      .filter((i) => i.recipe_data?._notAtHome || i.recipe_data?._eatingOut)
       .map((i) => String(i.recipe_data._plannedDay).toLowerCase().slice(0, 3))
   );
   const viewRecipeObjects = viewItems
     .filter((i) => {
       if (i.recipe_data?._notAtHome) return false;
+      if (i.recipe_data?._eatingOut) return false;
       if (i.recipe_data?._skipped) return false;
       const pd = i.recipe_data?._plannedDay;
       if (!pd) return true;
@@ -3555,35 +3585,6 @@ export default function App() {
               })}
             </div>
 
-            {/* Chef filter chips */}
-            <div className="flex gap-2 overflow-x-auto pb-1 mb-3 scrollbar-hide -mx-1 px-1">
-              <span className="flex-shrink-0 text-[10px] font-semibold text-orange-400 uppercase tracking-wide self-center pr-1">Chef</span>
-              {CHEF_WHITELIST.map((chef) => {
-                const isPremium = !!(weeklyUsage?.unlimited);
-                const locked = chef.premium && !isPremium;
-                const active = searchChef === chef.id;
-                return (
-                  <button
-                    key={chef.id}
-                    onClick={() => {
-                      if (locked) { setActiveTab('profile'); return; }
-                      setSearchChef(active ? '' : chef.id);
-                    }}
-                    className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition whitespace-nowrap ${
-                      active
-                        ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                        : locked
-                          ? 'bg-white text-orange-300 border-orange-100'
-                          : 'bg-white text-orange-700 border-orange-200 hover:border-orange-400 hover:text-orange-900'
-                    }`}
-                    title={locked ? 'Premium feature — upgrade to unlock' : chef.label}
-                  >
-                    {chef.label}
-                    {locked && <span className="text-[9px] opacity-60 ml-0.5">🔒</span>}
-                  </button>
-                );
-              })}
-            </div>
 
             {(searchQuery || searchSpecialty || searchChef) ? (
               <div>
@@ -3748,11 +3749,12 @@ export default function App() {
                       return pd && String(pd).toLowerCase().startsWith(day.toLowerCase().slice(0, 3));
                     });
                     const isNotAtHome = allDayItems.some((i) => i.recipe_data?._notAtHome);
-                    const dinnerItem = allDayItems.find((i) => (!i.recipe_data?._mealType && !i.recipe_data?._notAtHome) || i.recipe_data?._mealType === 'dinner');
+                    const isEatingOut = allDayItems.some((i) => i.recipe_data?._eatingOut);
+                    const dinnerItem = allDayItems.find((i) => (!i.recipe_data?._mealType && !i.recipe_data?._notAtHome && !i.recipe_data?._eatingOut) || i.recipe_data?._mealType === 'dinner');
                     // Sort extras by time of day so they appear in chronological order
                     const MEAL_TIME_ORDER = { breakfast: 0, lunch: 1 };
                     const extraItems = allDayItems
-                      .filter((i) => i.recipe_data?._mealType && i.recipe_data?._mealType !== 'dinner' && !i.recipe_data?._notAtHome)
+                      .filter((i) => i.recipe_data?._mealType && i.recipe_data?._mealType !== 'dinner' && !i.recipe_data?._notAtHome && !i.recipe_data?._eatingOut)
                       .sort((a, b) => (MEAL_TIME_ORDER[a.recipe_data._mealType] ?? 2) - (MEAL_TIME_ORDER[b.recipe_data._mealType] ?? 2));
                     const recipe = dinnerItem?.recipe_data;
                     const rid = recipe ? String(recipe.id) : null;
@@ -3845,6 +3847,7 @@ export default function App() {
                                 preferences={preferences} starredRecipes={starredRecipes} onAcceptSubstitution={acceptSubstitution}
                                 onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[xrid] || null}
                                 onSwapRecipe={swapAndSaveRecipe} swapping={swappingRecipeId === xrid}
+                                language={LANG_NAMES[memberLanguage] || 'English'}
                                 inlineExpanded />
                             </div>
                           )}
@@ -3854,7 +3857,7 @@ export default function App() {
 
                     return (
                       <div key={day} className={`rounded-2xl border-2 overflow-hidden transition-all ${
-                        isNotAtHome ? 'border-dashed border-orange-100 bg-orange-50/30' :
+                        isNotAtHome || isEatingOut ? 'border-dashed border-orange-100 bg-orange-50/30' :
                         isCooked ? 'border-sage-200 bg-sage-100/40' :
                         recipe ? 'border-orange-100 bg-white' :
                         'border-dashed border-orange-100 bg-white/50'
@@ -3875,8 +3878,8 @@ export default function App() {
                             onClick={() => recipe && toggleDayMeal(rid)}>
                             <div className="w-16 flex-shrink-0">
                               <p className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-orange-600' : 'text-orange-400'}`}>{day.slice(0, 3)}</p>
-                              <p className={`text-[10px] font-medium text-orange-400 ${(isToday || isNotAtHome) ? '' : 'invisible'}`}>
-                                {isNotAtHome ? 'away' : 'today'}
+                              <p className={`text-[10px] font-medium text-orange-400 ${(isToday || isNotAtHome || isEatingOut) ? '' : 'invisible'}`}>
+                                {isNotAtHome ? 'away' : isEatingOut ? 'out' : 'today'}
                               </p>
                             </div>
                             {recipe ? (
@@ -3933,24 +3936,34 @@ export default function App() {
                               </div>
                             ) : (
                               <>
-                                <p className="flex-1 text-sm text-orange-400 italic">{isNotAtHome ? 'Away — no dinner' : 'Free evening'}</p>
+                                <p className="flex-1 text-sm text-orange-400 italic">
+                                  {isNotAtHome ? 'Away — no dinner' : isEatingOut ? 'Eating out tonight' : 'Free evening'}
+                                </p>
                                 <div className="flex items-center gap-1.5">
-                                  {!isNotAtHome && <>
+                                  {!isNotAtHome && !isEatingOut && <>
                                     <button onClick={(e) => { e.stopPropagation(); setQuickEntryDay(day); setQuickEntryValue(''); }}
                                       className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Write it in</button>
                                     <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
                                       className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Leftovers</button>
                                   </>}
-                                  <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
-                                    className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">
-                                    {isNotAtHome ? 'Undo away' : 'Away'}
-                                  </button>
+                                  {!isEatingOut && (
+                                    <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
+                                      className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">
+                                      {isNotAtHome ? 'Undo away' : 'Away'}
+                                    </button>
+                                  )}
+                                  {!isNotAtHome && (
+                                    <button onClick={(e) => { e.stopPropagation(); toggleEatingOut(day); }}
+                                      className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">
+                                      {isEatingOut ? 'Undo eating out' : 'Eating out'}
+                                    </button>
+                                  )}
                                 </div>
                               </>
                             )}
                           </div>
                           {/* Per-day AI planning hint — visible on empty days, feeds into Plan week as hard constraints */}
-                          {!isNotAtHome && !recipe && quickEntryDay !== day && (
+                          {!isNotAtHome && !isEatingOut && !recipe && quickEntryDay !== day && (
                             <div className="px-4 pb-3" onClick={(e) => e.stopPropagation()}>
                               {editingDayNote === day ? (
                                 <div className="flex items-center gap-1.5">
@@ -4014,15 +4027,23 @@ export default function App() {
                                   {generatingExtra === `${day}-lunch` ? 'Adding…' : '+ Lunch'}
                                 </button>
                               )}
-                              <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
-                                className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">
-                                {isNotAtHome ? 'Undo away' : 'Away'}
-                              </button>
+                              {!isEatingOut && (
+                                <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
+                                  className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">
+                                  {isNotAtHome ? 'Undo away' : 'Away'}
+                                </button>
+                              )}
+                              {!isNotAtHome && (
+                                <button onClick={(e) => { e.stopPropagation(); toggleEatingOut(day); }}
+                                  className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">
+                                  {isEatingOut ? 'Undo eating out' : 'Eating out'}
+                                </button>
+                              )}
                             </div>
                           )}
 
                           {/* Daily macro progress bars (premium, when tracking enabled) */}
-                          {macroTrackingEnabled && !!(weeklyUsage?.unlimited) && !isNotAtHome && allDayItems.length > 0 && (() => {
+                          {macroTrackingEnabled && !!(weeklyUsage?.unlimited) && !isNotAtHome && !isEatingOut && allDayItems.length > 0 && (() => {
                             const dayMacros = allDayItems.reduce((acc, item) => {
                               const m = item.recipe_data?.macros || {};
                               const s = item.recipe_data?.servings || 1;
@@ -4070,7 +4091,7 @@ export default function App() {
                           })()}
 
                           {/* Expanded dinner recipe */}
-                          {!isNotAtHome && recipe && expandedRecipes[rid] && (
+                          {!isNotAtHome && !isEatingOut && recipe && expandedRecipes[rid] && (
                             <div className="border-t border-orange-100">
                               {(recipe._plannerPhoto?.url || recipe._plannerReason || recipe._plannerLeftoverFor || (recipe._plannerUsesPantry || []).length > 0) && (
                                 <div className="bg-orange-50/50 border-b border-orange-100">
@@ -4101,6 +4122,7 @@ export default function App() {
                                 preferences={preferences} starredRecipes={starredRecipes} onAcceptSubstitution={acceptSubstitution}
                                 onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[rid] || null}
                                 onSwapRecipe={swapAndSaveRecipe} swapping={swappingRecipeId === rid}
+                                language={LANG_NAMES[memberLanguage] || 'English'}
                                 inlineExpanded />
                             </div>
                           )}
@@ -4149,6 +4171,7 @@ export default function App() {
                             onShareRecipe={shareRecipe}
                             rating={recipeRatings[rid] || null}
                             onAssignDay={assignRecipeToDay}
+                            language={LANG_NAMES[memberLanguage] || 'English'}
                           />
                         );
                       })}

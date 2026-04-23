@@ -8,7 +8,7 @@ import { buildDietaryGuardrails } from '../dietary-guardrails.js';
 export default async function handleGenerateRecipe(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { recipe, request } = req.body || {};
+  const { recipe, request, language = 'English' } = req.body || {};
   if (!recipe?.name) return res.status(400).json({ error: 'recipe.name is required' });
 
   const isAdjust = typeof request === 'string' && request.trim().length > 0;
@@ -39,7 +39,7 @@ export default async function handleGenerateRecipe(req, res) {
     }
   }
 
-  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim(), householdPrefs, measurementSystem, dietaryGuardrails) : buildGeneratePrompt(recipe, householdPrefs, measurementSystem, dietaryGuardrails);
+  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim(), householdPrefs, measurementSystem, dietaryGuardrails, language) : buildGeneratePrompt(recipe, householdPrefs, measurementSystem, dietaryGuardrails, language);
 
   let rawText;
   try {
@@ -63,7 +63,7 @@ function buildReviewFeedbackSection(recipe) {
   return `\nPAST COOK FEEDBACK (apply these improvements — the household cooked this before and left notes):\n${feedback.map((f) => `  - [${f.stars}★] "${f.note}"`).join('\n')}\n`;
 }
 
-function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '') {
+function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '', language = 'English') {
   const { name, overview, cuisineType, prepTime, cookTime, _sideDish } = recipe;
   const totalTime = (prepTime || 0) + (cookTime || 0);
   const timeHint = totalTime > 0 ? ` Total time around ${totalTime} minutes.` : '';
@@ -87,6 +87,9 @@ function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'm
   const unitsLine = measurementSystem === 'imperial'
     ? 'Use imperial units for ingredient amounts (oz, lb, cups, tsp, tbsp).'
     : 'Use metric units for ingredient amounts (g, kg, ml, L). Use tsp/tbsp for small amounts like spices and seasonings.';
+  const langLine = language && language !== 'English'
+    ? `\nLANGUAGE: ${language}\nWrite all recipe steps, ingredient names, and any notes in ${language}. JSON field names stay in English.`
+    : '';
 
   return `${VOICE_GUIDE}
 
@@ -94,7 +97,7 @@ function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'm
 
 Write a complete dinner recipe for "${name}".${overviewHint}
 ${cuisineHint}${timeHint}
-Portions for 2 people. ${unitsLine}
+Portions for 2 people. ${unitsLine}${langLine}
 ${prefsSection}${guardrailsSection}${reviewFeedbackSection}${sideSection}
 If the dish name already implies a dietary adaptation (e.g. "with
 gluten-free pasta", "vegetarian lasagne"), reflect that in the
@@ -115,7 +118,7 @@ Return ONLY a JSON object, no markdown:
 IMPORTANT: Every ingredient MUST have a specific amount with a unit (e.g. "200 g", "2 tbsp", "1 tsp", "3 cloves", "400 ml"). Never leave amount empty or omit units. For whole items use count + unit (e.g. "2 chicken thighs" not just "2").`;
 }
 
-function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '') {
+function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '', language = 'English') {
   const ingredientsList = (recipe.ingredients || [])
     .map((i) => `  - ${i.amount ? `${i.amount} ` : ''}${i.name}`)
     .join('\n');
@@ -142,12 +145,15 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSyst
   const unitsLine = measurementSystem === 'imperial'
     ? 'Use imperial units for ingredient amounts (oz, lb, cups, tsp, tbsp).'
     : 'Use metric units for ingredient amounts (g, kg, ml, L). Use tsp/tbsp for small amounts like spices and seasonings.';
+  const langLine = language && language !== 'English'
+    ? `\nLANGUAGE: ${language}\nWrite all recipe steps, ingredient names, and any notes in ${language}. JSON field names stay in English.`
+    : '';
 
   return `${VOICE_GUIDE}
 
 ---
 
-Adjust this recipe based on the user request. Change only what the request asks for. ${unitsLine}
+Adjust this recipe based on the user request. Change only what the request asks for. ${unitsLine}${langLine}
 ${prefsSection}${guardrailsSection}${reviewFeedbackSection}${adjustmentSection}
 RECIPE: ${recipe.name}
 INGREDIENTS:
