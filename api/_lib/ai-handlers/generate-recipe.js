@@ -3,6 +3,7 @@ import { requireAuth } from '../auth.js';
 import { VOICE_GUIDE } from '../voice.js';
 import { resolveAiProvider, callAi } from '../ai-call.js';
 import { checkAndIncrementUsage, isGiftedHousehold } from '../usage.js';
+import { buildDietaryGuardrails } from '../dietary-guardrails.js';
 
 export default async function handleGenerateRecipe(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -17,12 +18,14 @@ export default async function handleGenerateRecipe(req, res) {
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  const [{ provider, token, usingSharedKey }, { data: prefData }] = await Promise.all([
+  const [{ provider, token, usingSharedKey }, { data: prefData }, { data: membersData }] = await Promise.all([
     resolveAiProvider(supabase, ctx.householdId),
     supabase.from('household_preferences').select('preferences_text, measurement_system').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_members').select('display_name, personal_prefs').eq('household_id', ctx.householdId),
   ]);
   const householdPrefs = prefData?.preferences_text || '';
   const measurementSystem = prefData?.measurement_system || 'metric';
+  const dietaryGuardrails = buildDietaryGuardrails(householdPrefs, membersData || []);
 
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
 
@@ -36,7 +39,7 @@ export default async function handleGenerateRecipe(req, res) {
     }
   }
 
-  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim(), householdPrefs, measurementSystem) : buildGeneratePrompt(recipe, householdPrefs, measurementSystem);
+  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim(), householdPrefs, measurementSystem, dietaryGuardrails) : buildGeneratePrompt(recipe, householdPrefs, measurementSystem, dietaryGuardrails);
 
   let rawText;
   try {
@@ -54,7 +57,7 @@ export default async function handleGenerateRecipe(req, res) {
   res.json(result);
 }
 
-function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'metric') {
+function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '') {
   const { name, overview, cuisineType, prepTime, cookTime, _sideDish } = recipe;
   const totalTime = (prepTime || 0) + (cookTime || 0);
   const timeHint = totalTime > 0 ? ` Total time around ${totalTime} minutes.` : '';
@@ -71,8 +74,9 @@ function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'm
   const sideSchema = hasSide ? `,\n  "side_dish_steps": ["Heat oil in a small pan over medium heat...", "..."]` : '';
 
   const prefsSection = householdPrefs
-    ? `\nHOUSEHOLD PREFERENCES (dietary restrictions to respect):\n${householdPrefs}\n`
+    ? `\nHOUSEHOLD PREFERENCES:\n${householdPrefs}\n`
     : '';
+  const guardrailsSection = dietaryGuardrails ? `\n${dietaryGuardrails}\n` : '';
   const unitsLine = measurementSystem === 'imperial'
     ? 'Use imperial units for ingredient amounts (oz, lb, cups, tsp, tbsp).'
     : 'Use metric units for ingredient amounts (g, kg, ml, L). Use tsp/tbsp for small amounts like spices and seasonings.';
@@ -84,7 +88,7 @@ function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'm
 Write a complete dinner recipe for "${name}".${overviewHint}
 ${cuisineHint}${timeHint}
 Portions for 2 people. ${unitsLine}
-${prefsSection}${sideSection}
+${prefsSection}${guardrailsSection}${sideSection}
 If the dish name already implies a dietary adaptation (e.g. "with
 gluten-free pasta", "vegetarian lasagne"), reflect that in the
 ingredient list — label GF pasta as "gluten-free pasta", label
@@ -93,16 +97,18 @@ regular version.
 
 Return ONLY a JSON object, no markdown:
 {
-  "ingredients": [{ "name": "chicken thighs, bone-in skin-on", "amount": "2" }],
+  "ingredients": [{ "name": "chicken thighs, bone-in skin-on", "amount": "600 g" }],
   "steps": ["Pat the chicken dry and season generously on both sides..."],
   "servings": 2,
   "prepTime": <minutes as integer>,
   "cookTime": <minutes as integer>,
   "macros": { "calories": 520, "protein": 38, "carbs": 22, "fat": 28 }${sideSchema}
-}`;
 }
 
-function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric') {
+IMPORTANT: Every ingredient MUST have a specific amount with a unit (e.g. "200 g", "2 tbsp", "1 tsp", "3 cloves", "400 ml"). Never leave amount empty or omit units. For whole items use count + unit (e.g. "2 chicken thighs" not just "2").`;
+}
+
+function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '') {
   const ingredientsList = (recipe.ingredients || [])
     .map((i) => `  - ${i.amount ? `${i.amount} ` : ''}${i.name}`)
     .join('\n');
@@ -111,14 +117,20 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSyst
     .map((s, i) => `  ${i + 1}. ${s}`)
     .join('\n');
 
+  const adjustmentLog = (recipe._adjustmentLog || []).filter(Boolean);
+  const adjustmentSection = adjustmentLog.length
+    ? `\nPREVIOUS ADJUSTMENTS (already applied — keep these changes, don't revert them):\n${adjustmentLog.map((r) => `  - "${r}"`).join('\n')}\n`
+    : '';
+
   const existingMacros = recipe.macros || {};
   const macroHint = existingMacros.calories
     ? `(original was approx. calories: ${existingMacros.calories}, protein: ${existingMacros.protein}g, carbs: ${existingMacros.carbs}g, fat: ${existingMacros.fat}g — recalculate based on what changed)`
     : '(estimate from the adjusted ingredients — do not return zeros)';
 
   const prefsSection = householdPrefs
-    ? `\nHOUSEHOLD PREFERENCES (dietary restrictions to respect):\n${householdPrefs}\n`
+    ? `\nHOUSEHOLD PREFERENCES:\n${householdPrefs}\n`
     : '';
+  const guardrailsSection = dietaryGuardrails ? `\n${dietaryGuardrails}\n` : '';
   const unitsLine = measurementSystem === 'imperial'
     ? 'Use imperial units for ingredient amounts (oz, lb, cups, tsp, tbsp).'
     : 'Use metric units for ingredient amounts (g, kg, ml, L). Use tsp/tbsp for small amounts like spices and seasonings.';
@@ -128,7 +140,7 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSyst
 ---
 
 Adjust this recipe based on the user request. Change only what the request asks for. ${unitsLine}
-${prefsSection}
+${prefsSection}${guardrailsSection}${adjustmentSection}
 RECIPE: ${recipe.name}
 INGREDIENTS:
 ${ingredientsList || '  (none listed)'}

@@ -140,6 +140,30 @@ function isBulkStaple(name) {
   return BULK_STAPLES.some((s) => n.includes(s));
 }
 
+// Fresh produce typically sold in quantities larger than a single recipe needs.
+// When a recipe is marked as cooked, leftovers from this list are auto-added
+// to the pantry so they appear greyed out on the next shopping list.
+const PARTIAL_PRODUCE = [
+  'spring onion','scallion','green onion','chive',
+  'cucumber','courgette','zucchini',
+  'celery','leek','fennel',
+  'parsley','coriander','cilantro','dill','tarragon','chervil','basil','mint',
+  'lemongrass','kaffir lime','lime leaf',
+  'ginger','galangal','turmeric root',
+  'chili','chilli','jalapeño','bird\'s eye',
+  'cabbage','savoy','red cabbage','white cabbage',
+  'lettuce','rocket','arugula','radicchio','endive','chicory',
+  'spinach','kale','chard','pak choi','bok choy',
+  'radish','turnip','beetroot',
+  'apple','pear','lemon','lime','orange',
+  'pomegranate','passion fruit',
+  'avocado','mango',
+];
+function isPartialProduce(name) {
+  const n = (name || '').toLowerCase().trim();
+  return PARTIAL_PRODUCE.some((s) => n.includes(s));
+}
+
 function detectAllergens(ingredients = []) {
   const text = ingredients.map((i) => `${i.name || ''} ${i.amount || ''}`).join(' ').toLowerCase();
   return ALLERGENS.filter((a) => a.patterns.some((p) => text.includes(p)));
@@ -528,7 +552,7 @@ function SelectedRecipeCard({
         method: 'POST',
         body: { recipe, request },
       });
-      onGenerateRecipe(rid, data);
+      onGenerateRecipe(rid, data, { isAdjust: true, request });
       setAdjustInput('');
     } catch (err) {
       setAdjustError(err.message || 'Something went wrong. Try again.');
@@ -829,7 +853,9 @@ function SelectedRecipeCard({
         </div>
         <div className="flex flex-wrap gap-1 mt-3">
           {(recipe.ingredients || []).map((ing) => (
-            <span key={ing.name} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{ing.name}</span>
+            <span key={ing.name} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+              {ing.amount ? <span className="font-semibold">{ing.amount} </span> : null}{ing.name}
+            </span>
           ))}
           {customs.map((c) => (
             <span key={c.id} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{c.name}</span>
@@ -1238,14 +1264,34 @@ export default function App() {
     let { rows, error: memberErr } = await readMemberships();
     if (memberErr) {
       console.error("[auth] household_members read failed:", memberErr, "\n" + RLS_HINT);
-      await supabase.auth.signOut();
+      // Only sign out on clear auth/permission failures — not on transient network errors.
+      const isAuthError = /permission denied|403|unauthorized|jwt expired|invalid token/i.test(memberErr.message || '');
+      if (isAuthError) {
+        await supabase.auth.signOut();
+        setAuthLoading(false);
+        return;
+      }
+      // Transient error — retry after a short delay instead of signing the user out.
       setAuthLoading(false);
+      loadingForUser.current = null; // allow retry
+      setTimeout(() => loadHousehold(), 3000);
       return;
     }
 
     // Self-heal: no memberships → create a personal household. The RPC is
     // idempotent (see supabase/migration_idempotent_create_household.sql), so
     // a concurrent retry won't create stray households.
+    // Guard: retry once before self-healing — a momentary auth refresh can cause
+    // a legitimate member to temporarily appear to have no memberships, and we
+    // must not create a new empty household for them in that case.
+    if (rows.length === 0) {
+      await new Promise((r) => setTimeout(r, 1200));
+      const retry = await readMemberships();
+      if (!retry.error && retry.rows.length > 0) {
+        rows = retry.rows; // transient — recovered on retry
+      }
+    }
+
     if (rows.length === 0) {
       const { error: rpcError } = await supabase.rpc("create_household_for_user", { uid: user.id });
       if (rpcError) {
@@ -1429,7 +1475,7 @@ export default function App() {
       });
       // Refresh the member list; realtime only watches the current user.
       const { data } = await supabase.from('household_members')
-        .select('display_name, user_id, personal_prefs').eq('household_id', household.id);
+        .select('display_name, user_id, personal_prefs, is_premium').eq('household_id', household.id);
       setHouseholdMembers(data || []);
     } catch (err) {
       window.alert(err.message || 'Could not remove member');
@@ -1483,7 +1529,7 @@ export default function App() {
     loadPantry();
     loadTemplates();
     loadUserRecipes();
-    supabase.from('household_members').select('display_name, user_id, personal_prefs').eq('household_id', household.id)
+    supabase.from('household_members').select('display_name, user_id, personal_prefs, is_premium').eq('household_id', household.id)
       .then(({ data }) => setHouseholdMembers(data || []));
 
     function otherName() {
@@ -1508,7 +1554,11 @@ export default function App() {
           } else if (payload.eventType === 'UPDATE') {
             const oldSkipped = payload.old?.recipe_data?._skipped;
             const newSkipped = payload.new?.recipe_data?._skipped;
-            if (oldSkipped !== newSkipped && recipe) {
+            const oldAdjusted = payload.old?.recipe_data?._lastAdjustedAt;
+            const newAdjusted = payload.new?.recipe_data?._lastAdjustedAt;
+            if (newAdjusted && newAdjusted !== oldAdjusted && recipe) {
+              showActivityToast(`${who} adjusted the recipe for ${recipe}${day ? ` on ${day}` : ''}.`);
+            } else if (oldSkipped !== newSkipped && recipe) {
               showActivityToast(newSkipped
                 ? `${who} skipped ${recipe}${day ? ` on ${day}` : ''}.`
                 : `${who} put ${recipe}${day ? ` on ${day}` : ''} back.`);
@@ -1547,7 +1597,7 @@ export default function App() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "user_recipes",       filter: `household_id=eq.${household.id}` }, loadUserRecipes)
       .on("postgres_changes", { event: "*", schema: "public", table: "household_members",  filter: `household_id=eq.${household.id}` }, (payload) => {
-        supabase.from('household_members').select('display_name, user_id, personal_prefs').eq('household_id', household.id)
+        supabase.from('household_members').select('display_name, user_id, personal_prefs, is_premium').eq('household_id', household.id)
           .then(({ data }) => setHouseholdMembers(data || []));
         if (!wasLocalWrite('household_members') && payload.eventType === 'INSERT') {
           const name = payload.new?.display_name;
@@ -1788,30 +1838,28 @@ export default function App() {
     let amount = "", name = raw;
     if (match) { amount = match[0].trim(); name = raw.slice(match[0].length).trim() || raw; }
 
-    // Premium/gifted: ask AI if the name is ambiguous before saving.
-    const hasUnlimitedAi = !!(weeklyUsage?.unlimited);
-    if (hasUnlimitedAi && name.split(/\s+/).length <= 2) {
-      setPantryInput("");
-      setPantryNudge({ original: name, amount, suggestions: [], loading: true });
-      try {
-        const data = await apiFetch('/api/ai/normalize-pantry-item', { method: 'POST', body: { name } });
-        if (data.ambiguous && data.alternatives?.length > 0) {
-          setPantryNudge({ original: name, amount, suggestions: [data.canonical, ...data.alternatives], loading: false });
-          return; // wait for user to pick
-        }
-        // Unambiguous — save canonical name directly
-        await savePantryName(data.canonical || name, amount);
-      } catch {
-        // AI unavailable — fall back to raw name
-        await savePantryName(name, amount);
-      } finally {
-        setPantryNudge(null);
-      }
-      return;
-    }
-
-    await savePantryName(name, amount);
+    // Save to pantry immediately so the user sees it right away.
     setPantryInput("");
+    const savedId = await savePantryName(name, amount);
+
+    // Premium/gifted: run AI disambiguation in the background after saving.
+    const hasUnlimitedAi = !!(weeklyUsage?.unlimited);
+    if (!hasUnlimitedAi || name.split(/\s+/).length > 2) return;
+
+    setPantryNudge({ itemId: savedId, original: name, amount, suggestions: [], loading: true });
+    try {
+      const data = await apiFetch('/api/ai/normalize-pantry-item', { method: 'POST', body: { name } });
+      if (data.ambiguous && data.alternatives?.length > 0) {
+        // Show disambiguation — item is already in pantry; user picks which type to rename it to.
+        setPantryNudge({ itemId: savedId, original: name, amount, suggestions: [data.canonical, ...data.alternatives], loading: false });
+        return; // leave nudge open until user picks
+      }
+      // Unambiguous — silently rename to canonical if it differs.
+      if (data.canonical && data.canonical.toLowerCase() !== name.toLowerCase()) {
+        await renamePantryItem(savedId, data.canonical);
+      }
+    } catch { /* AI unavailable — keep the raw name as saved */ }
+    setPantryNudge(null);
   }
 
   async function savePantryName(name, amount) {
@@ -1819,14 +1867,31 @@ export default function App() {
     const tempId = `optimistic-${Date.now()}`;
     setPantryItems((prev) => [...prev, { id: tempId, name: normalizedName, amount }]);
     markLocalWrite('pantry_items');
-    await supabase.from("pantry_items").insert({ household_id: household.id, name: normalizedName, amount });
+    const { data } = await supabase
+      .from("pantry_items")
+      .insert({ household_id: household.id, name: normalizedName, amount })
+      .select('id')
+      .single();
+    if (data?.id) {
+      setPantryItems((prev) => prev.map((i) => i.id === tempId ? { ...i, id: data.id } : i));
+      return data.id;
+    }
+    return tempId;
+  }
+
+  async function renamePantryItem(id, newName) {
+    const normalizedName = newName.toLowerCase().trim();
+    setPantryItems((prev) => prev.map((i) => i.id === id ? { ...i, name: normalizedName } : i));
+    if (!String(id).startsWith('optimistic-')) {
+      await supabase.from("pantry_items").update({ name: normalizedName }).eq("id", id);
+    }
   }
 
   async function confirmPantryNudge(chosenName) {
     if (!pantryNudge) return;
-    const { amount } = pantryNudge;
+    const { itemId } = pantryNudge;
     setPantryNudge(null);
-    await savePantryName(chosenName, amount);
+    await renamePantryItem(itemId, chosenName);
   }
 
   async function submitQuickEntry(day) {
@@ -1946,10 +2011,23 @@ export default function App() {
     basketToastTimer.current = setTimeout(() => setBasketToast(null), 4000);
   }
 
-  async function generateAndSaveRecipe(rid, fullData) {
+  async function generateAndSaveRecipe(rid, fullData, opts = {}) {
     const item = mealPlanItems.find((i) => i.recipe_id === rid);
     if (!item) return;
-    const updatedRecipe = { ...item.recipe_data, ...fullData };
+    const { isAdjust = false, request = '' } = opts;
+
+    // Append to the adjustment log so the LLM can learn from it on future calls.
+    const prevLog = item.recipe_data._adjustmentLog || [];
+    const adjustmentLog = isAdjust && request ? [...prevLog, request] : prevLog;
+
+    const updatedRecipe = {
+      ...item.recipe_data,
+      ...fullData,
+      ...(adjustmentLog.length ? { _adjustmentLog: adjustmentLog } : {}),
+      // Stamp the update so the realtime handler can detect it for other members.
+      ...(isAdjust ? { _lastAdjustedAt: Date.now() } : {}),
+    };
+    markLocalWrite('meal_plan_items');
     const { error } = await supabase.from("meal_plan_items")
       .update({ recipe_data: updatedRecipe })
       .eq("id", item.id);
@@ -1958,7 +2036,11 @@ export default function App() {
       i.id === item.id ? { ...i, recipe_data: updatedRecipe } : i
     ));
     if ((fullData.ingredients || []).length > 0) {
-      showBasketToast(updatedRecipe.name);
+      if (isAdjust) {
+        showActivityToast('Recipe adjusted.');
+      } else {
+        showBasketToast('Shopping list updated');
+      }
     }
   }
 
@@ -2267,6 +2349,35 @@ export default function App() {
       setCookedRecipes((prev) => ({ ...prev, [rid]: true }));
       setRatingPrompt(rid);
       await supabase.from("cooked_recipes").insert({ household_id: household.id, recipe_id: rid });
+
+      // Auto-add leftover partial produce to the pantry.
+      // When a recipe uses only part of an ingredient (spring onions, cucumber…)
+      // the rest sits in the fridge — add it so the next shopping list skips it.
+      const item = mealPlanItems.find((i) => String(i.recipe_id) === String(rid) || String(i.recipe_data?.id) === String(rid));
+      const allIngredients = [
+        ...(item?.recipe_data?.ingredients || []),
+        ...(item?.recipe_data?._sideDish?.ingredients || []),
+      ];
+      const existingPantryNames = new Set(pantryItems.map((p) => p.name.toLowerCase().trim()));
+      const leftovers = [];
+      for (const { name } of allIngredients) {
+        if (!name) continue;
+        const normalized = name.toLowerCase().trim();
+        if (isPartialProduce(normalized) && !existingPantryNames.has(normalized) && !leftovers.find((l) => l === normalized)) {
+          leftovers.push(normalized);
+          existingPantryNames.add(normalized); // avoid dupes within same recipe
+        }
+      }
+      if (leftovers.length) {
+        markLocalWrite('pantry_items');
+        for (const name of leftovers) {
+          const { data: inserted } = await supabase.from('pantry_items')
+            .insert({ household_id: household.id, name, amount: '' })
+            .select('id, name, amount').single();
+          if (inserted) setPantryItems((prev) => [...prev, inserted]);
+        }
+        showActivityToast(`Added ${leftovers.join(', ')} to your pantry as leftovers.`);
+      }
     }
   }
 
@@ -4486,9 +4597,9 @@ export default function App() {
                               <span className="text-xs font-bold text-orange-600">{(m.display_name || '?')[0].toUpperCase()}</span>
                             </div>
                             <span className="text-sm text-orange-900 flex-1">{m.display_name || 'Member'}{isSelf && ' (you)'}</span>
-                            {weeklyUsage?.unlimited && isSelf && (
-                              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-orange-600 border border-orange-100 flex-shrink-0">
-                                Premium
+                            {m.is_premium && (
+                              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-orange-600 border border-orange-100 flex-shrink-0" title="Premium member">
+                                ★ Premium
                               </span>
                             )}
                             {!isSelf && householdMembers.length > 1 && (
@@ -4678,7 +4789,7 @@ export default function App() {
         <div className="fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-sm bg-orange-900 text-white rounded-full shadow-warm-lg px-4 py-3 flex items-center gap-2.5 animate-slide-up">
           <ShoppingCart size={15} className="flex-shrink-0" />
           <span className="text-sm font-medium">
-            {basketToast} added to shopping list
+            {basketToast}
           </span>
           <button onClick={() => setBasketToast(null)} className="text-white/60 hover:text-white transition ml-1">
             <X size={14} />
