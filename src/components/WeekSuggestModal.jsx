@@ -504,7 +504,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
               type="button"
               onClick={hasDealsAccess ? fetchDeals : undefined}
               disabled={dealsLoading || !hasDealsAccess}
-              title={!hasDealsAccess ? 'Requires your own Gemini API key — add one in Settings' : undefined}
+              title={!hasDealsAccess ? 'Available for premium members and households with their own Gemini API key' : undefined}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition ${
                 !hasDealsAccess
                   ? 'border-orange-100 text-orange-300 cursor-not-allowed'
