@@ -1208,6 +1208,7 @@ export default function App() {
   const [generatingExtra, setGeneratingExtra] = useState(null); // "Monday-breakfast" while generating
   const [undoRemove, setUndoRemove] = useState(null); // { recipe, dbId } — shows for 5s after removal
   const undoTimer = useRef(null);
+  const pendingDeletes = useRef(new Set()); // recipe_ids removed while INSERT was still in flight
 
   useEffect(() => { localStorage.setItem('mp:activeTab', activeTab); }, [activeTab]);
 
@@ -1700,6 +1701,7 @@ export default function App() {
             (i.id === item.id) ? { ...i, recipe_data: withPhoto } : i
           ));
           if (item.id && !String(item.id).startsWith('optimistic-')) {
+            markLocalWrite('meal_plan_items');
             supabase.from('meal_plan_items').update({ recipe_data: withPhoto }).eq('id', item.id);
           }
         })
@@ -2178,6 +2180,7 @@ export default function App() {
         i.recipe_id === rid ? { ...i, recipe_id: newRid, recipe_data: newRecipeData } : i
       ));
       if (dbItem?.id) {
+        markLocalWrite('meal_plan_items');
         await supabase.from('meal_plan_items')
           .update({ recipe_id: newRid, recipe_data: newRecipeData })
           .eq('id', dbItem.id);
@@ -2198,7 +2201,10 @@ export default function App() {
             setMealPlanItems((prev) => prev.map((i) =>
               i.recipe_id === newRid ? { ...i, recipe_data: enriched } : i
             ));
-            if (dbItem?.id) await supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbItem.id);
+            if (dbItem?.id) {
+              markLocalWrite('meal_plan_items');
+              await supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbItem.id);
+            }
           } catch (err) {
             console.error('[bg-generate-swapped]', err.message);
           }
@@ -2328,9 +2334,18 @@ export default function App() {
       markLocalWrite('meal_plan_items');
       setMealPlanItems((prev) => prev.filter((i) => i.recipe_id !== rid));
       setExpandedRecipes((p) => { const n = { ...p }; delete n[rid]; return n; });
-      await supabase.from("meal_plan_items").delete()
-        .eq("household_id", household.id)
-        .eq("recipe_id", rid);
+      const existingDbId = existing.id && !String(existing.id).startsWith('optimistic-') ? existing.id : null;
+      if (existingDbId) {
+        // Use primary key — immune to recipe_id type/value mismatches
+        const { error } = await supabase.from("meal_plan_items").delete().eq("id", existingDbId);
+        if (error) console.error('[remove-recipe] delete failed:', error);
+      } else {
+        // INSERT still in flight — mark for cleanup, then attempt delete by recipe_id
+        pendingDeletes.current.add(rid);
+        await supabase.from("meal_plan_items").delete()
+          .eq("household_id", household.id)
+          .eq("recipe_id", rid);
+      }
       // Show undo snackbar for 5 seconds
       clearTimeout(undoTimer.current);
       setUndoRemove({ recipe: existing.recipe_data, dbId: existing.id });
@@ -2363,9 +2378,15 @@ export default function App() {
     }).select('id').single();
     // Replace optimistic ID with the real DB row ID so deletes work correctly.
     if (inserted?.id) {
-      setMealPlanItems((prev) => prev.map((i) =>
-        i.id === `optimistic-${rid}` ? { ...i, id: inserted.id } : i
-      ));
+      if (pendingDeletes.current.has(rid)) {
+        // Recipe was removed while INSERT was in flight — delete from DB immediately
+        pendingDeletes.current.delete(rid);
+        supabase.from("meal_plan_items").delete().eq("id", inserted.id);
+      } else {
+        setMealPlanItems((prev) => prev.map((i) =>
+          i.id === `optimistic-${rid}` ? { ...i, id: inserted.id } : i
+        ));
+      }
     }
     // Background Pexels photo fetch for manually-added recipes (no planner photo yet)
     if (!recipeData._plannerPhoto && recipeData.name) {
@@ -2377,6 +2398,7 @@ export default function App() {
             i.recipe_id === rid ? { ...i, recipe_data: withPhoto } : i
           ));
           if (inserted?.id) {
+            markLocalWrite('meal_plan_items');
             supabase.from('meal_plan_items').update({ recipe_data: withPhoto }).eq('id', inserted.id);
           }
         })
@@ -2399,7 +2421,10 @@ export default function App() {
           setMealPlanItems((prev) => prev.map((i) =>
             i.recipe_id === rid ? { ...i, recipe_data: enriched } : i
           ));
-          if (dbRowId) supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbRowId);
+          if (dbRowId) {
+            markLocalWrite('meal_plan_items');
+            supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbRowId);
+          }
         } catch (err) {
           console.error('[bg-generate-single]', err.message);
         }
@@ -3328,7 +3353,10 @@ export default function App() {
                         : item
                     ));
                     const dbId = idMap[String(stub.id)];
-                    if (dbId) supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbId);
+                    if (dbId) {
+                      markLocalWrite('meal_plan_items');
+                      supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbId);
+                    }
                   }
                 } catch (err) {
                   console.error('[bg-generate-batch]', err.message);
