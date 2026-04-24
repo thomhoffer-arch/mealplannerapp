@@ -854,15 +854,15 @@ function SelectedRecipeCard({
             {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
           </button>
         </div>
-        {expanded && (
-          <div className="flex flex-wrap gap-1 mt-3">
-            {(recipe.ingredients || []).map((ing) => (
-              <span key={ing.name} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
-                {ing.amount ? <span className="font-semibold">{ing.amount} </span> : null}{ing.name}
-              </span>
+        {expanded && (recipe.ingredients?.length > 0 || customs.length > 0) && (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-3">
+            {(recipe.ingredients || []).map((ing, i) => (
+              <p key={i} className="text-xs text-orange-800 leading-snug">
+                {ing.amount && <span className="font-medium text-orange-900">{ing.amount} </span>}{ing.name}
+              </p>
             ))}
             {customs.map((c) => (
-              <span key={c.id} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{c.name}</span>
+              <p key={c.id} className="text-xs text-orange-800 leading-snug">{c.name}</p>
             ))}
           </div>
         )}
