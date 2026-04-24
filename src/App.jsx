@@ -478,9 +478,11 @@ function RecipeCard({ recipe, isSelected, isStarred, onToggleSelect, onToggleSta
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-orange-50 text-orange-600"}`}>
-              {recipe.source}
-            </span>
+            {recipe.source && recipe.source !== 'AI Suggestion' && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-orange-50 text-orange-600"}`}>
+                {recipe.source}
+              </span>
+            )}
             <span className="text-xs text-orange-600">{totalTime(recipe)} min · {recipe.servings} servings</span>
           </div>
           <h3 className="font-semibold text-orange-900 text-base leading-snug">{recipe.name}</h3>
@@ -852,15 +854,15 @@ function SelectedRecipeCard({
             {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
           </button>
         </div>
-        {expanded && (
-          <div className="flex flex-wrap gap-1 mt-3">
-            {(recipe.ingredients || []).map((ing) => (
-              <span key={ing.name} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
-                {ing.amount ? <span className="font-semibold">{ing.amount} </span> : null}{ing.name}
-              </span>
+        {expanded && (recipe.ingredients?.length > 0 || customs.length > 0) && (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-3">
+            {(recipe.ingredients || []).map((ing, i) => (
+              <p key={i} className="text-xs text-orange-800 leading-snug">
+                {ing.amount && <span className="font-medium text-orange-900">{ing.amount} </span>}{ing.name}
+              </p>
             ))}
             {customs.map((c) => (
-              <span key={c.id} className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{c.name}</span>
+              <p key={c.id} className="text-xs text-orange-800 leading-snug">{c.name}</p>
             ))}
           </div>
         )}
@@ -2315,7 +2317,7 @@ export default function App() {
     const rid = String(recipe.id);
     const existing = mealPlanItems.find((i) => i.recipe_id === rid);
     if (existing) {
-      if (hasCheckedIngredients(existing.recipe_data)) {
+      if (!cookedRecipes[rid] && hasCheckedIngredients(existing.recipe_data)) {
         const ok = window.confirm(
           `You've already checked off some ingredients for ${existing.recipe_data?.name || 'this recipe'}. Removing it may mean those items are no longer needed.\n\nRemove anyway?`
         );
@@ -2324,7 +2326,9 @@ export default function App() {
       markLocalWrite('meal_plan_items');
       setMealPlanItems((prev) => prev.filter((i) => i.recipe_id !== rid));
       setExpandedRecipes((p) => { const n = { ...p }; delete n[rid]; return n; });
-      await supabase.from("meal_plan_items").delete().eq("id", existing.id);
+      await supabase.from("meal_plan_items").delete()
+        .eq("household_id", household.id)
+        .eq("recipe_id", rid);
       // Show undo snackbar for 5 seconds
       clearTimeout(undoTimer.current);
       setUndoRemove({ recipe: existing.recipe_data, dbId: existing.id });
