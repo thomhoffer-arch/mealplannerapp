@@ -383,7 +383,7 @@ RATINGS HISTORY — what this household actually liked when they cooked it:
 ${loved.length ? `  LOVED (4-5★): ${loved.slice(0, 15).join(', ')}` : '  (no high ratings recorded yet)'}
 ${disliked.length ? `  DISLIKED (1-2★): ${disliked.slice(0, 15).join(', ')} — avoid these patterns` : ''}
 
-PANTRY (special ingredients already on the shelf — prefer recipes that use these):
+PANTRY (ingredients already on the shelf — use them when they fit naturally into a recipe you'd pick anyway, but never let a pantry item drive the dish choice or repeat a cuisine/protein just to use it up):
 ${pantryFiltered.length ? `  ${pantryFiltered.slice(0, 30).join(', ')}` : '  (nothing special on the shelf)'}
 ${deals.length ? `\nDEALS THIS WEEK (items on offer at local supermarkets — prioritise these ingredients where they fit):\n  ${deals.map((d) => `${d.item}${d.store ? ` (${d.store})` : ''}${d.price ? ` ${d.price}` : ''}`).join(', ')}` : ''}
 ${weeklyBudget ? `\nWEEKLY BUDGET: €${weeklyBudget} — keep the shopping list affordable; favour seasonal produce, cheaper cuts, and pulses where possible. Include an estimated_cost for each day covering all meals that day combined (dinner + any extras, rough ingredient cost, e.g. "€6–9").` : ''}

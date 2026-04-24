@@ -156,7 +156,7 @@ RATINGS HISTORY:
 ${loved.length ? `  LOVED: ${loved.slice(0, 10).join(', ')}` : '  (no high ratings yet)'}
 ${disliked.length ? `  DISLIKED: ${disliked.slice(0, 10).join(', ')}` : ''}
 
-PANTRY:
+PANTRY (for context only — use an item if it fits naturally, never force it):
 ${pantryNames.length ? `  ${pantryNames.slice(0, 20).join(', ')}` : '  (empty)'}
 
 Return ONLY JSON, no markdown:
