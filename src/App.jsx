@@ -2317,7 +2317,7 @@ export default function App() {
     const rid = String(recipe.id);
     const existing = mealPlanItems.find((i) => i.recipe_id === rid);
     if (existing) {
-      if (hasCheckedIngredients(existing.recipe_data)) {
+      if (!cookedRecipes[rid] && hasCheckedIngredients(existing.recipe_data)) {
         const ok = window.confirm(
           `You've already checked off some ingredients for ${existing.recipe_data?.name || 'this recipe'}. Removing it may mean those items are no longer needed.\n\nRemove anyway?`
         );
