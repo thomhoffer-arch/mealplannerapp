@@ -1599,7 +1599,9 @@ export default function App() {
     const channel = supabase
       .channel(`hh-${household.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "meal_plan_items", filter: `household_id=eq.${household.id}` }, (payload) => {
-        loadMealPlan();
+        if (!wasLocalWrite('meal_plan_items')) {
+          loadMealPlan();
+        }
         if (!wasLocalWrite('meal_plan_items')) {
           const rd = payload.new?.recipe_data || payload.old?.recipe_data;
           const who = otherName();
