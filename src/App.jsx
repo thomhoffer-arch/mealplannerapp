@@ -1091,6 +1091,8 @@ export default function App() {
   const [macroTrackingEnabled, setMacroTrackingEnabled] = useState(false);
   const [macroTargets, setMacroTargets] = useState({ calories: null, protein: null, carbs: null, fat: null });
   const [weeklyUsage, setWeeklyUsage] = useState(null); // { used, limit, unlimited, byok, gifted, credits }
+  const [newPersonalRecipeName, setNewPersonalRecipeName] = useState('');
+  const [savingPersonalRecipe, setSavingPersonalRecipe] = useState(false);
   const [creatingHousehold, setCreatingHousehold] = useState(false);
   const [newHouseholdName, setNewHouseholdName] = useState('');
   const [savingNewHousehold, setSavingNewHousehold] = useState(false);
@@ -1882,7 +1884,27 @@ export default function App() {
       id: r.id, name: r.name, source: "My Recipes", overview: r.overview,
       prepTime: r.prep_time, cookTime: r.cook_time, servings: r.servings,
       ingredients: r.ingredients, steps: r.steps, keywords: [], macros: {},
+      _personalRecipe: true,
     })));
+  }
+
+  async function savePersonalRecipe() {
+    if (!newPersonalRecipeName.trim()) return;
+    setSavingPersonalRecipe(true);
+    try {
+      await supabase.from('user_recipes').insert({
+        household_id: household.id,
+        name: newPersonalRecipeName.trim(),
+        overview: '',
+        servings: 2,
+        ingredients: [],
+        steps: [],
+      });
+      setNewPersonalRecipeName('');
+      await loadUserRecipes();
+    } finally {
+      setSavingPersonalRecipe(false);
+    }
   }
 
   async function loadPantry() {
@@ -3126,7 +3148,6 @@ export default function App() {
         <SurpriseBagModal
           household={household}
           dietaryPrefs={preferences?.preferences_text || ''}
-          starredRecipes={starredRecipes}
           onAddRecipes={async (recipes) => { for (const r of recipes) await toggleSelectedRecipe(r); setActiveTab('week'); }}
           onClose={() => setShowBagModal(false)}
         />
@@ -3599,11 +3620,14 @@ export default function App() {
                     <p className="text-sm text-orange-600 font-medium mb-2">Your recipes</p>
                     <div className="space-y-3">
                       {userRecipes.map((recipe) => (
-                        <RecipeCard key={recipe.id} recipe={recipe}
-                          isSelected={selectedIds.has(String(recipe.id))}
-                          isStarred={starredIds.has(String(recipe.id))}
-                          onToggleSelect={handleSearchSelect}
-                          onToggleStar={toggleStar} />
+                        <div key={recipe.id} className="relative">
+                          <RecipeCard recipe={recipe}
+                            isSelected={selectedIds.has(String(recipe.id))}
+                            isStarred={starredIds.has(String(recipe.id))}
+                            onToggleSelect={handleSearchSelect}
+                            onToggleStar={toggleStar} />
+                          <span className="absolute top-3 right-10 text-[10px] font-medium text-orange-400 bg-orange-50 border border-orange-100 rounded-full px-2 py-0.5">My recipe</span>
+                        </div>
                       ))}
                     </div>
                     {recipes.length > 0 && <div className="border-t border-orange-100 my-4" />}
@@ -4661,6 +4685,39 @@ export default function App() {
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* My Recipes — add personal recipes by name */}
+                <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                  <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">My Recipes</p>
+                  <p className="text-xs text-orange-400 mb-3">Add your own recipes by name — find them at the top of the search when planning your week.</p>
+                  {userRecipes.length > 0 && (
+                    <div className="space-y-1.5 mb-3">
+                      {userRecipes.map((r) => (
+                        <div key={r.id} className="flex items-center gap-2 bg-orange-50 rounded-xl px-3 py-2">
+                          <span className="flex-1 text-sm text-orange-900 font-medium truncate">{r.name}</span>
+                          <span className="text-[10px] text-orange-400 flex-shrink-0">My recipe</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. Mum's lasagne…"
+                      value={newPersonalRecipeName}
+                      onChange={(e) => setNewPersonalRecipeName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && savePersonalRecipe()}
+                      className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 placeholder-orange-300"
+                    />
+                    <button
+                      onClick={savePersonalRecipe}
+                      disabled={savingPersonalRecipe || !newPersonalRecipeName.trim()}
+                      className="flex-shrink-0 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition disabled:opacity-50"
+                    >
+                      {savingPersonalRecipe ? 'Saving…' : '+ Add'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Data export + account deletion */}
