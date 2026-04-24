@@ -2326,7 +2326,9 @@ export default function App() {
       markLocalWrite('meal_plan_items');
       setMealPlanItems((prev) => prev.filter((i) => i.recipe_id !== rid));
       setExpandedRecipes((p) => { const n = { ...p }; delete n[rid]; return n; });
-      await supabase.from("meal_plan_items").delete().eq("id", existing.id);
+      await supabase.from("meal_plan_items").delete()
+        .eq("household_id", household.id)
+        .eq("recipe_id", rid);
       // Show undo snackbar for 5 seconds
       clearTimeout(undoTimer.current);
       setUndoRemove({ recipe: existing.recipe_data, dbId: existing.id });
