@@ -478,9 +478,11 @@ function RecipeCard({ recipe, isSelected, isStarred, onToggleSelect, onToggleSta
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-orange-50 text-orange-600"}`}>
-              {recipe.source}
-            </span>
+            {recipe.source && recipe.source !== 'AI Suggestion' && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SOURCE_COLORS[recipe.source] || "bg-orange-50 text-orange-600"}`}>
+                {recipe.source}
+              </span>
+            )}
             <span className="text-xs text-orange-600">{totalTime(recipe)} min · {recipe.servings} servings</span>
           </div>
           <h3 className="font-semibold text-orange-900 text-base leading-snug">{recipe.name}</h3>
