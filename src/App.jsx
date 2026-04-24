@@ -108,18 +108,18 @@ function formatWeekLabel(weekStart) {
 }
 
 const ALLERGENS = [
-  { name: 'Gluten',     color: 'bg-amber-100 text-amber-700',   patterns: ['flour','wheat','pasta','bread','breadcrumb','soy sauce','barley','rye','oat','spelt','semolina','noodle','couscous','bulgur','pita','tortilla'] },
-  { name: 'Milk',       color: 'bg-blue-100 text-blue-700',     patterns: ['milk','cream','butter','cheese','yogurt','yoghurt','parmesan','mozzarella','ricotta','halloumi','pecorino','brie','cheddar','gouda','feta','mascarpone','crème fraîche','creme fraiche','ghee'] },
-  { name: 'Eggs',       color: 'bg-yellow-100 text-yellow-700', patterns: ['egg'] },
-  { name: 'Fish',       color: 'bg-cyan-100 text-cyan-700',     patterns: ['salmon','tuna','cod','bass','halibut','trout','flounder','anchovy','sardine','mackerel','herring','tilapia','snapper','fish sauce','fish stock','fish'] },
-  { name: 'Shellfish',  color: 'bg-teal-100 text-teal-700',     patterns: ['shrimp','prawn','crab','lobster','scallop','clam','oyster','mussel','squid','octopus','crayfish'] },
-  { name: 'Peanuts',    color: 'bg-orange-100 text-orange-700', patterns: ['peanut','groundnut','satay'] },
-  { name: 'Tree nuts',  color: 'bg-orange-100 text-orange-700', patterns: ['almond','cashew','walnut','pecan','pistachio','macadamia','hazelnut','pine nut','brazil nut'] },
-  { name: 'Soy',        color: 'bg-green-100 text-green-700',   patterns: ['soy','tofu','tempeh','edamame','miso','tamari'] },
-  { name: 'Sesame',     color: 'bg-stone-100 text-stone-600',   patterns: ['sesame','tahini'] },
-  { name: 'Mustard',    color: 'bg-yellow-100 text-yellow-700', patterns: ['mustard'] },
-  { name: 'Celery',     color: 'bg-lime-100 text-lime-700',     patterns: ['celery','celeriac'] },
-  { name: 'Sulphites',  color: 'bg-purple-100 text-purple-700', patterns: ['wine','vinegar','dried apricot','dried fruit','balsamic'] },
+  { name: 'Gluten',     patterns: ['flour','wheat','pasta','bread','breadcrumb','soy sauce','barley','rye','oat','spelt','semolina','noodle','couscous','bulgur','pita','tortilla'] },
+  { name: 'Milk',       patterns: ['milk','cream','butter','cheese','yogurt','yoghurt','parmesan','mozzarella','ricotta','halloumi','pecorino','brie','cheddar','gouda','feta','mascarpone','crème fraîche','creme fraiche','ghee'] },
+  { name: 'Eggs',       patterns: ['egg'] },
+  { name: 'Fish',       patterns: ['salmon','tuna','cod','bass','halibut','trout','flounder','anchovy','sardine','mackerel','herring','tilapia','snapper','fish sauce','fish stock','fish'] },
+  { name: 'Shellfish',  patterns: ['shrimp','prawn','crab','lobster','scallop','clam','oyster','mussel','squid','octopus','crayfish'] },
+  { name: 'Peanuts',    patterns: ['peanut','groundnut','satay'] },
+  { name: 'Tree nuts',  patterns: ['almond','cashew','walnut','pecan','pistachio','macadamia','hazelnut','pine nut','brazil nut'] },
+  { name: 'Soy',        patterns: ['soy','tofu','tempeh','edamame','miso','tamari'] },
+  { name: 'Sesame',     patterns: ['sesame','tahini'] },
+  { name: 'Mustard',    patterns: ['mustard'] },
+  { name: 'Celery',     patterns: ['celery','celeriac'] },
+  { name: 'Sulphites',  patterns: ['wine','vinegar','dried apricot','dried fruit','balsamic'] },
 ];
 // Ingredients typically bought in larger units than a single recipe needs.
 // When checked off the shopping list these are auto-added to the pantry.
@@ -654,16 +654,16 @@ function SelectedRecipeCard({
           </button>
         </div>
         {showAllergens && detectedAllergens.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
-            <p className="text-xs font-semibold text-amber-700 mb-2 flex items-center gap-1.5">
-              <AlertTriangle size={12} /> Possible allergens
+          <div className="border border-orange-100 rounded-2xl px-3 py-2.5">
+            <p className="text-xs font-semibold text-orange-900 mb-2 flex items-center gap-1.5">
+              <AlertTriangle size={12} className="text-orange-400" /> Possible allergens
             </p>
             <div className="flex flex-wrap gap-1.5">
               {detectedAllergens.map((a) => (
-                <span key={a.name} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${a.color}`}>{a.name}</span>
+                <span key={a.name} className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-orange-700">{a.name}</span>
               ))}
             </div>
-            <p className="text-[10px] text-amber-500 mt-2">Based on ingredient names — always check labels for your specific dietary needs.</p>
+            <p className="text-[10px] text-orange-400 mt-2">Based on ingredient names — always check labels for your specific dietary needs.</p>
           </div>
         )}
         {isStub || recipe._quickEntry ? (
@@ -874,19 +874,19 @@ function SelectedRecipeCard({
             <div>
               <button
                 onClick={() => setShowAllergens((v) => !v)}
-                className="flex items-center gap-1.5 text-xs font-medium text-amber-600 hover:text-amber-800 transition"
+                className="flex items-center gap-1.5 text-xs font-medium text-orange-500 hover:text-orange-700 transition"
               >
                 <AlertTriangle size={12} />
                 {showAllergens ? 'Hide allergens' : 'Show possible allergens'}
               </button>
               {showAllergens && (
-                <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                <div className="mt-2 border border-orange-100 rounded-2xl px-3 py-2.5">
                   <div className="flex flex-wrap gap-1.5 mb-1.5">
                     {detectedAllergens.map((a) => (
-                      <span key={a.name} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${a.color}`}>{a.name}</span>
+                      <span key={a.name} className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-orange-700">{a.name}</span>
                     ))}
                   </div>
-                  <p className="text-[10px] text-amber-500">Based on ingredient names — always check labels for your specific needs.</p>
+                  <p className="text-[10px] text-orange-400">Based on ingredient names — always check labels for your specific needs.</p>
                 </div>
               )}
             </div>
@@ -3995,12 +3995,11 @@ export default function App() {
                           {macroTrackingEnabled && !!(weeklyUsage?.unlimited) && !isNotAtHome && !isEatingOut && allDayItems.length > 0 && (() => {
                             const dayMacros = allDayItems.reduce((acc, item) => {
                               const m = item.recipe_data?.macros || {};
-                              const s = item.recipe_data?.servings || 1;
                               return {
-                                calories: acc.calories + (m.calories || 0) / s,
-                                protein:  acc.protein  + (m.protein  || 0) / s,
-                                carbs:    acc.carbs    + (m.carbs    || 0) / s,
-                                fat:      acc.fat      + (m.fat      || 0) / s,
+                                calories: acc.calories + (m.calories || 0),
+                                protein:  acc.protein  + (m.protein  || 0),
+                                carbs:    acc.carbs    + (m.carbs    || 0),
+                                fat:      acc.fat      + (m.fat      || 0),
                               };
                             }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
                             const hasMacroData = dayMacros.calories > 0 || dayMacros.protein > 0;
