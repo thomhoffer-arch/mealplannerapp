@@ -442,11 +442,10 @@ function consolidateIngredients(selectedRecipes, customIngredients, measurementS
 function WeeklyNutritionCard({ recipes }) {
   const totals = recipes.reduce(
     (acc, r) => {
-      const s = r.servings || 1;
-      acc.calories += (r.macros?.calories || 0) * s;
-      acc.protein  += (r.macros?.protein  || 0) * s;
-      acc.carbs    += (r.macros?.carbs    || 0) * s;
-      acc.fat      += (r.macros?.fat      || 0) * s;
+      acc.calories += (r.macros?.calories || 0);
+      acc.protein  += (r.macros?.protein  || 0);
+      acc.carbs    += (r.macros?.carbs    || 0);
+      acc.fat      += (r.macros?.fat      || 0);
       return acc;
     },
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
