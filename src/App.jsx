@@ -4584,20 +4584,18 @@ export default function App() {
         {/* ── PROFILE TAB ── */}
         {activeTab === "profile" && (
           <div className="space-y-4 pb-4">
-            {/* Segmented toggle — only for multi-member households */}
-            {householdMembers.length > 1 && (
-              <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
-                {["household", "personal"].map((s) => (
-                  <button key={s} onClick={() => setProfileSubTab(s)}
-                    className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${profileSubTab === s ? "bg-white text-orange-900 shadow-warm" : "text-orange-400 hover:text-orange-600"}`}>
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Segmented toggle */}
+            <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
+              {["household", "personal"].map((s) => (
+                <button key={s} onClick={() => setProfileSubTab(s)}
+                  className={`flex-1 py-2 text-sm font-medium rounded-xl transition ${profileSubTab === s ? "bg-white text-orange-900 shadow-warm" : "text-orange-400 hover:text-orange-600"}`}>
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
 
-            {/* ── PERSONAL ── shown always for solo, or on personal tab for multi-member */}
-            {(householdMembers.length <= 1 || profileSubTab === "personal") && (
+            {/* ── PERSONAL ── */}
+            {profileSubTab === "personal" && (
               <>
                 {/* User card */}
                 <div className="bg-white rounded-2xl border border-orange-100 p-4">
@@ -4710,16 +4708,26 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Solo: start a household */}
+                {/* Data export + account deletion */}
+                <AccountActions />
+              </>
+            )}
+
+            {/* ── HOUSEHOLD ── */}
+            {profileSubTab === "household" && (
+              <>
+                {/* Solo: hint + invite */}
                 {householdMembers.length <= 1 && (
-                  <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                    <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-1">Start a household</p>
-                    <p className="text-xs text-orange-500 leading-relaxed mb-3">Cook together — one shared plan and shopping list.</p>
-                    <div className="space-y-2">
+                  <div className="space-y-3">
+                    <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                      <p className="text-sm font-semibold text-orange-900 mb-1">Cook together</p>
+                      <p className="text-sm text-orange-500 leading-relaxed">Invite the people you live or cook with to share one meal plan and shopping list — changes sync instantly for everyone.</p>
+                    </div>
+                    <div className="bg-white rounded-2xl border border-orange-100 p-4 space-y-2">
                       <button onClick={shareInviteLink}
                         className="w-full py-2.5 border border-orange-200 text-orange-500 bg-orange-50 rounded-full font-medium text-sm hover:border-orange-300 hover:bg-orange-100 hover:text-orange-600 transition flex items-center justify-center gap-2">
                         <Link2 size={13} />
-                        Invite someone to cook with you
+                        Invite someone to your household
                       </button>
                       {showInviteSharePanel && (
                         <div className="bg-orange-50 rounded-2xl p-3 space-y-2">
@@ -4765,15 +4773,9 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Data export + account deletion */}
-                <AccountActions />
-              </>
-            )}
-
-            {/* ── HOUSEHOLD ── only shown for multi-member households */}
-            {householdMembers.length > 1 && profileSubTab === "household" && (
-              <>
-                {/* Household switcher — only renders when user has 2+ households */}
+                {/* Multi-member content */}
+                {householdMembers.length > 1 && (
+                <>{/* Household switcher — only renders when user has 2+ households */}
                 <HouseholdSwitcher
                   memberships={memberships}
                   activeId={household?.id}
@@ -4983,6 +4985,9 @@ export default function App() {
                       </button>
                     </div>
                   </div>
+                )}
+
+                </>
                 )}
 
               </>
