@@ -3906,31 +3906,9 @@ export default function App() {
                                 </button>
                               </div>
                             ) : (
-                              <>
-                                <p className="flex-1 text-sm text-orange-400 italic">
-                                  {isNotAtHome ? 'Away — no dinner' : isEatingOut ? 'Eating out tonight' : 'Free evening'}
-                                </p>
-                                <div className="flex items-center gap-1.5">
-                                  {!isNotAtHome && !isEatingOut && <>
-                                    <button onClick={(e) => { e.stopPropagation(); setQuickEntryDay(day); setQuickEntryValue(''); }}
-                                      className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Write it in</button>
-                                    <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
-                                      className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">Leftovers</button>
-                                  </>}
-                                  {!isEatingOut && (
-                                    <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
-                                      className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">
-                                      {isNotAtHome ? 'Undo away' : 'Away'}
-                                    </button>
-                                  )}
-                                  {!isNotAtHome && (
-                                    <button onClick={(e) => { e.stopPropagation(); toggleEatingOut(day); }}
-                                      className="text-xs px-3 py-1 border border-dashed border-orange-200 text-orange-400 rounded-full hover:border-orange-400 hover:text-orange-600 transition">
-                                      {isEatingOut ? 'Undo eating out' : 'Eating out'}
-                                    </button>
-                                  )}
-                                </div>
-                              </>
+                              <p className="flex-1 text-sm text-orange-400 italic">
+                                {isNotAtHome ? 'Away — no dinner' : isEatingOut ? 'Eating out tonight' : ''}
+                              </p>
                             )}
                           </div>
                           {/* Per-day AI planning hint — visible on empty days, feeds into Plan week as hard constraints */}
@@ -3971,32 +3949,42 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* Side dish + meal add buttons + away toggle */}
-                          {recipe && (
+                          {/* Day action bar — always visible (hidden only during quick-entry) */}
+                          {quickEntryDay !== day && (
                             <div className="px-4 pb-2 -mt-1 flex items-center flex-wrap gap-1.5">
-                              {recipe._sideDish ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">+ {recipe._sideDish.name}</span>
-                                  <button onClick={(e) => { e.stopPropagation(); saveSideDish(rid, null); }}
-                                    className="text-orange-400 hover:text-orange-600 transition text-xs" title="Remove side dish">×</button>
-                                </div>
-                              ) : (
-                                <button onClick={(e) => { e.stopPropagation(); const p = { key: `${day}-side`, mainRecipe: recipe, rid, input: '', loading: true, suggestions: [], error: '' }; setSideDishPanel(p); fetchSideSuggestions(p.key, recipe, ''); }}
-                                  className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400">+ Add a side</button>
+                              {recipe && !isNotAtHome && !isEatingOut && (
+                                recipe._sideDish ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs bg-orange-50 text-orange-600 border border-orange-200 rounded-full px-2.5 py-1 font-medium">+ {recipe._sideDish.name}</span>
+                                    <button onClick={(e) => { e.stopPropagation(); saveSideDish(rid, null); }}
+                                      className="text-orange-400 hover:text-orange-600 transition text-xs" title="Remove side dish">×</button>
+                                  </div>
+                                ) : (
+                                  <button onClick={(e) => { e.stopPropagation(); const p = { key: `${day}-side`, mainRecipe: recipe, rid, input: '', loading: true, suggestions: [], error: '' }; setSideDishPanel(p); fetchSideSuggestions(p.key, recipe, ''); }}
+                                    className="text-xs text-orange-400 hover:text-orange-600 transition border border-dashed border-orange-200 rounded-full px-3 py-1 hover:border-orange-400">+ Add a side</button>
+                                )
                               )}
-                              {!hasBreakfast && (
+                              {!isNotAtHome && !isEatingOut && !hasBreakfast && (
                                 <button onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'breakfast', ''); }}
                                   disabled={generatingExtra === `${day}-breakfast`}
                                   className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1 disabled:opacity-50">
                                   {generatingExtra === `${day}-breakfast` ? 'Adding…' : '+ Breakfast'}
                                 </button>
                               )}
-                              {!hasLunch && (
+                              {!isNotAtHome && !isEatingOut && !hasLunch && (
                                 <button onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'lunch', ''); }}
                                   disabled={generatingExtra === `${day}-lunch`}
                                   className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1 disabled:opacity-50">
                                   {generatingExtra === `${day}-lunch` ? 'Adding…' : '+ Lunch'}
                                 </button>
+                              )}
+                              {!recipe && !isNotAtHome && !isEatingOut && (
+                                <>
+                                  <button onClick={(e) => { e.stopPropagation(); setQuickEntryDay(day); setQuickEntryValue(''); }}
+                                    className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">Write it in</button>
+                                  <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
+                                    className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">Leftovers</button>
+                                </>
                               )}
                               {!isEatingOut && (
                                 <button onClick={(e) => { e.stopPropagation(); toggleNotAtHome(day); }}
