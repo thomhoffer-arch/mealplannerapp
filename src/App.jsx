@@ -3126,6 +3126,7 @@ export default function App() {
         <SurpriseBagModal
           household={household}
           dietaryPrefs={preferences?.preferences_text || ''}
+          starredRecipes={starredRecipes}
           onAddRecipes={async (recipes) => { for (const r of recipes) await toggleSelectedRecipe(r); setActiveTab('week'); }}
           onClose={() => setShowBagModal(false)}
         />
