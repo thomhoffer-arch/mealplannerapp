@@ -607,7 +607,7 @@ function SelectedRecipeCard({
         <div className="flex items-center gap-2 pt-1 flex-wrap">
           <button
             onClick={() => onToggleCooked(rid)}
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border-2 transition ${isCooked ? 'border-sage-400 bg-sage-100 text-sage-600' : 'border-orange-200 text-orange-400 hover:border-sage-300 hover:text-sage-600'}`}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition ${isCooked ? 'border-sage-400 bg-sage-100 text-sage-600' : 'border-dashed border-orange-200 text-orange-400 hover:border-orange-400 hover:text-orange-600'}`}
           >
             <Check size={12} />
             {isCooked ? 'Cooked!' : 'Mark cooked'}
@@ -616,7 +616,7 @@ function SelectedRecipeCard({
             <button
               onClick={() => onSwapRecipe(recipe)}
               disabled={swapping}
-              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border-2 border-orange-200 text-orange-400 hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-dashed border-orange-200 text-orange-400 hover:border-orange-400 hover:text-orange-600 transition disabled:opacity-50"
             >
               <Sparkles size={12} />
               {swapping ? 'Finding…' : 'Different meal'}
@@ -626,7 +626,7 @@ function SelectedRecipeCard({
           {detectedAllergens.length > 0 && (
             <button
               onClick={() => setShowAllergens((v) => !v)}
-              className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full border-2 border-amber-200 text-amber-600 hover:bg-amber-50 transition"
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border border-dashed border-amber-200 text-amber-600 hover:border-amber-400 transition"
             >
               <AlertTriangle size={11} />
               Allergens
@@ -3911,43 +3911,6 @@ export default function App() {
                               </p>
                             )}
                           </div>
-                          {/* Per-day AI planning hint — visible on empty days, feeds into Plan week as hard constraints */}
-                          {!isNotAtHome && !isEatingOut && !recipe && quickEntryDay !== day && (
-                            <div className="px-4 pb-3" onClick={(e) => e.stopPropagation()}>
-                              {editingDayNote === day ? (
-                                <div className="flex items-center gap-1.5">
-                                  <input
-                                    autoFocus
-                                    type="text"
-                                    value={weekDayNotes[day] || ''}
-                                    onChange={(e) => setWeekDayNotes((p) => ({ ...p, [day]: e.target.value }))}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingDayNote(null); }}
-                                    onBlur={() => setEditingDayNote(null)}
-                                    placeholder="Hint for this day (e.g. vegetarian, under 30 min)…"
-                                    className="flex-1 text-xs border-b border-orange-300 bg-transparent focus:outline-none text-orange-700 placeholder-orange-200 py-0.5"
-                                  />
-                                  {weekDayNotes[day] && (
-                                    <button onMouseDown={(e) => { e.preventDefault(); setWeekDayNotes((p) => ({ ...p, [day]: '' })); setEditingDayNote(null); }}
-                                      className="text-orange-200 hover:text-orange-400 p-0.5"><X size={11} /></button>
-                                  )}
-                                </div>
-                              ) : weekDayNotes[day] ? (
-                                <button
-                                  onClick={() => setEditingDayNote(day)}
-                                  className="flex items-center gap-1 text-[11px] bg-orange-50 text-orange-500 border border-orange-200 rounded-full px-2.5 py-0.5 hover:border-orange-400 transition"
-                                >
-                                  ✦ {weekDayNotes[day]}
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => setEditingDayNote(day)}
-                                  className="text-[11px] text-orange-200 hover:text-orange-400 transition"
-                                >
-                                  + Hint
-                                </button>
-                              )}
-                            </div>
-                          )}
 
                           {/* Day action bar — always visible (hidden only during quick-entry) */}
                           {quickEntryDay !== day && (
@@ -3980,8 +3943,13 @@ export default function App() {
                               )}
                               {!recipe && !isNotAtHome && !isEatingOut && (
                                 <>
+                                  <button onClick={(e) => { e.stopPropagation(); addExtraMeal(day, 'dinner', ''); }}
+                                    disabled={generatingExtra === `${day}-dinner`}
+                                    className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1 disabled:opacity-50">
+                                    {generatingExtra === `${day}-dinner` ? 'Adding…' : '+ Dinner'}
+                                  </button>
                                   <button onClick={(e) => { e.stopPropagation(); setQuickEntryDay(day); setQuickEntryValue(''); }}
-                                    className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">+ Dinner</button>
+                                    className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">Enter name</button>
                                   <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe({ id: `leftovers-${day}`, name: 'Leftovers', source: 'My Recipes', overview: 'Using up leftovers from earlier in the week.', _plannedDay: day, _isLeftovers: true, servings: 2, ingredients: [], steps: [], keywords: ['leftovers'], macros: {} }); }}
                                     className="text-xs text-orange-300 hover:text-orange-600 transition border border-dashed border-orange-100 hover:border-orange-300 rounded-full px-2.5 py-1">Leftovers</button>
                                 </>
@@ -4007,10 +3975,10 @@ export default function App() {
                               const m = item.recipe_data?.macros || {};
                               const s = item.recipe_data?.servings || 1;
                               return {
-                                calories: acc.calories + (m.calories || 0) * s,
-                                protein:  acc.protein  + (m.protein  || 0) * s,
-                                carbs:    acc.carbs    + (m.carbs    || 0) * s,
-                                fat:      acc.fat      + (m.fat      || 0) * s,
+                                calories: acc.calories + (m.calories || 0) / s,
+                                protein:  acc.protein  + (m.protein  || 0) / s,
+                                carbs:    acc.carbs    + (m.carbs    || 0) / s,
+                                fat:      acc.fat      + (m.fat      || 0) / s,
                               };
                             }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
                             const hasMacroData = dayMacros.calories > 0 || dayMacros.protein > 0;
