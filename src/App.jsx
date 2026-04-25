@@ -2323,7 +2323,8 @@ export default function App() {
   // ── Meal plan handlers ────────────────────────────────────────────────────
   async function toggleSelectedRecipe(recipe) {
     const rid = String(recipe.id);
-    const existing = mealPlanItems.find((i) => i.recipe_id === rid);
+    const matches = (i) => String(i.recipe_id) === rid || String(i.recipe_data?.id) === rid;
+    const existing = mealPlanItems.find(matches);
     if (existing) {
       if (!cookedRecipes[rid] && hasCheckedIngredients(existing.recipe_data)) {
         const ok = window.confirm(
@@ -2332,7 +2333,7 @@ export default function App() {
         if (!ok) return;
       }
       markLocalWrite('meal_plan_items');
-      setMealPlanItems((prev) => prev.filter((i) => i.recipe_id !== rid));
+      setMealPlanItems((prev) => prev.filter((i) => !matches(i)));
       setExpandedRecipes((p) => { const n = { ...p }; delete n[rid]; return n; });
       const existingDbId = existing.id && !String(existing.id).startsWith('optimistic-') ? existing.id : null;
       if (existingDbId) {
