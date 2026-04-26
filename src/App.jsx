@@ -3730,7 +3730,7 @@ export default function App() {
                   </div>
                 )}
               </div>
-            ) : viewItems.length > 0 || showEmptyGrid ? (
+            ) : (
               <>
                 {/* Header row */}
                 <div className="flex items-center justify-between mb-5">
@@ -4213,84 +4213,6 @@ export default function App() {
                   )}
                 </div>}
               </>
-            ) : viewWeek !== currentWeekStart ? (
-              /* ── Empty state for past/future weeks ── */
-              <div className="py-10 text-center">
-                <Calendar size={36} className="mx-auto mb-3 text-orange-200" />
-                <p className="font-semibold text-orange-900 mb-1">
-                  {viewWeek < currentWeekStart ? 'No meals recorded for this week' : 'No plan yet for this week'}
-                </p>
-                <p className="text-sm text-orange-400 mb-5">
-                  {viewWeek < currentWeekStart
-                    ? 'Past plans you save in the future will appear here.'
-                    : 'Generate a plan and it will be saved here.'}
-                </p>
-                <button onClick={() => setShowWeekSuggest(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition shadow-warm">
-                  <Sparkles size={14} />
-                  Plan this week
-                </button>
-              </div>
-            ) : (
-              /* ── Empty state for current week ── */
-              <div className="py-6">
-                <p className="font-display italic text-orange-600/80 text-xs tracking-wide mb-2">— no plan yet</p>
-                <h3 className="font-display text-[2rem] sm:text-4xl font-semibold text-orange-900 leading-[0.95] mb-6 tracking-tight">
-                  Start your{' '}
-                  <span className="relative inline-block italic font-normal text-orange-600">
-                    first
-                    <Scribble className="absolute left-0 -bottom-2 w-full text-orange-600/70 pointer-events-none" aria-hidden="true" />
-                  </span>{' '}
-                  week.
-                </h3>
-                <ol className="space-y-6">
-                  <li>
-                    <button onClick={() => setShowWeekSuggest(true)}
-                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
-                      <span className="font-display italic text-4xl sm:text-5xl text-orange-400 group-hover:text-orange-600 leading-none pt-1 select-none transition-colors">01</span>
-                      <span className="pt-1">
-                        {/* TODO: replace "Let AI plan the week" with app-name-driven copy */}
-                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Let us plan the week</span>
-                        <span className="block text-sm text-orange-900/80 leading-relaxed max-w-md">Seven dinners picked to your household's taste. Swap anything you don't fancy.</span>
-                      </span>
-                      <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphPot /></span>
-                    </button>
-                  </li>
-                  <li>
-                    <button onClick={() => setTimeout(() => searchInputRef.current?.focus(), 0)}
-                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
-                      <span className="font-display italic text-4xl sm:text-5xl text-orange-400 group-hover:text-orange-600 leading-none pt-1 select-none transition-colors">02</span>
-                      <span className="pt-1">
-                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Search and star</span>
-                        <span className="block text-sm text-orange-900/80 leading-relaxed max-w-md">Search recipes and star your favourites for the planner to use.</span>
-                      </span>
-                      <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphSpyglass /></span>
-                    </button>
-                  </li>
-                  <li>
-                    <button onClick={() => { setTimeout(() => document.querySelector('input[type=url]')?.focus(), 0); }}
-                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
-                      <span className="font-display italic text-4xl sm:text-5xl text-orange-400 group-hover:text-orange-600 leading-none pt-1 select-none transition-colors">03</span>
-                      <span className="pt-1">
-                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Import a recipe you love</span>
-                        <span className="block text-sm text-orange-900/80 leading-relaxed max-w-md">Paste any recipe URL and we'll pull the ingredients automatically.</span>
-                      </span>
-                      <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphLink /></span>
-                    </button>
-                  </li>
-                  <li>
-                    <button onClick={() => setShowBagModal(true)}
-                      className="group grid grid-cols-[auto_1fr_auto] gap-4 sm:gap-5 items-start w-full text-left py-2 pr-2 rounded-2xl hover:bg-orange-50/60 transition">
-                      <span className="font-display italic text-4xl sm:text-5xl text-orange-400 group-hover:text-orange-600 leading-none pt-1 select-none transition-colors">04</span>
-                      <span className="pt-1">
-                        <span className="block font-display text-lg sm:text-xl font-semibold text-orange-900 mb-0.5">Cook from what you've got</span>
-                        <span className="block text-sm text-orange-900/80 leading-relaxed max-w-md">Too Good To Go bag, fridge bits, market find — describe what you've got and we'll find something to cook.</span>
-                      </span>
-                      <span className="text-orange-400 group-hover:text-orange-600 transition-colors pt-2 pl-1"><GlyphBasket /></span>
-                    </button>
-                  </li>
-                </ol>
-              </div>
             )}
           </div>
         )}
