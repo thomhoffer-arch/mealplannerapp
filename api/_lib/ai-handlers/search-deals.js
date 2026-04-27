@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '../auth.js';
 import { resolveAiProvider, callGemini } from '../ai-call.js';
+import { isUserPremium } from '../usage.js';
 
 const TODAY = () => new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -11,15 +12,30 @@ export default async function handleSearchDeals(req, res) {
   if (!ctx) return;
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { provider, token, usingSharedKey } = await resolveAiProvider(supabase, ctx.householdId);
+  const [{ provider, token, usingSharedKey }, isPremium] = await Promise.all([
+    resolveAiProvider(supabase, ctx.householdId),
+    isUserPremium(supabase, ctx.householdId, ctx.user.id),
+  ]);
 
-  // Deals search requires the household's own Gemini key — it uses Google Search
-  // grounding which isn't available on the shared free-tier key or via Puter.
-  if (usingSharedKey) {
-    return res.status(403).json({ error: 'Deals search requires your own Gemini API key. Add one in Settings.' });
-  }
-  if (provider !== 'gemini') {
-    return res.status(403).json({ error: 'Deals search is only available with a Gemini API key.' });
+  // Deals need Google Search grounding, only available on Gemini.
+  // Households with their own Gemini key always get through.
+  // Premium households without a personal key fall back to the shared deals key.
+  // Everyone else must add their own Gemini key.
+  let dealsToken;
+  if (provider === 'gemini' && !usingSharedKey) {
+    dealsToken = token;
+  } else if (isPremium) {
+    const sharedDealsKey = process.env.GEMINI_DEALS_API_KEY || process.env.GEMINI_API_KEY;
+    if (!sharedDealsKey) {
+      return res.status(503).json({ error: 'Deals search is temporarily unavailable.' });
+    }
+    dealsToken = sharedDealsKey;
+  } else {
+    return res.status(403).json({
+      error: usingSharedKey
+        ? 'Deals search requires your own Gemini API key. Add one in Settings.'
+        : 'Deals search is only available with a Gemini API key.',
+    });
   }
 
   const prompt = `Today is ${TODAY()}.
@@ -33,7 +49,7 @@ Include up to 20 items. If you cannot find current deals, return {"deals":[]}.`;
 
   let rawText;
   try {
-    const { data } = await callGemini(token, {
+    const { data } = await callGemini(dealsToken, {
       contents: [{ parts: [{ text: prompt }] }],
       tools: [{ googleSearch: {} }],
     });
