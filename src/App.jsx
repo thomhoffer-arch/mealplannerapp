@@ -395,7 +395,7 @@ function consolidateIngredients(selectedRecipes, customIngredients, measurementS
       }
     }
     const key = ingredientKey(name);
-    if (!key || key.startsWith('leftover')) return;
+    if (!key || key.startsWith('leftover') || key === 'water') return;
     if (items[key]) {
       items[key].amounts.push(amt);
     } else {
