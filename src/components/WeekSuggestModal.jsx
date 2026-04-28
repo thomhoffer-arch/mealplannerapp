@@ -79,7 +79,7 @@ function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor,
   );
 }
 
-export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences, language = 'English', weeklyUsage = null, initialDayNotes = {} }) {
+export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences, language = 'English', weeklyUsage = null, initialDayNotes = {}, existingItems = [] }) {
   const hasDealsAccess = !!(weeklyUsage?.unlimited || preferences?.is_gifted || preferences?.gemini_api_key_hint);
   const hhKey = household?.id ? `mp:hh:${household.id}` : null;
   const [numWeeks, setNumWeeks]         = useState(() => {
@@ -118,6 +118,10 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [sideDishPanel, setSideDishPanel] = useState(null); // { key, weekNum, dayName, recipe, loading, suggestions, error, input }
   const [addingExtra, setAddingExtra]     = useState(null); // "weekNum-dayName-mealType"
   const [easterEggIdx, setEasterEggIdx] = useState(0);
+
+  const alreadyPlannedDays = new Set(
+    existingItems.map((i) => i.recipe_data?._plannedDay).filter(Boolean)
+  );
 
   const EASTER_EGGS = [
     "Consulting the pasta oracle…",
@@ -191,8 +195,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
       data.weeks.forEach((week) => {
         week.days.forEach((day) => {
           if (day.recipe) {
-            sel[`${week.week}-${day.day}`] = true;
-            // Open dinner panel by default so the chosen dish is immediately visible
+            // Pre-deselect days that already have manually planned meals (week 1 only)
+            const hasExisting = week.week === 1 && alreadyPlannedDays.has(day.day);
+            sel[`${week.week}-${day.day}`] = !hasExisting;
             defExpanded[`${week.week}-${day.day}`] = { dinner: true };
           }
         });
@@ -634,6 +639,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                     );
                   }
 
+                  const isAlreadyPlanned = week.week === 1 && alreadyPlannedDays.has(day.day);
                   const dayExpanded = expandedMeals[key] || {};
                   const extras = day.extras || [];
                   const breakfastExtras = extras.filter((e) => e._mealType === 'breakfast');
@@ -702,6 +708,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           <div className="flex items-center gap-1.5 flex-wrap flex-1">
                             {isStarred && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">Starred</span>}
                             {isAI && !isStarred && <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">Suggested</span>}
+                            {isAlreadyPlanned && <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-full font-semibold border border-sky-100">Already planned</span>}
                             {day.estimated_cost && <span className="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full font-semibold border border-green-100">{day.estimated_cost}</span>}
                           </div>
                           {swappingKey === key && (
