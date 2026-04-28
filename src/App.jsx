@@ -3285,17 +3285,20 @@ export default function App() {
           language={LANG_NAMES[memberLanguage] || 'English'}
           weeklyUsage={weeklyUsage}
           initialDayNotes={weekDayNotes}
+          existingItems={viewItems}
           onClose={() => setShowWeekSuggest(false)}
           onLoadPlan={async (recipes) => {
             setShowEmptyGrid(false);
-            // Optimistically clear existing items for this week
             markLocalWrite('meal_plan_items');
-            if (viewItems.length) {
-              setMealPlanItems((prev) => prev.filter((i) => !viewItems.includes(i)));
-              await supabase.from("meal_plan_items")
-                .delete()
-                .eq("household_id", household.id)
-                .filter("recipe_data->>_weekStart", "eq", viewWeek);
+            // Only remove existing items for the specific days being loaded, preserving manual entries on other days
+            const loadedDays = new Set(recipes.map((r) => r._plannedDay).filter(Boolean));
+            const itemsToDelete = viewItems.filter((i) => loadedDays.has(i.recipe_data?._plannedDay));
+            if (itemsToDelete.length) {
+              setMealPlanItems((prev) => prev.filter((i) => !itemsToDelete.includes(i)));
+              const realIds = itemsToDelete.map((i) => i.id).filter((id) => !String(id).startsWith('optimistic-'));
+              if (realIds.length) {
+                await supabase.from("meal_plan_items").delete().in("id", realIds);
+              }
             }
             // Optimistically add new items
             const newRows = recipes.map((recipe) => ({
