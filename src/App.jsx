@@ -2405,8 +2405,8 @@ export default function App() {
         })
         .catch(() => {});
     }
-    // Background full-recipe generation for AI stubs added to an existing plan
-    if (recipe._aiSuggestion && !(recipe.ingredients?.length)) {
+    // Background full-recipe generation for AI stubs and quick-entry items added to an existing plan
+    if ((recipe._aiSuggestion || recipe._quickEntry) && !(recipe.ingredients?.length)) {
       const dbRowId = inserted?.id;
       (async () => {
         try {
