@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Check, AlertCircle, Package } from 'lucide-react';
+import { X, Check, AlertCircle, Package, ScanLine } from 'lucide-react';
 
 const OFF_URL = (code) =>
   `https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,product_name_en,generic_name,quantity,product_quantity`;
 
-function getProductName(product) {
-  return product?.product_name_en || product?.product_name || product?.generic_name || null;
+function getProductName(p) {
+  return p?.product_name_en || p?.product_name || p?.generic_name || null;
 }
 
 function parseAmount(str) {
@@ -14,40 +14,36 @@ function parseAmount(str) {
   if (!m) return null;
   const val = parseFloat(m[1].replace(',', '.'));
   const unit = m[2].toLowerCase();
-  const WEIGHT = { g: 1, kg: 1000, oz: 28.35, lb: 453.6 };
-  const VOLUME = { ml: 1, l: 1000, cl: 10 };
-  if (WEIGHT[unit] != null) return { type: 'weight', grams: val * WEIGHT[unit] };
-  if (VOLUME[unit] != null) return { type: 'volume', ml: val * VOLUME[unit] };
+  const W = { g: 1, kg: 1000, oz: 28.35, lb: 453.6 };
+  const V = { ml: 1, l: 1000, cl: 10 };
+  if (W[unit]) return { type: 'weight', grams: val * W[unit] };
+  if (V[unit]) return { type: 'volume', ml: val * V[unit] };
   return null;
 }
 
-function formatRemainder(parsedProduct, parsedNeeded) {
-  if (!parsedProduct || !parsedNeeded || parsedProduct.type !== parsedNeeded.type) return null;
-  const key = parsedProduct.type === 'weight' ? 'grams' : 'ml';
-  const remainder = parsedProduct[key] - parsedNeeded[key];
-  if (remainder <= 0) return null;
-  const unit = parsedProduct.type === 'weight' ? 'g' : 'ml';
-  return remainder >= 1000
-    ? `${(remainder / 1000).toFixed(1).replace('.0', '')} ${parsedProduct.type === 'weight' ? 'kg' : 'l'}`
-    : `${Math.round(remainder)} ${unit}`;
+function formatRemainder(prod, needed) {
+  if (!prod || !needed || prod.type !== needed.type) return null;
+  const k = prod.type === 'weight' ? 'grams' : 'ml';
+  const rem = prod[k] - needed[k];
+  if (rem <= 0) return null;
+  const u = prod.type === 'weight' ? 'g' : 'ml';
+  return rem >= 1000
+    ? `${(rem / 1000).toFixed(1).replace('.0', '')} ${prod.type === 'weight' ? 'kg' : 'l'}`
+    : `${Math.round(rem)} ${u}`;
 }
 
-function matchProductToItem(productName, items) {
+function matchToItem(productName, items) {
   const pn = productName.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   const pnWords = pn.split(' ').filter((w) => w.length > 2);
-  let bestItem = null;
-  let bestScore = 0;
+  let best = null, bestScore = 0;
   for (const item of items) {
     const base = item.name.toLowerCase().replace(/,.*$/, '').trim();
-    const baseWords = base.split(/\s+/).filter((w) => w.length > 2);
-    if (baseWords.length === 0) continue;
-    const matched = baseWords.filter((w) => pnWords.some((pw) => pw === w || pw.startsWith(w) || w.startsWith(pw)));
-    if (matched.length === baseWords.length && baseWords.length > bestScore) {
-      bestScore = baseWords.length;
-      bestItem = item;
-    }
+    const bw = base.split(/\s+/).filter((w) => w.length > 2);
+    if (!bw.length) continue;
+    const hit = bw.filter((w) => pnWords.some((pw) => pw === w || pw.startsWith(w) || w.startsWith(pw)));
+    if (hit.length === bw.length && bw.length > bestScore) { bestScore = bw.length; best = item; }
   }
-  return bestItem;
+  return best;
 }
 
 export default function BarcodeScannerModal({ shoppingItems, checkedItems, onCheckOff, onAddToPantry, onClose }) {
@@ -68,11 +64,10 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
   useEffect(() => { onCheckOffRef.current = onCheckOff; }, [onCheckOff]);
   useEffect(() => { onAddToPantryRef.current = onAddToPantry; }, [onAddToPantry]);
 
-  const [phase, setPhase] = useState('init');
+  const [phase, setPhase] = useState('init'); // init | scanning | checking | no_match | error
   const [cameraError, setCameraError] = useState(null);
-  // Track the most recently scanned item for the flash highlight
-  const [flashItem, setFlashItem] = useState(null); // { name, pantryRemainder }
-  const [noMatchName, setNoMatchName] = useState(null);
+  const [flashItem, setFlashItem] = useState(null);   // { name, pantryRemainder }
+  const [noMatchLabel, setNoMatchLabel] = useState(null);
 
   const supported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
@@ -82,13 +77,13 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
     async function scan() {
       if (cancelledRef.current) return;
       const video = videoRef.current;
-      const detector = detectorRef.current;
-      if (!video || !detector || video.readyState < 2 || coolingRef.current) {
+      const det = detectorRef.current;
+      if (!video || !det || video.readyState < 2 || coolingRef.current) {
         rafRef.current = requestAnimationFrame(scan);
         return;
       }
       try {
-        const codes = await detector.detect(video);
+        const codes = await det.detect(video);
         if (codes.length > 0 && !coolingRef.current) {
           coolingRef.current = true;
           handleBarcode(codes[0].rawValue, scan);
@@ -102,55 +97,46 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
       if (cancelledRef.current) return;
       setPhase('checking');
       setFlashItem(null);
-      setNoMatchName(null);
+      setNoMatchLabel(null);
 
-      let productName = null;
-      let productQuantityStr = null;
-      let productQuantityG = null;
-
+      let productName = null, productQuantityStr = null, productQuantityG = null;
       try {
-        const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 6000);
-        const res = await fetch(OFF_URL(barcode), { signal: controller.signal });
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 6000);
+        const res = await fetch(OFF_URL(barcode), { signal: ctrl.signal });
         clearTimeout(tid);
         const json = await res.json();
         if (json.status === 1) {
-          const p = json.product;
-          productName = getProductName(p);
-          productQuantityStr = p?.quantity || null;
-          productQuantityG = p?.product_quantity != null ? parseFloat(p.product_quantity) : null;
+          productName = getProductName(json.product);
+          productQuantityStr = json.product?.quantity || null;
+          productQuantityG = json.product?.product_quantity != null ? parseFloat(json.product.product_quantity) : null;
         }
       } catch {}
 
       if (cancelledRef.current) return;
 
-      const unchecked = shoppingItemsRef.current.filter(
-        (i) => !checkedItemsRef.current[i.name] && !i.inPantry
-      );
-      const matchedItem = productName ? matchProductToItem(productName, unchecked) : null;
+      const unchecked = shoppingItemsRef.current.filter((i) => !checkedItemsRef.current[i.name] && !i.inPantry);
+      const matched = productName ? matchToItem(productName, unchecked) : null;
 
       let pantryRemainder = null;
-      if (matchedItem?.amount) {
-        const parsedNeeded = parseAmount(matchedItem.amount);
-        const parsedProduct = productQuantityG
-          ? { type: 'weight', grams: productQuantityG }
-          : parseAmount(productQuantityStr);
-        const remainderStr = formatRemainder(parsedProduct, parsedNeeded);
-        if (remainderStr) pantryRemainder = { name: matchedItem.name, amount: remainderStr };
+      if (matched?.amount) {
+        const needed = parseAmount(matched.amount);
+        const prod = productQuantityG ? { type: 'weight', grams: productQuantityG } : parseAmount(productQuantityStr);
+        const rem = formatRemainder(prod, needed);
+        if (rem) pantryRemainder = { name: matched.name, amount: rem };
       }
 
-      if (matchedItem) {
-        onCheckOffRef.current(matchedItem.name);
+      if (matched) {
+        onCheckOffRef.current(matched.name);
         if (pantryRemainder) onAddToPantryRef.current(pantryRemainder.name, pantryRemainder.amount);
-        setFlashItem({ name: matchedItem.name, pantryRemainder });
+        setFlashItem({ name: matched.name, pantryRemainder });
         setPhase('scanning');
-        // Scroll the matched item into view after a tick
         setTimeout(() => {
-          const el = listRef.current?.querySelector(`[data-item="${CSS.escape(matchedItem.name)}"]`);
+          const el = listRef.current?.querySelector(`[data-item="${CSS.escape(matched.name)}"]`);
           el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }, 50);
       } else {
-        setNoMatchName(productName || barcode);
+        setNoMatchLabel(productName || barcode);
         setPhase('no_match');
       }
 
@@ -158,7 +144,7 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
         if (cancelledRef.current) return;
         coolingRef.current = false;
         setFlashItem(null);
-        setNoMatchName(null);
+        setNoMatchLabel(null);
         setPhase('scanning');
         rafRef.current = requestAnimationFrame(scan);
       }, 2500);
@@ -173,20 +159,13 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
         streamRef.current = stream;
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
-        detectorRef.current = new BarcodeDetector({
-          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'],
-        });
-        if (!cancelledRef.current) {
-          setPhase('scanning');
-          rafRef.current = requestAnimationFrame(scan);
-        }
+        detectorRef.current = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'] });
+        if (!cancelledRef.current) { setPhase('scanning'); rafRef.current = requestAnimationFrame(scan); }
       } catch (err) {
         if (!cancelledRef.current) {
-          setCameraError(
-            err.name === 'NotAllowedError'
-              ? 'Camera access denied. Please allow camera in your browser settings.'
-              : 'Could not open camera. Try a different browser or device.'
-          );
+          setCameraError(err.name === 'NotAllowedError'
+            ? 'Camera access denied. Allow camera in browser settings and try again.'
+            : 'Could not open camera.');
           setPhase('error');
         }
       }
@@ -206,92 +185,73 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
     onClose();
   }
 
-  // Items to show in the list — unchecked first, then checked (greyed)
   const uncheckedItems = shoppingItems.filter((i) => !checkedItems[i.name] && !i.inPantry).sort((a, b) => a.name.localeCompare(b.name));
   const checkedOffItems = shoppingItems.filter((i) => checkedItems[i.name] && !i.inPantry).sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
 
-      {/* ── TOP: Camera (fixed height ~45%) ─────────────────────────── */}
-      <div className="relative bg-black" style={{ height: '45dvh', flexShrink: 0 }}>
-        {supported && (
-          <video ref={videoRef} className="w-full h-full object-cover" muted playsInline autoPlay />
-        )}
-
-        {/* Dim + viewfinder corners */}
-        {(phase === 'scanning' || phase === 'checking') && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="relative w-64 h-36">
-              <div className="absolute inset-0 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] rounded-lg" />
-              {[
-                'top-0 left-0 border-t-2 border-l-2 rounded-tl',
-                'top-0 right-0 border-t-2 border-r-2 rounded-tr',
-                'bottom-0 left-0 border-b-2 border-l-2 rounded-bl',
-                'bottom-0 right-0 border-b-2 border-r-2 rounded-br',
-              ].map((cls, i) => (
-                <div key={i} className={`absolute w-5 h-5 border-orange-400 ${cls}`} />
+      {/* ── Compact camera bar ────────────────────────────────────────── */}
+      <div className="flex items-center gap-3 px-3 py-2 bg-orange-900 flex-shrink-0">
+        {/* Tiny camera preview */}
+        <div className="relative flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden bg-black">
+          {supported && (
+            <video ref={videoRef} className="w-full h-full object-cover" muted playsInline autoPlay />
+          )}
+          {/* Viewfinder lines */}
+          {(phase === 'scanning' || phase === 'checking') && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              {['top-0 left-0 border-t border-l','top-0 right-0 border-t border-r',
+                'bottom-0 left-0 border-b border-l','bottom-0 right-0 border-b border-r'].map((cls, i) => (
+                <div key={i} className={`absolute w-2.5 h-2.5 border-orange-400 ${cls}`} />
               ))}
-              {phase === 'checking' && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-orange-300 border-t-orange-400 rounded-full animate-spin" />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Status pill at bottom of camera */}
-        <div className="absolute bottom-3 left-0 right-0 flex justify-center pointer-events-none">
-          {phase === 'init' && (
-            <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full">
-              <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              Starting camera…
-            </div>
-          )}
-          {phase === 'scanning' && (
-            <div className="bg-black/50 backdrop-blur-sm text-white/80 text-xs px-3 py-1.5 rounded-full">
-              Point at a barcode
-            </div>
-          )}
-          {phase === 'checking' && (
-            <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full">
-              <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              Looking up…
-            </div>
-          )}
-          {phase === 'no_match' && noMatchName && (
-            <div className="flex items-center gap-1.5 bg-black/70 backdrop-blur-sm text-orange-300 text-xs px-3 py-1.5 rounded-full max-w-[80%]">
-              <AlertCircle size={12} className="flex-shrink-0" />
-              <span className="truncate">Not on list: {noMatchName}</span>
-            </div>
-          )}
-          {phase === 'error' && (
-            <div className="bg-red-900/80 text-red-200 text-xs px-3 py-1.5 rounded-full text-center max-w-[85%]">
-              {cameraError}
             </div>
           )}
         </div>
 
-        {/* Close button */}
+        {/* Status text */}
+        <div className="flex-1 min-w-0">
+          {phase === 'init' && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 border-2 border-orange-300/40 border-t-orange-300 rounded-full animate-spin flex-shrink-0" />
+              <span className="text-xs text-orange-300">Starting camera…</span>
+            </div>
+          )}
+          {phase === 'scanning' && (
+            <div className="flex items-center gap-1.5">
+              <ScanLine size={13} className="text-orange-400 flex-shrink-0" />
+              <span className="text-xs text-orange-200">Scanning — point at a barcode</span>
+            </div>
+          )}
+          {phase === 'checking' && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 border-2 border-orange-300/40 border-t-orange-300 rounded-full animate-spin flex-shrink-0" />
+              <span className="text-xs text-orange-200">Looking up product…</span>
+            </div>
+          )}
+          {phase === 'no_match' && noMatchLabel && (
+            <div className="flex items-center gap-1.5">
+              <AlertCircle size={13} className="text-orange-400 flex-shrink-0" />
+              <span className="text-xs text-orange-300 truncate">Not on list: {noMatchLabel}</span>
+            </div>
+          )}
+          {phase === 'error' && (
+            <span className="text-xs text-red-300">{cameraError}</span>
+          )}
+          {!supported && (
+            <span className="text-xs text-red-300">Scanner needs Chrome or Edge</span>
+          )}
+        </div>
+
         <button onClick={handleClose}
-          className="absolute top-3 right-3 w-9 h-9 bg-black/40 backdrop-blur-sm text-white rounded-full flex items-center justify-center">
+          className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-orange-300 hover:text-white transition rounded-full hover:bg-white/10">
           <X size={18} />
         </button>
-
-        {!supported && (
-          <div className="absolute inset-0 flex items-center justify-center p-8">
-            <div className="bg-white rounded-2xl p-5 text-center max-w-xs shadow-lg">
-              <p className="font-semibold text-orange-900 mb-2">Scanner not available</p>
-              <p className="text-sm text-orange-500">Barcode scanning requires Chrome or Edge. Try updating your browser or switch device.</p>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Pantry remainder banner (shown briefly after a match with leftover) */}
+      {/* Pantry remainder banner */}
       {flashItem?.pantryRemainder && (
-        <div className="flex items-center gap-2 bg-orange-50 border-b border-orange-100 px-4 py-2">
+        <div className="flex items-center gap-2 bg-orange-50 border-b border-orange-100 px-4 py-2 flex-shrink-0">
           <Package size={13} className="text-orange-400 flex-shrink-0" />
           <p className="text-xs text-orange-600">
             <span className="font-medium">{flashItem.pantryRemainder.amount}</span> of {flashItem.pantryRemainder.name} left over — added to pantry
@@ -299,27 +259,24 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
         </div>
       )}
 
-      {/* ── BOTTOM: Shopping list ────────────────────────────────────── */}
-      <div ref={listRef} className="flex-1 overflow-y-auto bg-white">
+      {/* ── Shopping list (fills remaining space) ─────────────────────── */}
+      <div ref={listRef} className="flex-1 overflow-y-auto">
         {uncheckedItems.length === 0 && checkedOffItems.length === 0 && (
-          <p className="text-center text-orange-400 text-sm py-8">Your shopping list is empty</p>
+          <p className="text-center text-orange-400 text-sm py-10">Your shopping list is empty</p>
         )}
 
         {uncheckedItems.map((item) => {
-          const isFlashing = flashItem?.name === item.name;
+          const flash = flashItem?.name === item.name;
           return (
-            <div key={item.name}
-              data-item={item.name}
-              className={`flex items-center gap-3 px-4 py-3.5 border-b border-orange-50 transition-colors duration-500 ${isFlashing ? 'bg-sage-50' : 'bg-white'}`}>
-              <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isFlashing ? 'bg-sage-500 border-sage-500' : 'border-orange-300'}`}>
-                {isFlashing && <Check size={13} className="text-white" />}
+            <div key={item.name} data-item={item.name}
+              className={`flex items-center gap-3 px-4 py-3.5 border-b border-orange-50 transition-colors duration-500 ${flash ? 'bg-sage-50' : 'bg-white'}`}>
+              <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${flash ? 'bg-sage-500 border-sage-500' : 'border-orange-300'}`}>
+                {flash && <Check size={13} className="text-white" />}
               </div>
-              <span className={`text-sm capitalize transition-all duration-300 ${isFlashing ? 'line-through text-orange-400' : 'text-orange-900 font-medium'}`}>
+              <span className={`text-sm capitalize flex-1 transition-all duration-300 ${flash ? 'line-through text-orange-400' : 'text-orange-900 font-medium'}`}>
                 {item.name}
               </span>
-              {item.amount && (
-                <span className="ml-auto text-xs text-orange-400 flex-shrink-0">{item.amount}</span>
-              )}
+              {item.amount && <span className="text-xs text-orange-400 flex-shrink-0">{item.amount}</span>}
             </div>
           );
         })}
@@ -328,16 +285,13 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
           <>
             <p className="text-[11px] font-semibold text-orange-300 uppercase tracking-wide px-4 pt-4 pb-2">In the basket</p>
             {checkedOffItems.map((item) => (
-              <div key={item.name}
-                data-item={item.name}
-                className="flex items-center gap-3 px-4 py-3 border-b border-orange-50 bg-white opacity-50">
+              <div key={item.name} data-item={item.name}
+                className="flex items-center gap-3 px-4 py-3 border-b border-orange-50 opacity-40">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-orange-100 border-2 border-orange-200 flex items-center justify-center">
                   <Check size={13} className="text-orange-400" />
                 </div>
-                <span className="text-sm capitalize line-through text-orange-400">{item.name}</span>
-                {item.amount && (
-                  <span className="ml-auto text-xs text-orange-300 flex-shrink-0">{item.amount}</span>
-                )}
+                <span className="text-sm capitalize line-through text-orange-400 flex-1">{item.name}</span>
+                {item.amount && <span className="text-xs text-orange-300 flex-shrink-0">{item.amount}</span>}
               </div>
             ))}
           </>
