@@ -241,11 +241,15 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     if (!request || swappingKey) return;
     setSwappingKey(key);
     try {
-      const otherDays = plan
+      const otherDaysFromPlan = plan
         .flatMap((w) => w.days)
         .filter((d) => d.day !== dayObj.day)
         .map((d) => d.recipe?.name)
         .filter(Boolean);
+      const otherDaysFromExisting = existingItems
+        .filter((i) => i.recipe_data?._plannedDay && i.recipe_data._plannedDay !== dayObj.day && i.recipe_data?.name)
+        .map((i) => i.recipe_data.name);
+      const otherDays = [...new Set([...otherDaysFromPlan, ...otherDaysFromExisting])];
       const updated = await apiFetch('/api/ai/regenerate-day', {
         method: 'POST',
         body: {
