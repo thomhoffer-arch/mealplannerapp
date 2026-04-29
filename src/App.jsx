@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, ShoppingCart, ShoppingBag, Calendar, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, AlertTriangle, MinusCircle, Mail, Settings, Lock,
+  Check, Plus, X, Trash2, LogOut, Link2, Users, User, Sparkles, Star, Package, PenLine, Bell, AlertTriangle, MinusCircle, Mail, Settings, Lock, ScanLine,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { apiFetch, setActiveHouseholdId, getActiveHouseholdId } from "./lib/api";
@@ -24,6 +24,7 @@ import UpdateToast from "./components/UpdateToast";
 import ThemeToggle from "./components/ThemeToggle";
 import { applyTheme } from "./lib/theme";
 import { GlyphPot, GlyphSpyglass, GlyphLink, GlyphBasket, Scribble } from "./components/glyphs";
+import BarcodeScannerModal from "./components/BarcodeScannerModal";
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -1167,6 +1168,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('mp:activeTab') || "week");
   const [basketSection, setBasketSection] = useState("shopping");
   const [listSortMode, setListSortMode] = useState(() => localStorage.getItem('mp:listSortMode') || 'name');
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [householdMembers, setHouseholdMembers] = useState([]);
   useEffect(() => { householdMembersRef.current = householdMembers; }, [householdMembers]);
   const [editingHouseholdName, setEditingHouseholdName] = useState(false);
@@ -3202,6 +3204,16 @@ export default function App() {
         />
       )}
 
+      {showBarcodeScanner && (
+        <BarcodeScannerModal
+          shoppingItems={shoppingList}
+          checkedItems={checkedItems}
+          onCheckOff={(name) => { if (!checkedItems[name]) toggleItem(name); }}
+          onAddToPantry={(name, amount) => savePantryName(name, amount)}
+          onClose={() => setShowBarcodeScanner(false)}
+        />
+      )}
+
       {/* Willingness-to-pay survey */}
       {showSurvey && !showPreferences && (
         <WillingnessModal
@@ -4393,14 +4405,23 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Sort toggle */}
-                <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl mb-3">
-                  {[{ value: 'name', label: 'A–Z' }, { value: 'category', label: 'Category' }].map(({ value, label }) => (
-                    <button key={value} onClick={() => { setListSortMode(value); localStorage.setItem('mp:listSortMode', value); }}
-                      className={`flex-1 py-1.5 text-xs font-medium rounded-xl transition ${listSortMode === value ? 'bg-white text-orange-900 shadow-warm' : 'text-orange-400 hover:text-orange-600'}`}>
-                      {label}
+                {/* Sort toggle + scan button */}
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex-1 flex gap-1 p-1 bg-orange-50 rounded-2xl">
+                    {[{ value: 'name', label: 'A–Z' }, { value: 'category', label: 'Category' }].map(({ value, label }) => (
+                      <button key={value} onClick={() => { setListSortMode(value); localStorage.setItem('mp:listSortMode', value); }}
+                        className={`flex-1 py-1.5 text-xs font-medium rounded-xl transition ${listSortMode === value ? 'bg-white text-orange-900 shadow-warm' : 'text-orange-400 hover:text-orange-600'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {!!(weeklyUsage?.unlimited) && (
+                    <button onClick={() => setShowBarcodeScanner(true)}
+                      title="Scan barcodes to check off items"
+                      className="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-orange-50 text-orange-400 hover:text-orange-600 hover:bg-orange-100 rounded-xl transition">
+                      <ScanLine size={18} />
                     </button>
-                  ))}
+                  )}
                 </div>
 
                 {(() => {
