@@ -3,7 +3,24 @@ import { X, Check, AlertCircle, Package, ScanLine } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 
 const OFF_URL = (code) =>
-  `https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,product_name_en,product_name_nl,product_name_de,product_name_fr,product_name_es,product_name_it,product_name_pt,generic_name,quantity,product_quantity`;
+  `https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,product_name_en,product_name_nl,product_name_de,product_name_fr,product_name_es,product_name_it,product_name_pt,generic_name,quantity,product_quantity,lang`;
+
+async function translateToEnglish(text, fromLang) {
+  try {
+    const langpair = fromLang && fromLang !== 'en' ? `${fromLang}|en` : 'auto|en';
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 3000);
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`,
+      { signal: ctrl.signal }
+    );
+    clearTimeout(tid);
+    const json = await res.json();
+    const t = json?.responseData?.translatedText;
+    if (t && t.toLowerCase() !== text.toLowerCase()) return t;
+  } catch {}
+  return null;
+}
 
 function getProductNames(p) {
   const names = [
@@ -53,6 +70,14 @@ const DESCRIPTOR_WORDS = new Set([
   'boneless', 'skinless', 'lean', 'plain',
 ]);
 
+function trigramSim(a, b) {
+  if (a.length < 3 || b.length < 3) return a === b ? 1 : 0;
+  const gram = (s) => { const r = new Set(); for (let i = 0; i <= s.length - 3; i++) r.add(s.slice(i, i + 3)); return r; };
+  const ga = gram(a), gb = gram(b);
+  let n = 0; ga.forEach(g => { if (gb.has(g)) n++; });
+  return n / (ga.size + gb.size - n);
+}
+
 function matchToItem(productName, items) {
   const pn = productName.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   const pnWords = pn.split(' ').filter((w) => w.length > 2);
@@ -62,7 +87,11 @@ function matchToItem(productName, items) {
     // Strip descriptor words so "fresh spinach" → ["spinach"] for matching
     const bw = base.split(/\s+/).filter((w) => w.length > 2 && !DESCRIPTOR_WORDS.has(w));
     if (!bw.length) continue;
-    const hit = bw.filter((w) => pnWords.some((pw) => pw === w || pw.startsWith(w) || w.startsWith(pw)));
+    // Each item word must match a product word: exact/prefix OR trigram similarity ≥ 0.35
+    // (e.g. "spinazie" ↔ "spinach", "koriander" ↔ "coriander")
+    const hit = bw.filter(iw =>
+      pnWords.some(pw => pw === iw || pw.startsWith(iw) || iw.startsWith(pw) || trigramSim(iw, pw) >= 0.35)
+    );
     if (hit.length === bw.length && bw.length > bestScore) { bestScore = bw.length; best = item; }
   }
   return best;
@@ -109,6 +138,13 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
           productNames = getProductNames(json.product);
           productQuantityStr = json.product?.quantity || null;
           productQuantityG = json.product?.product_quantity != null ? parseFloat(json.product.product_quantity) : null;
+          // If OFF has no English name, translate the primary name via MyMemory (free, no key)
+          if (!json.product?.product_name_en && productNames.length > 0) {
+            const translated = await translateToEnglish(productNames[0], json.product?.lang);
+            if (translated && !productNames.map(n => n.toLowerCase()).includes(translated.toLowerCase())) {
+              productNames.push(translated);
+            }
+          }
         }
       } catch {}
 
