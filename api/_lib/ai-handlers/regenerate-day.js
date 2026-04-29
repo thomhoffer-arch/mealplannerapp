@@ -52,7 +52,7 @@ export default async function handleRegenerateDay(req, res) {
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
-      .order('added_at', { ascending: false }).limit(30),
+      .order('added_at', { ascending: false }).limit(45),
     supabase.from('household_members').select('display_name, personal_prefs').eq('household_id', ctx.householdId),
     supabase.from('pantry_items').select('name').eq('household_id', ctx.householdId),
   ]);
@@ -83,6 +83,14 @@ export default async function handleRegenerateDay(req, res) {
     if (c.rating >= 4) loved.push(name);
     else if (c.rating <= 2) disliked.push(name);
   });
+
+  const _15days = 15 * 24 * 60 * 60 * 1000;
+  const _now = Date.now();
+  const recentNames = [...new Set(
+    (recentPlanData || [])
+      .filter((p) => p.recipe_data?.name && (_now - new Date(p.added_at).getTime()) < _15days)
+      .map((p) => p.recipe_data.name)
+  )];
 
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
   const membersSection = (membersData || [])
@@ -163,6 +171,9 @@ ${membersSection || '  - (no individual preferences on file)'}
 
 STARRED RECIPES (reuse starred_id if one fits the request):
 ${starredList.map((r) => `  - starred_id: "${r.id}" | ${r.name}`).join('\n') || '  (none)'}
+
+RECENTLY EATEN (last 15 days — avoid repeating these):
+${recentNames.length ? `  ${recentNames.join(', ')}` : '  (no recent history)'}
 
 RATINGS HISTORY:
 ${loved.length ? `  LOVED: ${loved.slice(0, 10).join(', ')}` : '  (no high ratings yet)'}

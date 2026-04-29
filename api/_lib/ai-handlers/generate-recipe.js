@@ -115,7 +115,7 @@ Return ONLY a JSON object, no markdown:
   "macros": { "calories": 520, "protein": 38, "carbs": 22, "fat": 28 }${sideSchema}
 }
 
-IMPORTANT: Every ingredient MUST have a specific amount with a unit (e.g. "200 g", "2 tbsp", "1 tsp", "3 cloves", "400 ml"). Never leave amount empty or omit units. For whole items use count + unit (e.g. "2 chicken thighs" not just "2").`;
+IMPORTANT: macros must be PER SERVING (for one person), not for the whole recipe. Every ingredient MUST have a specific amount with a unit (e.g. "200 g", "2 tbsp", "1 tsp", "3 cloves", "400 ml"). Never leave amount empty or omit units. For whole items use count + unit (e.g. "2 chicken thighs" not just "2").`;
 }
 
 function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '', language = 'English') {
@@ -177,5 +177,5 @@ Return ONLY a JSON object, no markdown:
   "macros": { "calories": 520, "protein": 38, "carbs": 22, "fat": 28 }
 }
 
-For macros ${macroHint}.`;
+For macros ${macroHint}. Macros must be PER SERVING (for one person), not for the whole recipe.`;
 }

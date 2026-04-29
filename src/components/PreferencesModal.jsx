@@ -319,38 +319,40 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
             </div>
 
             {/* Diet variety */}
-            <div className="border-t border-orange-50 pt-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-orange-900">Variety level</p>
-                  <p className="text-xs text-orange-400">How adventurous the weekly plan should be</p>
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  {[
-                    { value: 'familiar',    label: 'Familiar' },
-                    { value: 'balanced',    label: 'Balanced' },
-                    { value: 'adventurous', label: 'Adventurous' },
-                  ].map(({ value, label }) => (
-                    <button
-                      key={value}
-                      disabled={savingDietVariety}
-                      onClick={async () => {
-                        if (value === dietVariety) return;
-                        setDietVariety(value);
-                        setSavingDietVariety(true);
-                        const { error } = await supabase.from('household_preferences').upsert(
-                          { household_id: household.id, diet_variety: value },
-                          { onConflict: 'household_id' }
-                        );
-                        setSavingDietVariety(false);
-                        if (!error) onPrefsChange?.({ diet_variety: value });
-                      }}
-                      className={`px-2.5 py-1 rounded-full text-xs font-semibold transition disabled:opacity-50 ${value === dietVariety ? 'bg-orange-500 text-white' : 'bg-white border border-orange-200 text-orange-700 hover:bg-orange-100'}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+            <div className="border-t border-orange-50 pt-3 space-y-2">
+              <div>
+                <p className="text-sm font-medium text-orange-900">Variety level</p>
+                <p className="text-xs text-orange-400">How adventurous the weekly plan should be</p>
+              </div>
+              <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
+                {[
+                  { value: 'familiar',    label: 'Familiar' },
+                  { value: 'balanced',    label: 'Balanced' },
+                  { value: 'adventurous', label: 'Adventurous' },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    disabled={savingDietVariety}
+                    onClick={async () => {
+                      if (value === dietVariety) return;
+                      setDietVariety(value);
+                      setSavingDietVariety(true);
+                      const { error } = await supabase.from('household_preferences').upsert(
+                        { household_id: household.id, diet_variety: value },
+                        { onConflict: 'household_id' }
+                      );
+                      setSavingDietVariety(false);
+                      if (!error) onPrefsChange?.({ diet_variety: value });
+                    }}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-xl transition disabled:opacity-50 ${
+                      value === dietVariety
+                        ? 'bg-white text-orange-900 shadow-warm'
+                        : 'text-orange-400 hover:text-orange-600'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
