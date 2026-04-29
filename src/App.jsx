@@ -699,10 +699,10 @@ function SelectedRecipeCard({
             {(recipe.macros?.calories || recipe.macros?.protein) && (
               <div className="grid grid-cols-4 gap-2">
                 {[
+                  { label: "Cal",      value: recipe.macros?.calories, unit: "" },
                   { label: "Protein",  value: recipe.macros?.protein,  unit: "g" },
                   { label: "Carbs",    value: recipe.macros?.carbs,    unit: "g" },
                   { label: "Fat",      value: recipe.macros?.fat,      unit: "g" },
-                  { label: "Cal",      value: recipe.macros?.calories, unit: "" },
                 ].map(({ label, value, unit }) => (
                   <div key={label} className="bg-orange-50 rounded-[10px] p-2 text-center">
                     <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>
@@ -916,10 +916,10 @@ function SelectedRecipeCard({
             <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Nutrition (per serving)</p>
             <div className="grid grid-cols-4 gap-2">
               {[
+                { label: "Calories",  value: recipe.macros?.calories,  unit: "" },
                 { label: "Protein",   value: recipe.macros?.protein,   unit: "g" },
                 { label: "Carbs",     value: recipe.macros?.carbs,     unit: "g" },
                 { label: "Fat",       value: recipe.macros?.fat,       unit: "g" },
-                { label: "Calories",  value: recipe.macros?.calories,  unit: "" },
               ].map(({ label, value, unit }) => (
                 <div key={label} className="bg-orange-50 rounded-[10px] p-2 text-center">
                   <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>
@@ -1210,6 +1210,7 @@ export default function App() {
   const undoTimer = useRef(null);
   const pendingDeletes = useRef(new Set()); // recipe_ids removed while INSERT was still in flight
   const pendingGeneratedNames = useRef([]); // names of in-flight addExtraMeal results not yet in viewItems
+  const rejectedByDayRef = useRef({});     // { "Monday": ["Pasta", ...] } — seen-and-dismissed dishes per day
 
   useEffect(() => { localStorage.setItem('mp:activeTab', activeTab); }, [activeTab]);
 
@@ -1800,7 +1801,7 @@ export default function App() {
   }, [preferences.reminder_enabled, preferences.reminder_day, mealPlanItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset empty-grid flag when navigating to a different week
-  useEffect(() => { setShowEmptyGrid(false); pendingGeneratedNames.current = []; }, [viewWeek]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setShowEmptyGrid(false); pendingGeneratedNames.current = []; rejectedByDayRef.current = {}; }, [viewWeek]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Activity notifications ────────────────────────────────────────────────
   // Filter stored notifications to the active household when it changes.
@@ -2151,6 +2152,11 @@ export default function App() {
     const rid = String(recipe.id);
     setSwappingRecipeId(rid);
     try {
+      const day = recipe._plannedDay || 'any day';
+      const currentName = recipe.name;
+      const prevRejected = rejectedByDayRef.current[day] || [];
+      const rejectedNames = [...new Set([...prevRejected, currentName].filter(Boolean))];
+      if (currentName) rejectedByDayRef.current = { ...rejectedByDayRef.current, [day]: rejectedNames };
       const otherNames = viewItems
         .filter((i) => i.recipe_id !== rid)
         .map((i) => i.recipe_data?.name)
@@ -2158,10 +2164,12 @@ export default function App() {
       const result = await apiFetch('/api/ai/regenerate-day', {
         method: 'POST',
         body: {
-          day_name: recipe._plannedDay || 'any day',
-          current_recipe_name: recipe.name,
+          day_name: day,
+          current_recipe_name: currentName,
           change_request: 'suggest a completely different dish for this day',
           other_days_names: otherNames,
+          rejected_names: rejectedNames,
+          language: memberLanguage || 'en',
         },
       });
       const dbItem = mealPlanItems.find((i) => i.recipe_id === rid);
@@ -2333,6 +2341,13 @@ export default function App() {
         );
         if (!ok) return;
       }
+      const removedDay = existing.recipe_data?._plannedDay;
+      const removedName = existing.recipe_data?.name;
+      if (removedDay && removedName) {
+        const prev = rejectedByDayRef.current[removedDay] || [];
+        if (!prev.includes(removedName))
+          rejectedByDayRef.current = { ...rejectedByDayRef.current, [removedDay]: [...prev, removedName] };
+      }
       markLocalWrite('meal_plan_items');
       setMealPlanItems((prev) => prev.filter((i) => !matches(i)));
       setExpandedRecipes((p) => { const n = { ...p }; delete n[rid]; return n; });
@@ -2454,6 +2469,7 @@ export default function App() {
         ...viewItems.map((i) => i.recipe_data?.name).filter(Boolean),
         ...pendingGeneratedNames.current,
       ])];
+      const rejectedNames = rejectedByDayRef.current[day] || [];
       const data = await apiFetch('/api/ai/regenerate-day', {
         method: 'POST',
         body: {
@@ -2461,6 +2477,7 @@ export default function App() {
           current_recipe_name: '',
           change_request: request || `A simple ${mealType} for ${day}`,
           other_days_names: otherNames,
+          rejected_names: rejectedNames,
           meal_type: mealType,
           language: memberLanguage || 'en',
         },
