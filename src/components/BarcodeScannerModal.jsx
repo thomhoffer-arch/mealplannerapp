@@ -53,6 +53,14 @@ const DESCRIPTOR_WORDS = new Set([
   'boneless', 'skinless', 'lean', 'plain',
 ]);
 
+function trigramSim(a, b) {
+  if (a.length < 3 || b.length < 3) return a === b ? 1 : 0;
+  const gram = (s) => { const r = new Set(); for (let i = 0; i <= s.length - 3; i++) r.add(s.slice(i, i + 3)); return r; };
+  const ga = gram(a), gb = gram(b);
+  let n = 0; ga.forEach(g => { if (gb.has(g)) n++; });
+  return n / (ga.size + gb.size - n);
+}
+
 function matchToItem(productName, items) {
   const pn = productName.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   const pnWords = pn.split(' ').filter((w) => w.length > 2);
@@ -62,7 +70,11 @@ function matchToItem(productName, items) {
     // Strip descriptor words so "fresh spinach" → ["spinach"] for matching
     const bw = base.split(/\s+/).filter((w) => w.length > 2 && !DESCRIPTOR_WORDS.has(w));
     if (!bw.length) continue;
-    const hit = bw.filter((w) => pnWords.some((pw) => pw === w || pw.startsWith(w) || w.startsWith(pw)));
+    // Each item word must match a product word: exact/prefix OR trigram similarity ≥ 0.35
+    // (e.g. "spinazie" ↔ "spinach", "koriander" ↔ "coriander")
+    const hit = bw.filter(iw =>
+      pnWords.some(pw => pw === iw || pw.startsWith(iw) || iw.startsWith(pw) || trigramSim(iw, pw) >= 0.35)
+    );
     if (hit.length === bw.length && bw.length > bestScore) { bestScore = bw.length; best = item; }
   }
   return best;
