@@ -21,6 +21,7 @@ export default async function handleRegenerateDay(req, res) {
     current_recipe_name,    // "Pasta carbonara"
     change_request,         // "too heavy, give me something lighter"
     other_days_names = [],  // Names of other days in the plan, to avoid collisions
+    rejected_names = [],    // Previously suggested recipes the user already rejected for this day
     meal_type,              // "breakfast" | "lunch" | undefined (= dinner)
     language = 'English',
   } = req.body || {};
@@ -118,6 +119,7 @@ ${isMealType ? `Suggest a ${mealLabel} dish that:` : 'Replace the dish with some
 - satisfies the ${isMealType ? 'household context' : 'request'} above
 - still respects the rules below
 - doesn't duplicate what's already on other days this week: ${other_days_names.join(', ') || '(no other days specified)'}
+- is NOT any of these recipes already shown and rejected for ${day_name}: ${rejected_names.length ? rejected_names.join(', ') : '(none yet)'}
 
 RULES — ordered by priority:
 
@@ -141,7 +143,8 @@ P2. ADAPT OR ENHANCE — DON'T REPLACE. Two cases where you must keep the
 
 P3. COOKING TIME — ${timeRule} Respect this unless P1 overrides it.
 
-P4. NO DUPLICATION. Do not suggest a dish already on other days this week.
+P4. NO DUPLICATION. Do not suggest a dish already on other days this week, and do not
+    cycle back to any previously rejected recipe for this day: ${rejected_names.join(', ') || 'none'}.
 
 HOUSEHOLD-LEVEL PREFERENCES:
 ${preferences || 'No specific preferences — be creative and varied.'}
