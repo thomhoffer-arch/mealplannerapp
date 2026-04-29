@@ -4121,26 +4121,22 @@ export default function App() {
                               <div className="px-4 pb-3 pt-1 border-t border-orange-50">
                                 <div className="grid grid-cols-4 gap-2">
                                   {bars.map(({ key, label, unit }) => {
-                                    const total = Math.round(totalMacros[key]);
                                     const personal = Math.round(personalMacros[key]);
                                     const target = macroTargets[key];
                                     const pct = target ? Math.min(100, (personal / target) * 100) : null;
+                                    const suffix = unit === 'g' ? 'g' : '';
                                     return (
                                       <div key={key} className="flex flex-col gap-0.5">
                                         <div className="flex items-baseline justify-between">
                                           <span className="text-[10px] font-bold text-orange-400 uppercase">{label}</span>
-                                          <span className="text-[10px] font-medium text-orange-600">{total}{unit === 'g' ? 'g' : ''}</span>
+                                          <span className="text-[10px] font-medium text-orange-600">{personal}{suffix}</span>
                                         </div>
-                                        {hasTargets && (
+                                        {hasTargets && pct !== null && (
                                           <>
-                                            {pct !== null && (
-                                              <div className="w-full bg-orange-100 rounded-full h-1">
-                                                <div className="h-1 rounded-full transition-all bg-orange-200" style={{ width: `${pct}%` }} />
-                                              </div>
-                                            )}
-                                            <span className="text-[9px] text-orange-300">
-                                              {personal}{unit === 'g' ? 'g' : ''}{target ? ` / ${target}${unit === 'g' ? 'g' : ''}` : ''}
-                                            </span>
+                                            <div className="w-full bg-orange-100 rounded-full h-1">
+                                              <div className="h-1 rounded-full transition-all bg-orange-200" style={{ width: `${pct}%` }} />
+                                            </div>
+                                            <span className="text-[9px] text-orange-300">{personal}{suffix} / {target}{suffix}</span>
                                           </>
                                         )}
                                       </div>
