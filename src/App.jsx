@@ -3764,7 +3764,7 @@ export default function App() {
                     <button onClick={() => setShowWeekSuggest(true)}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white rounded-full text-xs font-semibold hover:bg-orange-600 transition shadow-warm">
                       <Sparkles size={13} />
-                      {viewItems.length > 0 ? 'Replan' : 'Plan week'}
+                      {viewItems.length > 0 ? 'Replan' : 'Plan the week'}
                     </button>
                   </div>
                 </div>
