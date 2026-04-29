@@ -115,7 +115,7 @@ Return ONLY a JSON object, no markdown:
   "macros": { "calories": 520, "protein": 38, "carbs": 22, "fat": 28 }${sideSchema}
 }
 
-IMPORTANT: macros must be TOTALS for the whole recipe (all servings combined), not per person. Every ingredient MUST have a specific amount with a unit (e.g. "200 g", "2 tbsp", "1 tsp", "3 cloves", "400 ml"). Never leave amount empty or omit units. For whole items use count + unit (e.g. "2 chicken thighs" not just "2").`;
+IMPORTANT: macros must be TOTALS for the whole recipe (all servings combined), not per person. Every ingredient MUST have a specific amount with a unit (e.g. "200 g", "2 tbsp", "1 tsp", "3 cloves", "400 ml"). Never leave amount empty or omit units. For whole items use count + unit (e.g. "2 chicken thighs" not just "2"). Each ingredient entry must be ONE purchasable item — never combine two distinct items with "and" in a single entry (write "carrots" and "peas" as two separate entries, not "carrots and peas"). Compound product names that contain "and" as part of their name (e.g. "pork and fennel sausages", "macaroni and cheese") are fine as a single entry.`;
 }
 
 function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '', language = 'English') {
@@ -177,5 +177,5 @@ Return ONLY a JSON object, no markdown:
   "macros": { "calories": 520, "protein": 38, "carbs": 22, "fat": 28 }
 }
 
-For macros ${macroHint}. Macros must be TOTALS for the whole recipe (all servings combined), not per person.`;
+For macros ${macroHint}. Macros must be TOTALS for the whole recipe (all servings combined), not per person. Each ingredient entry must be ONE purchasable item — never combine two distinct items with "and" in a single entry.`;
 }

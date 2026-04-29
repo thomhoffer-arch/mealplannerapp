@@ -54,12 +54,43 @@ const SOURCE_COLORS = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function totalTime(r) { return (r.prepTime || 0) + (r.cookTime || 0); }
 
-// Common food qualifiers that shouldn't affect ingredient matching.
+// Common food qualifiers that may prefix ingredient names without changing what you buy.
+// Used for matching "organic chicken" → "chicken", "unsalted butter" → "butter", etc.
 const FOOD_QUALIFIERS = /\b(unsalted|salted|fresh|dried|ground|whole|organic|plain|low-fat|full-fat|semi-skimmed|skimmed|chopped|sliced|diced|frozen|canned|tinned|large|small|medium|extra|light|dark|sweet|raw|cooked|white|brown|black|red|green|yellow|virgin|pure|fine|coarse|baby|mini|regular|softened|melted|cold)\b/gi;
 
+// The purchasable ingredient is always before the first comma. Everything after
+// the first comma is a preparation note ("chickpeas, canned, drained, rinsed" →
+// "chickpeas"). This structural rule avoids needing a hardcoded list of prep words.
+function ingredientBase(name) {
+  const n = name.toLowerCase().trim();
+  const ci = n.indexOf(',');
+  return ci > 0 ? n.slice(0, ci).trim() : n;
+}
+
+// Grocery aisle categories for shopping list grouping.
+const INGREDIENT_CATEGORIES = [
+  { key: 'meat',       label: 'Meat & Poultry',   re: /\b(chicken|beef|pork|lamb|turkey|duck|veal|mince|minced|steak|fillet|breast|thigh|drumstick|wing|ribs|brisket|loin|chop|sausage|sausages|bacon|ham|pancetta|prosciutto|chorizo|salami|pepperoni|lardons|venison|rabbit)\b/i },
+  { key: 'fish',       label: 'Fish & Seafood',    re: /\b(salmon|tuna|cod|haddock|trout|mackerel|sardine|anchovy|halibut|sea bass|bream|plaice|tilapia|snapper|fish|seafood|prawn|prawns|shrimp|lobster|crab|scallop|mussel|clam|oyster|squid|octopus)\b/i },
+  { key: 'produce',    label: 'Fruit & Veg',       re: /\b(onion|onions|garlic|tomato|tomatoes|potato|potatoes|carrot|carrots|celery|broccoli|cauliflower|spinach|kale|lettuce|cabbage|leek|fennel|zucchini|courgette|aubergine|eggplant|pepper|peppers|capsicum|mushroom|asparagus|artichoke|cucumber|beetroot|turnip|parsnip|radish|rocket|arugula|chard|peas|corn|sweetcorn|avocado|apple|banana|orange|lemon|lemons|lime|limes|strawberr|blueberr|raspberr|blackberr|cherry|grape|mango|papaya|pineapple|peach|nectarine|plum|pear|melon|grapefruit|kiwi|fig|date|pomegranate|shallot|spring onion|scallion|chilli|chili|jalape|coriander|cilantro|parsley|basil|mint|dill|chive|herbs)\b/i },
+  { key: 'dairy',      label: 'Dairy & Eggs',      re: /\b(milk|cream|butter|cheese|yogurt|yoghurt|egg|eggs|cheddar|mozzarella|parmesan|feta|brie|camembert|gouda|ricotta|mascarpone|crème fraîche|creme fraiche|sour cream|ghee|kefir|quark)\b/i },
+  { key: 'bread',      label: 'Bread & Bakery',    re: /\b(bread|loaf|baguette|roll|rolls|pitta|pita|naan|wrap|tortilla|bagel|croissant|brioche|sourdough|flatbread|crumpet)\b/i },
+  { key: 'grains',     label: 'Pasta, Rice & Grains', re: /\b(pasta|spaghetti|penne|rigatoni|fettuccine|tagliatelle|lasagne|lasagna|noodle|noodles|rice|basmati|jasmine|arborio|couscous|quinoa|bulgur|polenta|oats|barley|freekeh|farro|spelt|semolina|flour|cornflour|breadcrumb)\b/i },
+  { key: 'tins',       label: 'Tins & Cans',       re: /\b(canned|tinned|passata|tomato purée|tomato puree|tomato paste|tomato sauce|stock|broth|chickpeas|lentils|kidney beans|black beans|cannellini|butter beans|baked beans|coconut milk|coconut cream)\b/i },
+  { key: 'condiments', label: 'Oils & Condiments', re: /\b(oil|vinegar|soy sauce|fish sauce|worcestershire|hot sauce|ketchup|mustard|mayonnaise|mayo|honey|maple syrup|tahini|miso|oyster sauce|hoisin|teriyaki|sriracha|pesto|harissa|jam|marmalade)\b/i },
+  { key: 'spices',     label: 'Spices & Seasoning', re: /\b(cumin|coriander seed|paprika|turmeric|ginger powder|cinnamon|nutmeg|cardamom|star anise|allspice|cayenne|chilli powder|chili powder|oregano|thyme|rosemary|bay leaves|tarragon|mixed spice|curry powder|garam masala|ras el hanout|za.atar|sumac|salt|pepper|black pepper|sea salt)\b/i },
+];
+
+function getIngredientCategory(name) {
+  const base = ingredientBase(name);
+  for (const cat of INGREDIENT_CATEGORIES) {
+    if (cat.re.test(base)) return cat.key;
+  }
+  return 'other';
+}
+
 function pantryMatchesItem(pantryName, itemName) {
-  const p = pantryName.toLowerCase().trim();
-  const i = itemName.toLowerCase().trim();
+  const p = ingredientBase(pantryName);
+  const i = ingredientBase(itemName);
   if (p === i) return true;
 
   // Whole-word match: "butter" matches "unsalted butter" but NOT "peanut butter"
@@ -71,9 +102,7 @@ function pantryMatchesItem(pantryName, itemName) {
     if (!leftover || !leftover.replace(FOOD_QUALIFIERS, '').replace(/\s+/g, ' ').trim()) return true;
   }
 
-  // Core match: strip qualifiers from both sides and compare exactly.
-  // Substring checks are intentionally removed — after stripping qualifiers any
-  // remaining difference means a genuinely different ingredient type.
+  // Core match: strip qualifiers from both bases and compare.
   const coreP = p.replace(FOOD_QUALIFIERS, '').replace(/\s+/g, ' ').trim();
   const coreI = i.replace(FOOD_QUALIFIERS, '').replace(/\s+/g, ' ').trim();
   if (coreP && coreI && coreP === coreI) return true;
@@ -409,14 +438,17 @@ function consolidateIngredients(selectedRecipes, customIngredients, measurementS
   // Guards:
   //   1. Only split on "and" in the base name (before the first comma) so that prep notes
   //      like "shrimp, peeled and deveined" don't produce a spurious "deveined" item.
-  //   2. Discard any part that consists entirely of PREP_WORDS (e.g. bare "deveined"
-  //      when there's no comma) — those are descriptors, not purchasable ingredients.
+  //   2. Only split when every resulting part is a single word — multi-word parts signal a
+  //      compound product name (e.g. "pork and fennel sausages" → don't split; "onions and
+  //      garlic" → split). This avoids breaking specific product names.
+  //   3. Discard any part that consists entirely of PREP_WORDS.
   const _isPrepOnly = (s) => s.trim().toLowerCase().split(/\s+/).every((w) => PREP_WORDS.includes(w));
   const add = (rawName, amount, extra = {}) => {
     const commaIdx = rawName.indexOf(',');
     const baseForSplit = commaIdx > 0 ? rawName.slice(0, commaIdx).trim() : rawName;
     const parts = baseForSplit.split(/ and /i);
-    if (parts.length > 1) {
+    const allSingleWord = parts.every((p) => !p.trim().includes(' '));
+    if (parts.length > 1 && allSingleWord) {
       const realParts = parts.map((p) => p.trim()).filter((p) => p && !_isPrepOnly(p));
       (realParts.length ? realParts : [rawName]).forEach((p) => addSingle(p, amount, extra));
     } else {
@@ -1133,6 +1165,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('mp:activeTab') || "week");
   const [basketSection, setBasketSection] = useState("shopping");
+  const [listSortMode, setListSortMode] = useState(() => localStorage.getItem('mp:listSortMode') || 'name');
   const [householdMembers, setHouseholdMembers] = useState([]);
   useEffect(() => { householdMembersRef.current = householdMembers; }, [householdMembers]);
   const [editingHouseholdName, setEditingHouseholdName] = useState(false);
@@ -4088,26 +4121,22 @@ export default function App() {
                               <div className="px-4 pb-3 pt-1 border-t border-orange-50">
                                 <div className="grid grid-cols-4 gap-2">
                                   {bars.map(({ key, label, unit }) => {
-                                    const total = Math.round(totalMacros[key]);
                                     const personal = Math.round(personalMacros[key]);
                                     const target = macroTargets[key];
                                     const pct = target ? Math.min(100, (personal / target) * 100) : null;
+                                    const suffix = unit === 'g' ? 'g' : '';
                                     return (
                                       <div key={key} className="flex flex-col gap-0.5">
                                         <div className="flex items-baseline justify-between">
                                           <span className="text-[10px] font-bold text-orange-400 uppercase">{label}</span>
-                                          <span className="text-[10px] font-medium text-orange-600">{total}{unit === 'g' ? 'g' : ''}</span>
+                                          <span className="text-[10px] font-medium text-orange-600">{personal}{suffix}</span>
                                         </div>
-                                        {hasTargets && (
+                                        {hasTargets && pct !== null && (
                                           <>
-                                            {pct !== null && (
-                                              <div className="w-full bg-orange-100 rounded-full h-1">
-                                                <div className="h-1 rounded-full transition-all bg-orange-200" style={{ width: `${pct}%` }} />
-                                              </div>
-                                            )}
-                                            <span className="text-[9px] text-orange-300">
-                                              {personal}{unit === 'g' ? 'g' : ''}{target ? ` / ${target}${unit === 'g' ? 'g' : ''}` : ''}
-                                            </span>
+                                            <div className="w-full bg-orange-100 rounded-full h-1">
+                                              <div className="h-1 rounded-full transition-all bg-orange-200" style={{ width: `${pct}%` }} />
+                                            </div>
+                                            <span className="text-[9px] text-orange-300">{personal}{suffix} / {target}{suffix}</span>
                                           </>
                                         )}
                                       </div>
@@ -4360,13 +4389,24 @@ export default function App() {
                   </div>
                 )}
 
+                {/* Sort toggle */}
+                <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl mb-3">
+                  {[{ value: 'name', label: 'A–Z' }, { value: 'category', label: 'Category' }].map(({ value, label }) => (
+                    <button key={value} onClick={() => { setListSortMode(value); localStorage.setItem('mp:listSortMode', value); }}
+                      className={`flex-1 py-1.5 text-xs font-medium rounded-xl transition ${listSortMode === value ? 'bg-white text-orange-900 shadow-warm' : 'text-orange-400 hover:text-orange-600'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
                 {(() => {
                   const listExtras = (customIngredients['__list__'] || []).map((e) => ({
                     name: e.name, amount: e.amount || '', isCustom: true, isListExtra: true, listExtraId: e.id, inPantry: false,
                   }));
                   const fullList = [...shoppingList, ...listExtras];
-                  const unchecked = fullList.filter((i) => !checkedItems[i.name] || checkAnimating[i.name]).sort((a, b) => a.name.localeCompare(b.name));
-                  const checked   = fullList.filter((i) =>  checkedItems[i.name] && !checkAnimating[i.name]).sort((a, b) => a.name.localeCompare(b.name));
+                  const byName = (a, b) => a.name.localeCompare(b.name);
+                  const unchecked = fullList.filter((i) => !checkedItems[i.name] || checkAnimating[i.name]).sort(byName);
+                  const checked   = fullList.filter((i) =>  checkedItems[i.name] && !checkAnimating[i.name]).sort(byName);
                   const handleCheckToggle = (name) => {
                     if (!checkedItems[name]) {
                       setCheckAnimating((prev) => ({ ...prev, [name]: 'enlarging' }));
@@ -4414,11 +4454,37 @@ export default function App() {
                       </div>
                     );
                   };
-                  return (
-                    <>
+                  const renderUnchecked = () => {
+                    if (listSortMode === 'category') {
+                      const catOrder = [...INGREDIENT_CATEGORIES.map((c) => c.key), 'other'];
+                      const groups = {};
+                      unchecked.forEach((item) => {
+                        const k = getIngredientCategory(item.name);
+                        (groups[k] = groups[k] || []).push(item);
+                      });
+                      return catOrder
+                        .filter((k) => groups[k]?.length)
+                        .map((k) => {
+                          const label = INGREDIENT_CATEGORIES.find((c) => c.key === k)?.label || 'Other';
+                          return (
+                            <div key={k} className="mb-3">
+                              <p className="text-[11px] font-semibold text-orange-400 uppercase tracking-wide px-1 mb-1.5">{label}</p>
+                              <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+                                {groups[k].map(renderRow)}
+                              </div>
+                            </div>
+                          );
+                        });
+                    }
+                    return (
                       <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
                         {unchecked.map(renderRow)}
                       </div>
+                    );
+                  };
+                  return (
+                    <>
+                      {renderUnchecked()}
                       {checked.length > 0 && (
                         <div className="mt-3">
                           <p className="text-[11px] font-semibold text-orange-400 uppercase tracking-wide px-1 mb-1.5">In the basket</p>
