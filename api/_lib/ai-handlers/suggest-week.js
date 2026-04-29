@@ -473,10 +473,12 @@ VARIETY LEVEL — household preference: ${
 }
 
 Variety — applies across ALL meals chosen in the plan:
-  Treat every dinner, breakfast, lunch, and snack as one unified weekly menu. No hero ingredient should appear in two meals close together — across all meal types, not just dinner vs dinner. Extras (breakfasts, lunches, snacks) must also be checked against each other: a hero ingredient used at breakfast cannot reappear at lunch the same day or at breakfast the following day.
-  Examples of hero ingredients: eggs, chicken, beef, salmon, pasta, lentils, tofu, shrimp, pork.
+  Treat every dinner, breakfast, lunch, and snack as one unified weekly menu. No hero protein should appear in MORE THAN ONE dinner per week — this is a hard constraint, not a guideline. Hero proteins: chicken, beef, pork, lamb, salmon, tuna, shrimp, prawn, tofu, lentils, eggs, cod, duck, turkey, mince.
+  If you use chicken on Monday, no other dinner this week may feature chicken as the main protein. Same rule for every other protein.
+  Extras (breakfasts, lunches, snacks) must also be checked: a hero ingredient used at breakfast cannot reappear at lunch the same day or at breakfast the following day.
   A dinner and an extra on the same day must be meaningfully different from each other.
   Vary cuisines across the week. Spread themed days (fish, vegetarian, etc.) naturally.
+  SELF-CHECK: Before finalising, list the main protein for each dinner. If any protein appears more than once, replace the duplicate with a different dish using a different protein.
   Cross-week variety: the RECENTLY EATEN section above shows what was served recently. A plan that closely mirrors last week (same dishes, same cuisine run, same protein sequence) is a failure even if no single dish is a direct repeat. Each week should feel meaningfully different from the previous one.
 
 Starred recipes:

@@ -110,6 +110,13 @@ export default async function handleRegenerateDay(req, res) {
       : day_name === 'Friday' ? 'Friday: a bit more flexibility than a weeknight — around 45–50 min is typical, but follow the user\'s lead.'
       : 'weekend: more time is usually available — an hour or more is fine.';
 
+  const HERO_PROTEINS = ['chicken','beef','pork','lamb','salmon','tuna','shrimp','prawn','tofu','lentil','egg','cod','duck','turkey','mince','sausage','bacon','halloumi'];
+  const proteinsThisWeek = [...new Set(
+    other_days_names.flatMap((name) =>
+      HERO_PROTEINS.filter((p) => name.toLowerCase().includes(p))
+    )
+  )];
+
   const taskLine = isMealType
     ? `Suggest a ${mealLabel} for ${day_name}.${change_request?.trim() ? ` Household preference: "${change_request.trim()}"` : ''}`
     : `The household had "${current_recipe_name}" planned for ${day_name}. They want to swap it.\n\nTheir request: "${change_request.trim()}"`;
@@ -129,6 +136,7 @@ ${isMealType ? `Suggest a ${mealLabel} dish that:` : 'Replace the dish with some
 - still respects the rules below
 - doesn't duplicate what's already on other days this week: ${other_days_names.join(', ') || '(no other days specified)'}
 - is NOT any of these recipes already shown and rejected for ${day_name}: ${rejected_names.length ? rejected_names.join(', ') : '(none yet)'}
+- uses a DIFFERENT main protein from these already used this week: ${proteinsThisWeek.length ? proteinsThisWeek.join(', ') : '(none detected — vary freely)'}
 
 RULES — ordered by priority:
 
@@ -152,8 +160,10 @@ P2. ADAPT OR ENHANCE — DON'T REPLACE. Two cases where you must keep the
 
 P3. COOKING TIME — ${timeRule} Respect this unless P1 overrides it.
 
-P4. NO DUPLICATION. Do not suggest a dish already on other days this week, and do not
-    cycle back to any previously rejected recipe for this day: ${rejected_names.join(', ') || 'none'}.
+P4. NO DUPLICATION AND NO PROTEIN REPEAT. Do not suggest a dish already on other days
+    this week. Do not cycle back to any previously rejected recipe for this day: ${rejected_names.join(', ') || 'none'}.
+    Do not use any protein already used this week: ${proteinsThisWeek.length ? proteinsThisWeek.join(', ') : 'none'}.
+    This is a hard constraint — if the most obvious dish for this request uses a blocked protein, adapt it or pick a different dish.
 
 VARIETY LEVEL — household preference: ${
   dietVariety === 'familiar'
