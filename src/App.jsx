@@ -4065,7 +4065,6 @@ export default function App() {
                                     const personal = Math.round(personalMacros[key]);
                                     const target = macroTargets[key];
                                     const pct = target ? Math.min(100, (personal / target) * 100) : null;
-                                    const over = target && personal > target;
                                     return (
                                       <div key={key} className="flex flex-col gap-0.5">
                                         <div className="flex items-baseline justify-between">
@@ -4076,10 +4075,10 @@ export default function App() {
                                           <>
                                             {pct !== null && (
                                               <div className="w-full bg-orange-100 rounded-full h-1">
-                                                <div className={`h-1 rounded-full transition-all ${over ? 'bg-red-400' : 'bg-orange-200'}`} style={{ width: `${pct}%` }} />
+                                                <div className="h-1 rounded-full transition-all bg-orange-200" style={{ width: `${pct}%` }} />
                                               </div>
                                             )}
-                                            <span className={`text-[9px] ${over ? 'text-red-400' : 'text-orange-300'}`}>
+                                            <span className="text-[9px] text-orange-300">
                                               {personal}{unit === 'g' ? 'g' : ''}{target ? ` / ${target}${unit === 'g' ? 'g' : ''}` : ''}
                                             </span>
                                           </>
