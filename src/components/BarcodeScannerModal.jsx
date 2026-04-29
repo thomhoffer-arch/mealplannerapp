@@ -1,23 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, CheckCircle, AlertCircle, Package } from 'lucide-react';
+import { X, Check, AlertCircle, Package } from 'lucide-react';
 
 const OFF_URL = (code) =>
-  `https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,product_name_en,generic_name,quantity,product_quantity,product_quantity_unit`;
+  `https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,product_name_en,generic_name,quantity,product_quantity`;
 
 function getProductName(product) {
   return product?.product_name_en || product?.product_name || product?.generic_name || null;
 }
 
-// Parse an amount string like "200 g", "1.5 kg", "500 ml", "2 tbsp" into { grams, unit }.
-// Returns null if unparseable. Normalizes weight to grams, volume to ml.
 function parseAmount(str) {
   if (!str) return null;
-  const m = String(str).trim().match(/^(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l|oz|lb|cl|fl\.?\s*oz\.?)\b/i);
+  const m = String(str).trim().match(/^(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l|oz|lb|cl)\b/i);
   if (!m) return null;
   const val = parseFloat(m[1].replace(',', '.'));
-  const unit = m[2].replace(/\s|\./, '').toLowerCase();
+  const unit = m[2].toLowerCase();
   const WEIGHT = { g: 1, kg: 1000, oz: 28.35, lb: 453.6 };
-  const VOLUME = { ml: 1, l: 1000, cl: 10, floz: 29.57 };
+  const VOLUME = { ml: 1, l: 1000, cl: 10 };
   if (WEIGHT[unit] != null) return { type: 'weight', grams: val * WEIGHT[unit] };
   if (VOLUME[unit] != null) return { type: 'volume', ml: val * VOLUME[unit] };
   return null;
@@ -34,31 +32,21 @@ function formatRemainder(parsedProduct, parsedNeeded) {
     : `${Math.round(remainder)} ${unit}`;
 }
 
-// Match a product name against unchecked shopping items.
-// Returns the best matching item or null.
 function matchProductToItem(productName, items) {
   const pn = productName.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   const pnWords = pn.split(' ').filter((w) => w.length > 2);
-
   let bestItem = null;
   let bestScore = 0;
-
   for (const item of items) {
     const base = item.name.toLowerCase().replace(/,.*$/, '').trim();
     const baseWords = base.split(/\s+/).filter((w) => w.length > 2);
     if (baseWords.length === 0) continue;
-
-    // Every word in the ingredient base must appear in the product name
     const matched = baseWords.filter((w) => pnWords.some((pw) => pw === w || pw.startsWith(w) || w.startsWith(pw)));
-    if (matched.length === baseWords.length) {
-      // Longer base = more specific match = higher priority
-      if (baseWords.length > bestScore) {
-        bestScore = baseWords.length;
-        bestItem = item;
-      }
+    if (matched.length === baseWords.length && baseWords.length > bestScore) {
+      bestScore = baseWords.length;
+      bestItem = item;
     }
   }
-
   return bestItem;
 }
 
@@ -69,8 +57,8 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
   const rafRef = useRef(null);
   const coolingRef = useRef(false);
   const cancelledRef = useRef(false);
+  const listRef = useRef(null);
 
-  // Keep latest props in refs so the scan loop always reads fresh values without restarting
   const shoppingItemsRef = useRef(shoppingItems);
   const checkedItemsRef = useRef(checkedItems);
   const onCheckOffRef = useRef(onCheckOff);
@@ -80,9 +68,11 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
   useEffect(() => { onCheckOffRef.current = onCheckOff; }, [onCheckOff]);
   useEffect(() => { onAddToPantryRef.current = onAddToPantry; }, [onAddToPantry]);
 
-  const [phase, setPhase] = useState('init'); // init | scanning | checking | matched | no_match | error
+  const [phase, setPhase] = useState('init');
   const [cameraError, setCameraError] = useState(null);
-  const [result, setResult] = useState(null);
+  // Track the most recently scanned item for the flash highlight
+  const [flashItem, setFlashItem] = useState(null); // { name, pantryRemainder }
+  const [noMatchName, setNoMatchName] = useState(null);
 
   const supported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
@@ -111,10 +101,12 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
     async function handleBarcode(barcode, scan) {
       if (cancelledRef.current) return;
       setPhase('checking');
+      setFlashItem(null);
+      setNoMatchName(null);
 
       let productName = null;
-      let productQuantityStr = null; // e.g. "200 g"
-      let productQuantityG = null;   // numeric grams from OFF
+      let productQuantityStr = null;
+      let productQuantityG = null;
 
       try {
         const controller = new AbortController();
@@ -125,9 +117,8 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
         if (json.status === 1) {
           const p = json.product;
           productName = getProductName(p);
-          productQuantityStr = p?.quantity || null;        // "200 g", "1 l", etc.
+          productQuantityStr = p?.quantity || null;
           productQuantityG = p?.product_quantity != null ? parseFloat(p.product_quantity) : null;
-          // product_quantity is in grams by default in OFF
         }
       } catch {}
 
@@ -141,34 +132,36 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
       let pantryRemainder = null;
       if (matchedItem?.amount) {
         const parsedNeeded = parseAmount(matchedItem.amount);
-        // Try product_quantity (OFF gives grams) first, fall back to quantity string
         const parsedProduct = productQuantityG
           ? { type: 'weight', grams: productQuantityG }
           : parseAmount(productQuantityStr);
         const remainderStr = formatRemainder(parsedProduct, parsedNeeded);
-        if (remainderStr) {
-          pantryRemainder = { name: matchedItem.name, amount: remainderStr };
-        }
+        if (remainderStr) pantryRemainder = { name: matchedItem.name, amount: remainderStr };
       }
 
       if (matchedItem) {
         onCheckOffRef.current(matchedItem.name);
-        if (pantryRemainder) {
-          onAddToPantryRef.current(pantryRemainder.name, pantryRemainder.amount);
-        }
-        setResult({ productName, item: matchedItem, barcode, pantryRemainder });
-        setPhase('matched');
+        if (pantryRemainder) onAddToPantryRef.current(pantryRemainder.name, pantryRemainder.amount);
+        setFlashItem({ name: matchedItem.name, pantryRemainder });
+        setPhase('scanning');
+        // Scroll the matched item into view after a tick
+        setTimeout(() => {
+          const el = listRef.current?.querySelector(`[data-item="${CSS.escape(matchedItem.name)}"]`);
+          el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 50);
       } else {
-        setResult({ productName, item: null, barcode, pantryRemainder: null });
+        setNoMatchName(productName || barcode);
         setPhase('no_match');
       }
 
       setTimeout(() => {
         if (cancelledRef.current) return;
         coolingRef.current = false;
+        setFlashItem(null);
+        setNoMatchName(null);
         setPhase('scanning');
         rafRef.current = requestAnimationFrame(scan);
-      }, 3000);
+      }, 2500);
     }
 
     (async () => {
@@ -191,7 +184,7 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
         if (!cancelledRef.current) {
           setCameraError(
             err.name === 'NotAllowedError'
-              ? 'Camera access denied. Please allow camera in your browser settings and try again.'
+              ? 'Camera access denied. Please allow camera in your browser settings.'
               : 'Could not open camera. Try a different browser or device.'
           );
           setPhase('error');
@@ -213,115 +206,144 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
     onClose();
   }
 
+  // Items to show in the list — unchecked first, then checked (greyed)
+  const uncheckedItems = shoppingItems.filter((i) => !checkedItems[i.name] && !i.inPantry).sort((a, b) => a.name.localeCompare(b.name));
+  const checkedOffItems = shoppingItems.filter((i) => checkedItems[i.name] && !i.inPantry).sort((a, b) => a.name.localeCompare(b.name));
+
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      {/* Camera feed */}
-      <div className="relative flex-1 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex flex-col bg-white">
+
+      {/* ── TOP: Camera (fixed height ~45%) ─────────────────────────── */}
+      <div className="relative bg-black" style={{ height: '45dvh', flexShrink: 0 }}>
         {supported && (
           <video ref={videoRef} className="w-full h-full object-cover" muted playsInline autoPlay />
         )}
 
-        {/* Viewfinder overlay — dim everything outside the scan zone */}
+        {/* Dim + viewfinder corners */}
         {(phase === 'scanning' || phase === 'checking') && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="relative w-72 h-44">
-              <div className="absolute inset-0 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] rounded-xl" />
+            <div className="relative w-64 h-36">
+              <div className="absolute inset-0 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] rounded-lg" />
               {[
-                'top-0 left-0 border-t-2 border-l-2 rounded-tl-md',
-                'top-0 right-0 border-t-2 border-r-2 rounded-tr-md',
-                'bottom-0 left-0 border-b-2 border-l-2 rounded-bl-md',
-                'bottom-0 right-0 border-b-2 border-r-2 rounded-br-md',
+                'top-0 left-0 border-t-2 border-l-2 rounded-tl',
+                'top-0 right-0 border-t-2 border-r-2 rounded-tr',
+                'bottom-0 left-0 border-b-2 border-l-2 rounded-bl',
+                'bottom-0 right-0 border-b-2 border-r-2 rounded-br',
               ].map((cls, i) => (
-                <div key={i} className={`absolute w-6 h-6 border-orange-400 ${cls}`} />
+                <div key={i} className={`absolute w-5 h-5 border-orange-400 ${cls}`} />
               ))}
               {phase === 'checking' && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-6 h-6 border-2 border-orange-300 border-t-orange-500 rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-orange-300 border-t-orange-400 rounded-full animate-spin" />
                 </div>
               )}
             </div>
           </div>
         )}
 
+        {/* Status pill at bottom of camera */}
+        <div className="absolute bottom-3 left-0 right-0 flex justify-center pointer-events-none">
+          {phase === 'init' && (
+            <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full">
+              <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              Starting camera…
+            </div>
+          )}
+          {phase === 'scanning' && (
+            <div className="bg-black/50 backdrop-blur-sm text-white/80 text-xs px-3 py-1.5 rounded-full">
+              Point at a barcode
+            </div>
+          )}
+          {phase === 'checking' && (
+            <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full">
+              <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              Looking up…
+            </div>
+          )}
+          {phase === 'no_match' && noMatchName && (
+            <div className="flex items-center gap-1.5 bg-black/70 backdrop-blur-sm text-orange-300 text-xs px-3 py-1.5 rounded-full max-w-[80%]">
+              <AlertCircle size={12} className="flex-shrink-0" />
+              <span className="truncate">Not on list: {noMatchName}</span>
+            </div>
+          )}
+          {phase === 'error' && (
+            <div className="bg-red-900/80 text-red-200 text-xs px-3 py-1.5 rounded-full text-center max-w-[85%]">
+              {cameraError}
+            </div>
+          )}
+        </div>
+
+        {/* Close button */}
         <button onClick={handleClose}
-          className="absolute top-4 right-4 w-10 h-10 bg-black/40 backdrop-blur-sm text-white rounded-full flex items-center justify-center">
-          <X size={20} />
+          className="absolute top-3 right-3 w-9 h-9 bg-black/40 backdrop-blur-sm text-white rounded-full flex items-center justify-center">
+          <X size={18} />
         </button>
 
         {!supported && (
           <div className="absolute inset-0 flex items-center justify-center p-8">
-            <div className="bg-white rounded-2xl p-6 text-center max-w-xs shadow-lg">
+            <div className="bg-white rounded-2xl p-5 text-center max-w-xs shadow-lg">
               <p className="font-semibold text-orange-900 mb-2">Scanner not available</p>
-              <p className="text-sm text-orange-500">Barcode scanning requires Chrome or Edge. Try updating your browser or use a different device.</p>
+              <p className="text-sm text-orange-500">Barcode scanning requires Chrome or Edge. Try updating your browser or switch device.</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Bottom status panel */}
-      <div className="bg-white px-6 pt-5 pb-8 min-h-[140px] flex flex-col justify-center">
-        {phase === 'init' && (
-          <div className="flex items-center justify-center gap-2 text-orange-400">
-            <div className="w-4 h-4 border-2 border-orange-200 border-t-orange-400 rounded-full animate-spin" />
-            <span className="text-sm">Starting camera…</span>
-          </div>
+      {/* Pantry remainder banner (shown briefly after a match with leftover) */}
+      {flashItem?.pantryRemainder && (
+        <div className="flex items-center gap-2 bg-orange-50 border-b border-orange-100 px-4 py-2">
+          <Package size={13} className="text-orange-400 flex-shrink-0" />
+          <p className="text-xs text-orange-600">
+            <span className="font-medium">{flashItem.pantryRemainder.amount}</span> of {flashItem.pantryRemainder.name} left over — added to pantry
+          </p>
+        </div>
+      )}
+
+      {/* ── BOTTOM: Shopping list ────────────────────────────────────── */}
+      <div ref={listRef} className="flex-1 overflow-y-auto bg-white">
+        {uncheckedItems.length === 0 && checkedOffItems.length === 0 && (
+          <p className="text-center text-orange-400 text-sm py-8">Your shopping list is empty</p>
         )}
 
-        {phase === 'scanning' && (
-          <div className="text-center">
-            <p className="font-semibold text-orange-900 mb-1">Point at a barcode</p>
-            <p className="text-xs text-orange-400">Items on your list are checked off automatically</p>
-          </div>
-        )}
+        {uncheckedItems.map((item) => {
+          const isFlashing = flashItem?.name === item.name;
+          return (
+            <div key={item.name}
+              data-item={item.name}
+              className={`flex items-center gap-3 px-4 py-3.5 border-b border-orange-50 transition-colors duration-500 ${isFlashing ? 'bg-sage-50' : 'bg-white'}`}>
+              <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isFlashing ? 'bg-sage-500 border-sage-500' : 'border-orange-300'}`}>
+                {isFlashing && <Check size={13} className="text-white" />}
+              </div>
+              <span className={`text-sm capitalize transition-all duration-300 ${isFlashing ? 'line-through text-orange-400' : 'text-orange-900 font-medium'}`}>
+                {item.name}
+              </span>
+              {item.amount && (
+                <span className="ml-auto text-xs text-orange-400 flex-shrink-0">{item.amount}</span>
+              )}
+            </div>
+          );
+        })}
 
-        {phase === 'checking' && (
-          <div className="flex items-center justify-center gap-2 text-orange-500">
-            <div className="w-4 h-4 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-            <span className="text-sm">Looking up product…</span>
-          </div>
-        )}
-
-        {phase === 'matched' && result && (
-          <div>
-            <div className="flex items-start gap-3 mb-2">
-              <CheckCircle size={22} className="text-sage-500 flex-shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                {result.productName && (
-                  <p className="text-xs text-orange-400 truncate">{result.productName}</p>
+        {checkedOffItems.length > 0 && (
+          <>
+            <p className="text-[11px] font-semibold text-orange-300 uppercase tracking-wide px-4 pt-4 pb-2">In the basket</p>
+            {checkedOffItems.map((item) => (
+              <div key={item.name}
+                data-item={item.name}
+                className="flex items-center gap-3 px-4 py-3 border-b border-orange-50 bg-white opacity-50">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-orange-100 border-2 border-orange-200 flex items-center justify-center">
+                  <Check size={13} className="text-orange-400" />
+                </div>
+                <span className="text-sm capitalize line-through text-orange-400">{item.name}</span>
+                {item.amount && (
+                  <span className="ml-auto text-xs text-orange-300 flex-shrink-0">{item.amount}</span>
                 )}
-                <p className="font-semibold text-orange-900 capitalize">{result.item.name} checked off</p>
               </div>
-            </div>
-            {result.pantryRemainder && (
-              <div className="flex items-center gap-2 bg-orange-50 rounded-xl px-3 py-2 mb-2">
-                <Package size={14} className="text-orange-400 flex-shrink-0" />
-                <p className="text-xs text-orange-600">
-                  <span className="font-medium">{result.pantryRemainder.amount}</span> of {result.pantryRemainder.name} left over — added to your pantry
-                </p>
-              </div>
-            )}
-            <p className="text-xs text-orange-300 text-center">Ready for next item…</p>
-          </div>
+            ))}
+          </>
         )}
 
-        {phase === 'no_match' && result && (
-          <div>
-            <div className="flex items-start gap-3 mb-2">
-              <AlertCircle size={22} className="text-orange-300 flex-shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                <p className="text-xs text-orange-300 truncate">
-                  {result.productName || `Code: ${result.barcode}`}
-                </p>
-                <p className="font-semibold text-orange-700">Not on your list</p>
-              </div>
-            </div>
-            <p className="text-xs text-orange-300 text-center">Ready for next item…</p>
-          </div>
-        )}
-
-        {phase === 'error' && (
-          <p className="text-center text-sm text-red-400">{cameraError}</p>
-        )}
+        <div className="h-6" />
       </div>
     </div>
   );
