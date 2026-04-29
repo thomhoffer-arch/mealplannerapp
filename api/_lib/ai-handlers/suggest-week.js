@@ -55,7 +55,7 @@ async function _handler(req, res) {
   }
 
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }, { data: pantryData }] = await Promise.all([
-    supabase.from('household_preferences').select('preferences_text, meal_prep_mode, meal_prep_set_by_name, measurement_system').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_preferences').select('preferences_text, meal_prep_mode, meal_prep_set_by_name, measurement_system, diet_variety').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
@@ -67,6 +67,7 @@ async function _handler(req, res) {
   const preferences = prefData?.preferences_text || '';
   const mealPrepMode = prefData?.meal_prep_mode || false;
   const measurementSystem = prefData?.measurement_system || 'metric';
+  const dietVariety = prefData?.diet_variety || 'balanced';
   const starred = starredData || [];
   const members = membersData || [];
 
@@ -462,6 +463,14 @@ Cooking time — read the day and context:
 Dietary constraints:
   Absolute avoids (allergies, ethics, explicit dislikes) — exclude from every dish.
   Adaptive diets (gluten-free, dairy-free, vegan, etc.) — keep the dish concept, adapt the ingredients, name the adaptation in the title.
+
+VARIETY LEVEL — household preference: ${
+  dietVariety === 'familiar'
+    ? 'FAMILIAR. Lean toward dishes this household already knows and enjoys. Prioritise comfort food, well-known cuisines, and proven crowd-pleasers. Limit exotic or unfamiliar combinations.'
+    : dietVariety === 'adventurous'
+    ? 'ADVENTUROUS. Actively push into unfamiliar cuisines, bold flavour combinations, and dishes the household may not have tried before. Avoid defaulting to safe, well-known dishes unless directly requested.'
+    : 'BALANCED. A healthy mix of familiar favourites and new ideas — the default.'
+}
 
 Variety — applies across ALL meals chosen in the plan:
   Treat every dinner, breakfast, lunch, and snack as one unified weekly menu. No hero ingredient should appear in two meals close together — across all meal types, not just dinner vs dinner. Extras (breakfasts, lunches, snacks) must also be checked against each other: a hero ingredient used at breakfast cannot reappear at lunch the same day or at breakfast the following day.

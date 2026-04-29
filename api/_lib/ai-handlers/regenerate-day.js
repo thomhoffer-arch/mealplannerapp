@@ -21,6 +21,7 @@ export default async function handleRegenerateDay(req, res) {
     current_recipe_name,    // "Pasta carbonara"
     change_request,         // "too heavy, give me something lighter"
     other_days_names = [],  // Names of other days in the plan, to avoid collisions
+    rejected_names = [],    // Previously suggested recipes the user already rejected for this day
     meal_type,              // "breakfast" | "lunch" | undefined (= dinner)
     language = 'English',
   } = req.body || {};
@@ -47,16 +48,17 @@ export default async function handleRegenerateDay(req, res) {
   }
 
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }, { data: pantryData }] = await Promise.all([
-    supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_preferences').select('preferences_text, diet_variety').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
-      .order('added_at', { ascending: false }).limit(30),
+      .order('added_at', { ascending: false }).limit(45),
     supabase.from('household_members').select('display_name, personal_prefs').eq('household_id', ctx.householdId),
     supabase.from('pantry_items').select('name').eq('household_id', ctx.householdId),
   ]);
 
   const preferences = prefData?.preferences_text || '';
+  const dietVariety = prefData?.diet_variety || 'balanced';
   const starred = starredData || [];
 
   const starredMap = {};
@@ -81,6 +83,14 @@ export default async function handleRegenerateDay(req, res) {
     if (c.rating >= 4) loved.push(name);
     else if (c.rating <= 2) disliked.push(name);
   });
+
+  const _15days = 15 * 24 * 60 * 60 * 1000;
+  const _now = Date.now();
+  const recentNames = [...new Set(
+    (recentPlanData || [])
+      .filter((p) => p.recipe_data?.name && (_now - new Date(p.added_at).getTime()) < _15days)
+      .map((p) => p.recipe_data.name)
+  )];
 
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
   const membersSection = (membersData || [])
@@ -118,6 +128,7 @@ ${isMealType ? `Suggest a ${mealLabel} dish that:` : 'Replace the dish with some
 - satisfies the ${isMealType ? 'household context' : 'request'} above
 - still respects the rules below
 - doesn't duplicate what's already on other days this week: ${other_days_names.join(', ') || '(no other days specified)'}
+- is NOT any of these recipes already shown and rejected for ${day_name}: ${rejected_names.length ? rejected_names.join(', ') : '(none yet)'}
 
 RULES — ordered by priority:
 
@@ -141,7 +152,16 @@ P2. ADAPT OR ENHANCE — DON'T REPLACE. Two cases where you must keep the
 
 P3. COOKING TIME — ${timeRule} Respect this unless P1 overrides it.
 
-P4. NO DUPLICATION. Do not suggest a dish already on other days this week.
+P4. NO DUPLICATION. Do not suggest a dish already on other days this week, and do not
+    cycle back to any previously rejected recipe for this day: ${rejected_names.join(', ') || 'none'}.
+
+VARIETY LEVEL — household preference: ${
+  dietVariety === 'familiar'
+    ? 'FAMILIAR. Lean toward dishes this household already knows and enjoys. Prioritise comfort food and well-known cuisines.'
+    : dietVariety === 'adventurous'
+    ? 'ADVENTUROUS. Push into unfamiliar cuisines and bold combinations. Avoid defaulting to safe, well-known dishes unless directly requested.'
+    : 'BALANCED. A healthy mix of familiar and new — the default.'
+}
 
 HOUSEHOLD-LEVEL PREFERENCES:
 ${preferences || 'No specific preferences — be creative and varied.'}
@@ -151,6 +171,9 @@ ${membersSection || '  - (no individual preferences on file)'}
 
 STARRED RECIPES (reuse starred_id if one fits the request):
 ${starredList.map((r) => `  - starred_id: "${r.id}" | ${r.name}`).join('\n') || '  (none)'}
+
+RECENTLY EATEN (last 15 days — avoid repeating these):
+${recentNames.length ? `  ${recentNames.join(', ')}` : '  (no recent history)'}
 
 RATINGS HISTORY:
 ${loved.length ? `  LOVED: ${loved.slice(0, 10).join(', ')}` : '  (no high ratings yet)'}

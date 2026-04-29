@@ -95,6 +95,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [dayNotes, setDayNotes]         = useState(() => initialDayNotes || {});
   const [swapInput, setSwapInput]       = useState({});
   const [swappingKey, setSwappingKey]   = useState(null);
+  const [rejectedByDay, setRejectedByDay] = useState({});  // { "Monday": ["Pasta", "Stir Fry"] }
   const [thisWeekWishes, setThisWeekWishes] = useState(() => {
     // Pre-populate with any per-day hints set on the main week view
     const hints = Object.entries(initialDayNotes || {})
@@ -174,6 +175,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     setExpandedMeals({});
     setExcludedMeals(new Set());
     setSideDishPanel(null);
+    setRejectedByDay({});
     try {
       const data = await apiFetch('/api/ai/suggest-week', {
         method: 'POST',
@@ -241,18 +243,31 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     if (!request || swappingKey) return;
     setSwappingKey(key);
     try {
-      const otherDays = plan
+      const otherDaysFromPlan = plan
         .flatMap((w) => w.days)
         .filter((d) => d.day !== dayObj.day)
         .map((d) => d.recipe?.name)
         .filter(Boolean);
+      const otherDaysFromExisting = existingItems
+        .filter((i) => i.recipe_data?._plannedDay && i.recipe_data._plannedDay !== dayObj.day && i.recipe_data?.name)
+        .map((i) => i.recipe_data.name);
+      const otherDays = [...new Set([...otherDaysFromPlan, ...otherDaysFromExisting])];
+
+      const currentName = dayObj.recipe?.name || dayObj.name || '';
+      const alreadyRejected = rejectedByDay[dayObj.day] || [];
+      const rejectedNames = [...new Set([...alreadyRejected, currentName].filter(Boolean))];
+      if (currentName) {
+        setRejectedByDay((prev) => ({ ...prev, [dayObj.day]: rejectedNames }));
+      }
+
       const updated = await apiFetch('/api/ai/regenerate-day', {
         method: 'POST',
         body: {
           day_name: dayObj.day,
-          current_recipe_name: dayObj.recipe?.name || dayObj.name || '',
+          current_recipe_name: currentName,
           change_request: request,
           other_days_names: otherDays,
+          rejected_names: rejectedNames,
           language,
         },
       });

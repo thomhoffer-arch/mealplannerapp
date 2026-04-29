@@ -33,6 +33,8 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
   const [savingMealPrep, setSavingMealPrep] = useState(false);
   const [measurementSystem, setMeasurementSystem] = useState('metric');
   const [savingMeasurement, setSavingMeasurement] = useState(false);
+  const [dietVariety, setDietVariety] = useState('balanced');
+  const [savingDietVariety, setSavingDietVariety] = useState(false);
   const [extrasText, setExtrasText] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [keyError, setKeyError] = useState('');
@@ -71,6 +73,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
     setMealPrepMode(initialPrefs.meal_prep_mode || false);
     setMealPrepSetByName(initialPrefs.meal_prep_set_by_name || '');
     setMeasurementSystem(initialPrefs.measurement_system || 'metric');
+    setDietVariety(initialPrefs.diet_variety || 'balanced');
     setKeyHint(initialPrefs.gemini_api_key_hint || null);
     setPuterHint(initialPrefs.puter_token_hint || null);
   }, [initialPrefs]);
@@ -313,6 +316,44 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
                 <summary className="text-[11px] text-orange-400 cursor-pointer hover:text-orange-600 transition select-none">What's this?</summary>
                 <p className="text-xs text-orange-400 mt-1 leading-relaxed">Plan around batch cooking — 2–3 dishes cooked in large portions, eaten across the week. Overrides the standard "varied dish each day" rule.</p>
               </details>
+            </div>
+
+            {/* Diet variety */}
+            <div className="border-t border-orange-50 pt-3 space-y-2">
+              <div>
+                <p className="text-sm font-medium text-orange-900">Variety level</p>
+                <p className="text-xs text-orange-400">How adventurous the weekly plan should be</p>
+              </div>
+              <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl">
+                {[
+                  { value: 'familiar',    label: 'Familiar' },
+                  { value: 'balanced',    label: 'Balanced' },
+                  { value: 'adventurous', label: 'Adventurous' },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    disabled={savingDietVariety}
+                    onClick={async () => {
+                      if (value === dietVariety) return;
+                      setDietVariety(value);
+                      setSavingDietVariety(true);
+                      const { error } = await supabase.from('household_preferences').upsert(
+                        { household_id: household.id, diet_variety: value },
+                        { onConflict: 'household_id' }
+                      );
+                      setSavingDietVariety(false);
+                      if (!error) onPrefsChange?.({ diet_variety: value });
+                    }}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-xl transition disabled:opacity-50 ${
+                      value === dietVariety
+                        ? 'bg-white text-orange-900 shadow-warm'
+                        : 'text-orange-400 hover:text-orange-600'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           )}
