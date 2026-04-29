@@ -67,6 +67,27 @@ function ingredientBase(name) {
   return ci > 0 ? n.slice(0, ci).trim() : n;
 }
 
+// Grocery aisle categories for shopping list grouping.
+const INGREDIENT_CATEGORIES = [
+  { key: 'meat',       label: 'Meat & Poultry',   re: /\b(chicken|beef|pork|lamb|turkey|duck|veal|mince|minced|steak|fillet|breast|thigh|drumstick|wing|ribs|brisket|loin|chop|sausage|sausages|bacon|ham|pancetta|prosciutto|chorizo|salami|pepperoni|lardons|venison|rabbit)\b/i },
+  { key: 'fish',       label: 'Fish & Seafood',    re: /\b(salmon|tuna|cod|haddock|trout|mackerel|sardine|anchovy|halibut|sea bass|bream|plaice|tilapia|snapper|fish|seafood|prawn|prawns|shrimp|lobster|crab|scallop|mussel|clam|oyster|squid|octopus)\b/i },
+  { key: 'produce',    label: 'Fruit & Veg',       re: /\b(onion|onions|garlic|tomato|tomatoes|potato|potatoes|carrot|carrots|celery|broccoli|cauliflower|spinach|kale|lettuce|cabbage|leek|fennel|zucchini|courgette|aubergine|eggplant|pepper|peppers|capsicum|mushroom|asparagus|artichoke|cucumber|beetroot|turnip|parsnip|radish|rocket|arugula|chard|peas|corn|sweetcorn|avocado|apple|banana|orange|lemon|lemons|lime|limes|strawberr|blueberr|raspberr|blackberr|cherry|grape|mango|papaya|pineapple|peach|nectarine|plum|pear|melon|grapefruit|kiwi|fig|date|pomegranate|shallot|spring onion|scallion|chilli|chili|jalape|coriander|cilantro|parsley|basil|mint|dill|chive|herbs)\b/i },
+  { key: 'dairy',      label: 'Dairy & Eggs',      re: /\b(milk|cream|butter|cheese|yogurt|yoghurt|egg|eggs|cheddar|mozzarella|parmesan|feta|brie|camembert|gouda|ricotta|mascarpone|crème fraîche|creme fraiche|sour cream|ghee|kefir|quark)\b/i },
+  { key: 'bread',      label: 'Bread & Bakery',    re: /\b(bread|loaf|baguette|roll|rolls|pitta|pita|naan|wrap|tortilla|bagel|croissant|brioche|sourdough|flatbread|crumpet)\b/i },
+  { key: 'grains',     label: 'Pasta, Rice & Grains', re: /\b(pasta|spaghetti|penne|rigatoni|fettuccine|tagliatelle|lasagne|lasagna|noodle|noodles|rice|basmati|jasmine|arborio|couscous|quinoa|bulgur|polenta|oats|barley|freekeh|farro|spelt|semolina|flour|cornflour|breadcrumb)\b/i },
+  { key: 'tins',       label: 'Tins & Cans',       re: /\b(canned|tinned|passata|tomato purée|tomato puree|tomato paste|tomato sauce|stock|broth|chickpeas|lentils|kidney beans|black beans|cannellini|butter beans|baked beans|coconut milk|coconut cream)\b/i },
+  { key: 'condiments', label: 'Oils & Condiments', re: /\b(oil|vinegar|soy sauce|fish sauce|worcestershire|hot sauce|ketchup|mustard|mayonnaise|mayo|honey|maple syrup|tahini|miso|oyster sauce|hoisin|teriyaki|sriracha|pesto|harissa|jam|marmalade)\b/i },
+  { key: 'spices',     label: 'Spices & Seasoning', re: /\b(cumin|coriander seed|paprika|turmeric|ginger powder|cinnamon|nutmeg|cardamom|star anise|allspice|cayenne|chilli powder|chili powder|oregano|thyme|rosemary|bay leaves|tarragon|mixed spice|curry powder|garam masala|ras el hanout|za.atar|sumac|salt|pepper|black pepper|sea salt)\b/i },
+];
+
+function getIngredientCategory(name) {
+  const base = ingredientBase(name);
+  for (const cat of INGREDIENT_CATEGORIES) {
+    if (cat.re.test(base)) return cat.key;
+  }
+  return 'other';
+}
+
 function pantryMatchesItem(pantryName, itemName) {
   const p = ingredientBase(pantryName);
   const i = ingredientBase(itemName);
@@ -1144,6 +1165,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('mp:activeTab') || "week");
   const [basketSection, setBasketSection] = useState("shopping");
+  const [listSortMode, setListSortMode] = useState(() => localStorage.getItem('mp:listSortMode') || 'name');
   const [householdMembers, setHouseholdMembers] = useState([]);
   useEffect(() => { householdMembersRef.current = householdMembers; }, [householdMembers]);
   const [editingHouseholdName, setEditingHouseholdName] = useState(false);
@@ -4371,13 +4393,24 @@ export default function App() {
                   </div>
                 )}
 
+                {/* Sort toggle */}
+                <div className="flex gap-1 p-1 bg-orange-50 rounded-2xl mb-3">
+                  {[{ value: 'name', label: 'A–Z' }, { value: 'category', label: 'Category' }].map(({ value, label }) => (
+                    <button key={value} onClick={() => { setListSortMode(value); localStorage.setItem('mp:listSortMode', value); }}
+                      className={`flex-1 py-1.5 text-xs font-medium rounded-xl transition ${listSortMode === value ? 'bg-white text-orange-900 shadow-warm' : 'text-orange-400 hover:text-orange-600'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
                 {(() => {
                   const listExtras = (customIngredients['__list__'] || []).map((e) => ({
                     name: e.name, amount: e.amount || '', isCustom: true, isListExtra: true, listExtraId: e.id, inPantry: false,
                   }));
                   const fullList = [...shoppingList, ...listExtras];
-                  const unchecked = fullList.filter((i) => !checkedItems[i.name] || checkAnimating[i.name]).sort((a, b) => a.name.localeCompare(b.name));
-                  const checked   = fullList.filter((i) =>  checkedItems[i.name] && !checkAnimating[i.name]).sort((a, b) => a.name.localeCompare(b.name));
+                  const byName = (a, b) => a.name.localeCompare(b.name);
+                  const unchecked = fullList.filter((i) => !checkedItems[i.name] || checkAnimating[i.name]).sort(byName);
+                  const checked   = fullList.filter((i) =>  checkedItems[i.name] && !checkAnimating[i.name]).sort(byName);
                   const handleCheckToggle = (name) => {
                     if (!checkedItems[name]) {
                       setCheckAnimating((prev) => ({ ...prev, [name]: 'enlarging' }));
@@ -4425,11 +4458,37 @@ export default function App() {
                       </div>
                     );
                   };
-                  return (
-                    <>
+                  const renderUnchecked = () => {
+                    if (listSortMode === 'category') {
+                      const catOrder = [...INGREDIENT_CATEGORIES.map((c) => c.key), 'other'];
+                      const groups = {};
+                      unchecked.forEach((item) => {
+                        const k = getIngredientCategory(item.name);
+                        (groups[k] = groups[k] || []).push(item);
+                      });
+                      return catOrder
+                        .filter((k) => groups[k]?.length)
+                        .map((k) => {
+                          const label = INGREDIENT_CATEGORIES.find((c) => c.key === k)?.label || 'Other';
+                          return (
+                            <div key={k} className="mb-3">
+                              <p className="text-[11px] font-semibold text-orange-400 uppercase tracking-wide px-1 mb-1.5">{label}</p>
+                              <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+                                {groups[k].map(renderRow)}
+                              </div>
+                            </div>
+                          );
+                        });
+                    }
+                    return (
                       <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
                         {unchecked.map(renderRow)}
                       </div>
+                    );
+                  };
+                  return (
+                    <>
+                      {renderUnchecked()}
                       {checked.length > 0 && (
                         <div className="mt-3">
                           <p className="text-[11px] font-semibold text-orange-400 uppercase tracking-wide px-1 mb-1.5">In the basket</p>
