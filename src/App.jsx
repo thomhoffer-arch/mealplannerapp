@@ -4025,9 +4025,10 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* Daily macro progress bars (premium, when tracking enabled) */}
+                          {/* Daily macro display + personal tracker (premium) */}
                           {macroTrackingEnabled && !!(weeklyUsage?.unlimited) && !isNotAtHome && !isEatingOut && allDayItems.length > 0 && (() => {
-                            const dayMacros = allDayItems.reduce((acc, item) => {
+                            // Layer 2: full recipe macros for the day
+                            const totalMacros = allDayItems.reduce((acc, item) => {
                               const m = item.recipe_data?.macros || {};
                               return {
                                 calories: acc.calories + (m.calories || 0),
@@ -4036,7 +4037,18 @@ export default function App() {
                                 fat:      acc.fat      + (m.fat      || 0),
                               };
                             }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
-                            const hasMacroData = dayMacros.calories > 0 || dayMacros.protein > 0;
+                            // Layer 3: per-person macros (total ÷ servings) for personal target tracking
+                            const personalMacros = allDayItems.reduce((acc, item) => {
+                              const m = item.recipe_data?.macros || {};
+                              const s = item.recipe_data?.servings || 1;
+                              return {
+                                calories: acc.calories + (m.calories || 0) / s,
+                                protein:  acc.protein  + (m.protein  || 0) / s,
+                                carbs:    acc.carbs    + (m.carbs    || 0) / s,
+                                fat:      acc.fat      + (m.fat      || 0) / s,
+                              };
+                            }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+                            const hasMacroData = totalMacros.calories > 0 || totalMacros.protein > 0;
                             if (!hasMacroData) return null;
                             const bars = [
                               { key: 'calories', label: 'Cal',  unit: 'kcal', color: 'bg-orange-400' },
@@ -4044,26 +4056,34 @@ export default function App() {
                               { key: 'carbs',    label: 'Carb', unit: 'g',    color: 'bg-amber-400' },
                               { key: 'fat',      label: 'Fat',  unit: 'g',    color: 'bg-orange-300' },
                             ];
+                            const hasTargets = Object.values(macroTargets).some(Boolean);
                             return (
                               <div className="px-4 pb-3 pt-1 border-t border-orange-50">
                                 <div className="grid grid-cols-4 gap-2">
                                   {bars.map(({ key, label, unit, color }) => {
-                                    const val = Math.round(dayMacros[key]);
+                                    const total = Math.round(totalMacros[key]);
+                                    const personal = Math.round(personalMacros[key]);
                                     const target = macroTargets[key];
-                                    const pct = target ? Math.min(100, (val / target) * 100) : null;
-                                    const over = target && val > target;
+                                    const pct = target ? Math.min(100, (personal / target) * 100) : null;
+                                    const over = target && personal > target;
                                     return (
                                       <div key={key} className="flex flex-col gap-0.5">
                                         <div className="flex items-baseline justify-between">
                                           <span className="text-[10px] font-bold text-orange-400 uppercase">{label}</span>
-                                          <span className={`text-[10px] font-medium ${over ? 'text-red-400' : 'text-orange-600'}`}>{val}{unit === 'g' ? 'g' : ''}</span>
+                                          <span className="text-[10px] font-medium text-orange-600">{total}{unit === 'g' ? 'g' : ''}</span>
                                         </div>
-                                        {pct !== null && (
-                                          <div className="w-full bg-orange-100 rounded-full h-1">
-                                            <div className={`h-1 rounded-full transition-all ${over ? 'bg-red-400' : color}`} style={{ width: `${pct}%` }} />
-                                          </div>
+                                        {hasTargets && (
+                                          <>
+                                            {pct !== null && (
+                                              <div className="w-full bg-orange-100 rounded-full h-1">
+                                                <div className={`h-1 rounded-full transition-all ${over ? 'bg-red-400' : color}`} style={{ width: `${pct}%` }} />
+                                              </div>
+                                            )}
+                                            <span className={`text-[9px] ${over ? 'text-red-400' : 'text-orange-300'}`}>
+                                              {personal}{unit === 'g' ? 'g' : ''}{target ? ` / ${target}${unit === 'g' ? 'g' : ''}` : ''}
+                                            </span>
+                                          </>
                                         )}
-                                        {target && <span className="text-[9px] text-orange-300">/ {target}{unit === 'g' ? 'g' : ''}</span>}
                                       </div>
                                     );
                                   })}
