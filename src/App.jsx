@@ -472,13 +472,22 @@ function consolidateIngredients(selectedRecipes, customIngredients, measurementS
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+// Safely parse macro values — the AI sometimes returns strings like "26g" instead of 26.
+function parseMacro(v) {
+  if (v == null) return 0;
+  if (typeof v === 'number') return isNaN(v) ? 0 : v;
+  const n = parseFloat(String(v));
+  return isNaN(n) ? 0 : n;
+}
+
 function WeeklyNutritionCard({ recipes }) {
   const totals = recipes.reduce(
     (acc, r) => {
-      acc.calories += (r.macros?.calories || 0);
-      acc.protein  += (r.macros?.protein  || 0);
-      acc.carbs    += (r.macros?.carbs    || 0);
-      acc.fat      += (r.macros?.fat      || 0);
+      acc.calories += parseMacro(r.macros?.calories);
+      acc.protein  += parseMacro(r.macros?.protein);
+      acc.carbs    += parseMacro(r.macros?.carbs);
+      acc.fat      += parseMacro(r.macros?.fat);
       return acc;
     },
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
@@ -733,10 +742,10 @@ function SelectedRecipeCard({
             {(recipe.macros?.calories || recipe.macros?.protein) && (
               <div className="grid grid-cols-4 gap-2">
                 {[
-                  { label: "Cal",      value: recipe.macros?.calories, unit: "" },
-                  { label: "Protein",  value: recipe.macros?.protein,  unit: "g" },
-                  { label: "Carbs",    value: recipe.macros?.carbs,    unit: "g" },
-                  { label: "Fat",      value: recipe.macros?.fat,      unit: "g" },
+                  { label: "Cal",      value: parseMacro(recipe.macros?.calories), unit: "" },
+                  { label: "Protein",  value: parseMacro(recipe.macros?.protein),  unit: "g" },
+                  { label: "Carbs",    value: parseMacro(recipe.macros?.carbs),    unit: "g" },
+                  { label: "Fat",      value: parseMacro(recipe.macros?.fat),      unit: "g" },
                 ].map(({ label, value, unit }) => (
                   <div key={label} className="bg-orange-50 rounded-[10px] p-2 text-center">
                     <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>
@@ -950,10 +959,10 @@ function SelectedRecipeCard({
             <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Nutrition (per serving)</p>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: "Calories",  value: recipe.macros?.calories,  unit: "" },
-                { label: "Protein",   value: recipe.macros?.protein,   unit: "g" },
-                { label: "Carbs",     value: recipe.macros?.carbs,     unit: "g" },
-                { label: "Fat",       value: recipe.macros?.fat,       unit: "g" },
+                { label: "Calories",  value: parseMacro(recipe.macros?.calories),  unit: "" },
+                { label: "Protein",   value: parseMacro(recipe.macros?.protein),   unit: "g" },
+                { label: "Carbs",     value: parseMacro(recipe.macros?.carbs),     unit: "g" },
+                { label: "Fat",       value: parseMacro(recipe.macros?.fat),       unit: "g" },
               ].map(({ label, value, unit }) => (
                 <div key={label} className="bg-orange-50 rounded-[10px] p-2 text-center">
                   <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>
@@ -4105,10 +4114,10 @@ export default function App() {
                             const totalMacros = allDayItems.reduce((acc, item) => {
                               const m = item.recipe_data?.macros || {};
                               return {
-                                calories: acc.calories + (m.calories || 0),
-                                protein:  acc.protein  + (m.protein  || 0),
-                                carbs:    acc.carbs    + (m.carbs    || 0),
-                                fat:      acc.fat      + (m.fat      || 0),
+                                calories: acc.calories + parseMacro(m.calories),
+                                protein:  acc.protein  + parseMacro(m.protein),
+                                carbs:    acc.carbs    + parseMacro(m.carbs),
+                                fat:      acc.fat      + parseMacro(m.fat),
                               };
                             }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
                             // Layer 3: per-person macros (total ÷ servings) for personal target tracking
@@ -4116,10 +4125,10 @@ export default function App() {
                               const m = item.recipe_data?.macros || {};
                               const s = item.recipe_data?.servings || 1;
                               return {
-                                calories: acc.calories + (m.calories || 0) / s,
-                                protein:  acc.protein  + (m.protein  || 0) / s,
-                                carbs:    acc.carbs    + (m.carbs    || 0) / s,
-                                fat:      acc.fat      + (m.fat      || 0) / s,
+                                calories: acc.calories + parseMacro(m.calories) / s,
+                                protein:  acc.protein  + parseMacro(m.protein)  / s,
+                                carbs:    acc.carbs    + parseMacro(m.carbs)    / s,
+                                fat:      acc.fat      + parseMacro(m.fat)      / s,
                               };
                             }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
                             const hasMacroData = totalMacros.calories > 0 || totalMacros.protein > 0;
