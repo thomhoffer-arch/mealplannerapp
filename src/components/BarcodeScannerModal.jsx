@@ -3,10 +3,21 @@ import { X, Check, AlertCircle, Package, ScanLine } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 
 const OFF_URL = (code) =>
-  `https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,product_name_en,generic_name,quantity,product_quantity`;
+  `https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,product_name_en,product_name_nl,product_name_de,product_name_fr,product_name_es,product_name_it,product_name_pt,generic_name,quantity,product_quantity`;
 
-function getProductName(p) {
-  return p?.product_name_en || p?.product_name || p?.generic_name || null;
+function getProductNames(p) {
+  const names = [
+    p?.product_name_en,
+    p?.product_name_nl,
+    p?.product_name_de,
+    p?.product_name_fr,
+    p?.product_name_es,
+    p?.product_name_it,
+    p?.product_name_pt,
+    p?.product_name,
+    p?.generic_name,
+  ].filter(Boolean);
+  return [...new Set(names)];
 }
 
 function parseAmount(str) {
@@ -77,7 +88,7 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
       setFlashItem(null);
       setNoMatchLabel(null);
 
-      let productName = null, productQuantityStr = null, productQuantityG = null;
+      let productNames = [], productQuantityStr = null, productQuantityG = null;
       try {
         const ctrl = new AbortController();
         const tid = setTimeout(() => ctrl.abort(), 6000);
@@ -85,7 +96,7 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
         clearTimeout(tid);
         const json = await res.json();
         if (json.status === 1) {
-          productName = getProductName(json.product);
+          productNames = getProductNames(json.product);
           productQuantityStr = json.product?.quantity || null;
           productQuantityG = json.product?.product_quantity != null ? parseFloat(json.product.product_quantity) : null;
         }
@@ -94,7 +105,12 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
       if (cancelledRef.current) return;
 
       const unchecked = shoppingItemsRef.current.filter((i) => !checkedItemsRef.current[i.name] && !i.inPantry);
-      const matched = productName ? matchToItem(productName, unchecked) : null;
+      // Try each language variant until one matches
+      let matched = null;
+      for (const name of productNames) {
+        matched = matchToItem(name, unchecked);
+        if (matched) break;
+      }
 
       let pantryRemainder = null;
       if (matched?.amount) {
@@ -114,7 +130,7 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
           el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }, 50);
       } else {
-        setNoMatchLabel(productName || barcodeValue);
+        setNoMatchLabel(productNames[0] || barcodeValue);
         setPhase('no_match');
       }
 
@@ -167,57 +183,58 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
 
-      {/* ── Compact camera bar ────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-3 py-2 bg-orange-900 flex-shrink-0">
-        {/* Tiny camera preview */}
-        <div className="relative flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden bg-black">
-          <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
-          {/* Viewfinder lines */}
-          {(phase === 'scanning' || phase === 'checking') && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              {['top-0 left-0 border-t border-l','top-0 right-0 border-t border-r',
-                'bottom-0 left-0 border-b border-l','bottom-0 right-0 border-b border-r'].map((cls, i) => (
-                <div key={i} className={`absolute w-2.5 h-2.5 border-orange-400 ${cls}`} />
-              ))}
-            </div>
-          )}
-        </div>
+      {/* ── Camera strip (full-width) ─────────────────────────────────── */}
+      <div className="relative flex-shrink-0 w-full h-48 bg-black">
+        <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
 
-        {/* Status text */}
-        <div className="flex-1 min-w-0">
+        {/* Viewfinder corners */}
+        {(phase === 'scanning' || phase === 'checking') && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            {['top-8 left-8 border-t-2 border-l-2','top-8 right-8 border-t-2 border-r-2',
+              'bottom-8 left-8 border-b-2 border-l-2','bottom-8 right-8 border-b-2 border-r-2'].map((cls, i) => (
+              <div key={i} className={`absolute w-6 h-6 border-orange-400 ${cls}`} />
+            ))}
+          </div>
+        )}
+
+        {/* Close button — top right */}
+        <button onClick={handleClose}
+          className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center text-white/80 hover:text-white bg-black/40 hover:bg-black/60 rounded-full transition">
+          <X size={18} />
+        </button>
+
+        {/* Status pill — bottom */}
+        <div className="absolute bottom-3 left-0 right-0 flex justify-center pointer-events-none">
           {phase === 'init' && (
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 border-2 border-orange-300/40 border-t-orange-300 rounded-full animate-spin flex-shrink-0" />
-              <span className="text-xs text-orange-300">Starting camera…</span>
+            <div className="flex items-center gap-2 bg-black/50 rounded-full px-3 py-1.5">
+              <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin flex-shrink-0" />
+              <span className="text-xs text-white/80">Starting camera…</span>
             </div>
           )}
           {phase === 'scanning' && (
-            <div className="flex items-center gap-1.5">
-              <ScanLine size={13} className="text-orange-400 flex-shrink-0" />
-              <span className="text-xs text-orange-200">Scanning — point at a barcode</span>
+            <div className="flex items-center gap-2 bg-black/50 rounded-full px-3 py-1.5">
+              <ScanLine size={13} className="text-orange-300 flex-shrink-0" />
+              <span className="text-xs text-white/80">Point at a barcode</span>
             </div>
           )}
           {phase === 'checking' && (
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 border-2 border-orange-300/40 border-t-orange-300 rounded-full animate-spin flex-shrink-0" />
-              <span className="text-xs text-orange-200">Looking up product…</span>
+            <div className="flex items-center gap-2 bg-black/50 rounded-full px-3 py-1.5">
+              <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin flex-shrink-0" />
+              <span className="text-xs text-white/80">Looking up product…</span>
             </div>
           )}
           {phase === 'no_match' && noMatchLabel && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2 bg-black/60 rounded-full px-3 py-1.5 max-w-[80%]">
               <AlertCircle size={13} className="text-orange-400 flex-shrink-0" />
               <span className="text-xs text-orange-300 truncate">Not on list: {noMatchLabel}</span>
             </div>
           )}
           {phase === 'error' && (
-            <span className="text-xs text-red-300">{cameraError}</span>
+            <div className="flex items-center gap-2 bg-black/60 rounded-full px-3 py-1.5 max-w-[80%]">
+              <span className="text-xs text-red-300">{cameraError}</span>
+            </div>
           )}
         </div>
-
-        <button onClick={handleClose}
-          className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-orange-300 hover:text-white transition rounded-full hover:bg-white/10">
-          <X size={18} />
-        </button>
       </div>
 
       {/* Pantry remainder banner */}
