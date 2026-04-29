@@ -44,13 +44,23 @@ function formatRemainder(prod, needed) {
     : `${Math.round(rem)} ${u}`;
 }
 
+// Words that describe preparation/freshness/size — not the ingredient itself.
+// Stripping these lets "fresh spinach" match a product labelled just "spinach".
+const DESCRIPTOR_WORDS = new Set([
+  'fresh', 'frozen', 'dried', 'smoked', 'cooked', 'raw',
+  'baby', 'organic', 'natural', 'extra',
+  'chopped', 'sliced', 'diced', 'halved', 'peeled',
+  'boneless', 'skinless', 'lean', 'plain',
+]);
+
 function matchToItem(productName, items) {
   const pn = productName.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   const pnWords = pn.split(' ').filter((w) => w.length > 2);
   let best = null, bestScore = 0;
   for (const item of items) {
     const base = item.name.toLowerCase().replace(/,.*$/, '').trim();
-    const bw = base.split(/\s+/).filter((w) => w.length > 2);
+    // Strip descriptor words so "fresh spinach" → ["spinach"] for matching
+    const bw = base.split(/\s+/).filter((w) => w.length > 2 && !DESCRIPTOR_WORDS.has(w));
     if (!bw.length) continue;
     const hit = bw.filter((w) => pnWords.some((pw) => pw === w || pw.startsWith(w) || w.startsWith(pw)));
     if (hit.length === bw.length && bw.length > bestScore) { bestScore = bw.length; best = item; }
