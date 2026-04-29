@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Check, AlertCircle, Package, ScanLine } from 'lucide-react';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 
 const OFF_URL = (code) =>
   `https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,product_name_en,generic_name,quantity,product_quantity`;
@@ -48,9 +49,7 @@ function matchToItem(productName, items) {
 
 export default function BarcodeScannerModal({ shoppingItems, checkedItems, onCheckOff, onAddToPantry, onClose }) {
   const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const detectorRef = useRef(null);
-  const rafRef = useRef(null);
+  const controlsRef = useRef(null);
   const coolingRef = useRef(false);
   const cancelledRef = useRef(false);
   const listRef = useRef(null);
@@ -66,34 +65,13 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
 
   const [phase, setPhase] = useState('init'); // init | scanning | checking | no_match | error
   const [cameraError, setCameraError] = useState(null);
-  const [flashItem, setFlashItem] = useState(null);   // { name, pantryRemainder }
+  const [flashItem, setFlashItem] = useState(null);
   const [noMatchLabel, setNoMatchLabel] = useState(null);
 
-  const supported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
-
   useEffect(() => {
-    if (!supported) return;
+    const codeReader = new BrowserMultiFormatReader();
 
-    async function scan() {
-      if (cancelledRef.current) return;
-      const video = videoRef.current;
-      const det = detectorRef.current;
-      if (!video || !det || video.readyState < 2 || coolingRef.current) {
-        rafRef.current = requestAnimationFrame(scan);
-        return;
-      }
-      try {
-        const codes = await det.detect(video);
-        if (codes.length > 0 && !coolingRef.current) {
-          coolingRef.current = true;
-          handleBarcode(codes[0].rawValue, scan);
-          return;
-        }
-      } catch {}
-      rafRef.current = requestAnimationFrame(scan);
-    }
-
-    async function handleBarcode(barcode, scan) {
+    async function handleBarcode(barcodeValue) {
       if (cancelledRef.current) return;
       setPhase('checking');
       setFlashItem(null);
@@ -103,7 +81,7 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
       try {
         const ctrl = new AbortController();
         const tid = setTimeout(() => ctrl.abort(), 6000);
-        const res = await fetch(OFF_URL(barcode), { signal: ctrl.signal });
+        const res = await fetch(OFF_URL(barcodeValue), { signal: ctrl.signal });
         clearTimeout(tid);
         const json = await res.json();
         if (json.status === 1) {
@@ -136,7 +114,7 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
           el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }, 50);
       } else {
-        setNoMatchLabel(productName || barcode);
+        setNoMatchLabel(productName || barcodeValue);
         setPhase('no_match');
       }
 
@@ -146,21 +124,21 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
         setFlashItem(null);
         setNoMatchLabel(null);
         setPhase('scanning');
-        rafRef.current = requestAnimationFrame(scan);
       }, 2500);
     }
 
     (async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-        });
-        if (cancelledRef.current) { stream.getTracks().forEach((t) => t.stop()); return; }
-        streamRef.current = stream;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        detectorRef.current = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'] });
-        if (!cancelledRef.current) { setPhase('scanning'); rafRef.current = requestAnimationFrame(scan); }
+        controlsRef.current = await codeReader.decodeFromConstraints(
+          { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } } },
+          videoRef.current,
+          (result) => {
+            if (!result || coolingRef.current || cancelledRef.current) return;
+            coolingRef.current = true;
+            handleBarcode(result.getText());
+          }
+        );
+        if (!cancelledRef.current) setPhase('scanning');
       } catch (err) {
         if (!cancelledRef.current) {
           setCameraError(err.name === 'NotAllowedError'
@@ -173,15 +151,13 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
 
     return () => {
       cancelledRef.current = true;
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      controlsRef.current?.stop();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleClose() {
     cancelledRef.current = true;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    controlsRef.current?.stop();
     onClose();
   }
 
@@ -195,9 +171,7 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
       <div className="flex items-center gap-3 px-3 py-2 bg-orange-900 flex-shrink-0">
         {/* Tiny camera preview */}
         <div className="relative flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden bg-black">
-          {supported && (
-            <video ref={videoRef} className="w-full h-full object-cover" muted playsInline autoPlay />
-          )}
+          <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
           {/* Viewfinder lines */}
           {(phase === 'scanning' || phase === 'checking') && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -237,9 +211,6 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
           )}
           {phase === 'error' && (
             <span className="text-xs text-red-300">{cameraError}</span>
-          )}
-          {!supported && (
-            <span className="text-xs text-red-300">Scanner needs Chrome or Edge</span>
           )}
         </div>
 
