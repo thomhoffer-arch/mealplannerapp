@@ -3762,9 +3762,13 @@ export default function App() {
                       </button>
                     )}
                     <button onClick={() => setShowWeekSuggest(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white rounded-full text-xs font-semibold hover:bg-orange-600 transition shadow-warm">
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition ${
+                        viewItems.length > 0
+                          ? 'border border-dashed border-orange-200 text-orange-400 hover:border-orange-400 hover:text-orange-600'
+                          : 'bg-orange-500 text-white font-semibold hover:bg-orange-600 shadow-warm'
+                      }`}>
                       <Sparkles size={13} />
-                      {viewItems.length > 0 ? 'Replan' : 'Plan week'}
+                      {viewItems.length > 0 ? 'Replan' : 'Plan the week'}
                     </button>
                   </div>
                 </div>
