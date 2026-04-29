@@ -48,7 +48,7 @@ export default async function handleRegenerateDay(req, res) {
   }
 
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }, { data: pantryData }] = await Promise.all([
-    supabase.from('household_preferences').select('preferences_text, diet_variety').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_preferences').select('preferences_text, plan_extras_text, diet_variety, meal_prep_mode').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
@@ -58,7 +58,9 @@ export default async function handleRegenerateDay(req, res) {
   ]);
 
   const preferences = prefData?.preferences_text || '';
+  const planExtras = prefData?.plan_extras_text || '';
   const dietVariety = prefData?.diet_variety || 'balanced';
+  const mealPrepMode = prefData?.meal_prep_mode || false;
   const starred = starredData || [];
 
   const starredMap = {};
@@ -152,7 +154,7 @@ P2. ADAPT OR ENHANCE — DON'T REPLACE. Two cases where you must keep the
        the dish concept, reformulate the ingredients, and name the adaptation
        explicitly in the title.
 
-P3. COOKING TIME — ${timeRule} Respect this unless P1 overrides it.
+P3. COOKING TIME — If HOUSEHOLD-LEVEL PREFERENCES or STANDING INSTRUCTIONS below state a time limit, that takes priority. Otherwise: ${timeRule}
 
 P4. NO DUPLICATION AND NO PROTEIN REPEAT. Do not suggest a dish already on other days
     this week. Do not cycle back to any previously rejected recipe for this day: ${rejected_names.join(', ') || 'none'}.
@@ -168,6 +170,9 @@ VARIETY LEVEL — household preference: ${
 
 HOUSEHOLD-LEVEL PREFERENCES:
 ${preferences || 'No specific preferences — be creative and varied.'}
+${mealPrepMode ? '\nMEAL PREP MODE: This household batch-cooks — favour dishes that keep well and scale easily.' : ''}
+STANDING INSTRUCTIONS (always apply, every suggestion):
+${planExtras || '  (none)'}
 
 WHO'S EATING:
 ${membersSection || '  - (no individual preferences on file)'}
