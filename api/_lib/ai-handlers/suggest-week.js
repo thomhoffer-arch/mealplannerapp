@@ -473,11 +473,12 @@ VARIETY LEVEL — household preference: ${
 }
 
 Variety — applies across ALL meals chosen in the plan:
-  Treat every dinner, breakfast, lunch, and snack as one unified weekly menu. No hero ingredient should appear in two meals close together — across all meal types, not just dinner vs dinner. Extras (breakfasts, lunches, snacks) must also be checked against each other: a hero ingredient used at breakfast cannot reappear at lunch the same day or at breakfast the following day.
-  Examples of hero ingredients: eggs, chicken, beef, salmon, pasta, lentils, tofu, shrimp, pork.
-  A dinner and an extra on the same day must be meaningfully different from each other.
+  Treat every dinner, breakfast, lunch, and snack as one unified weekly menu.
+  For every dish, identify its hero ingredient — the star the home cook would name first (the main protein, or the main starchy base if there is no dominant protein). Each hero ingredient may appear in at most one dinner per week. This is a hard constraint: if Monday's dinner is built around chicken, no other dinner this week may feature chicken as its hero. Apply the same rule to every other hero ingredient across the plan.
+  Extras (breakfasts, lunches, snacks) follow the same logic: a hero ingredient used at breakfast may not reappear at lunch the same day or at breakfast the following day. A dinner and a same-day extra must be meaningfully different from each other.
   Vary cuisines across the week. Spread themed days (fish, vegetarian, etc.) naturally.
-  Cross-week variety: the RECENTLY EATEN section above shows what was served recently. A plan that closely mirrors last week (same dishes, same cuisine run, same protein sequence) is a failure even if no single dish is a direct repeat. Each week should feel meaningfully different from the previous one.
+  SELF-CHECK: Before finalising, name the hero ingredient of each planned dinner. If any hero ingredient appears more than once, replace the duplicate with a dish whose hero ingredient hasn't been used yet.
+  Cross-week variety: the RECENTLY EATEN section above shows what was served recently. A plan that closely mirrors last week (same dishes, same cuisine run, same hero-ingredient sequence) is a failure even if no single dish is a direct repeat. Each week should feel meaningfully different from the previous one.
 
 Starred recipes:
   HIGH-priority starred recipes should appear in week 1. Respect rotation priorities.
