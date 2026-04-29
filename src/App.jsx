@@ -4051,16 +4051,16 @@ export default function App() {
                             const hasMacroData = totalMacros.calories > 0 || totalMacros.protein > 0;
                             if (!hasMacroData) return null;
                             const bars = [
-                              { key: 'calories', label: 'Cal',  unit: 'kcal', color: 'bg-orange-400' },
-                              { key: 'protein',  label: 'Pro',  unit: 'g',    color: 'bg-sage-500' },
-                              { key: 'carbs',    label: 'Carb', unit: 'g',    color: 'bg-amber-400' },
-                              { key: 'fat',      label: 'Fat',  unit: 'g',    color: 'bg-orange-300' },
+                              { key: 'calories', label: 'Cal',  unit: 'kcal' },
+                              { key: 'protein',  label: 'Pro',  unit: 'g'    },
+                              { key: 'carbs',    label: 'Carb', unit: 'g'    },
+                              { key: 'fat',      label: 'Fat',  unit: 'g'    },
                             ];
                             const hasTargets = Object.values(macroTargets).some(Boolean);
                             return (
                               <div className="px-4 pb-3 pt-1 border-t border-orange-50">
                                 <div className="grid grid-cols-4 gap-2">
-                                  {bars.map(({ key, label, unit, color }) => {
+                                  {bars.map(({ key, label, unit }) => {
                                     const total = Math.round(totalMacros[key]);
                                     const personal = Math.round(personalMacros[key]);
                                     const target = macroTargets[key];
@@ -4076,7 +4076,7 @@ export default function App() {
                                           <>
                                             {pct !== null && (
                                               <div className="w-full bg-orange-100 rounded-full h-1">
-                                                <div className={`h-1 rounded-full transition-all ${over ? 'bg-red-400' : color}`} style={{ width: `${pct}%` }} />
+                                                <div className={`h-1 rounded-full transition-all ${over ? 'bg-red-400' : 'bg-orange-200'}`} style={{ width: `${pct}%` }} />
                                               </div>
                                             )}
                                             <span className={`text-[9px] ${over ? 'text-red-400' : 'text-orange-300'}`}>
