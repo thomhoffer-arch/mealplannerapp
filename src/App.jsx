@@ -1209,6 +1209,7 @@ export default function App() {
   const [undoRemove, setUndoRemove] = useState(null); // { recipe, dbId } — shows for 5s after removal
   const undoTimer = useRef(null);
   const pendingDeletes = useRef(new Set()); // recipe_ids removed while INSERT was still in flight
+  const pendingGeneratedNames = useRef([]); // names of in-flight addExtraMeal results not yet in viewItems
 
   useEffect(() => { localStorage.setItem('mp:activeTab', activeTab); }, [activeTab]);
 
@@ -1799,7 +1800,7 @@ export default function App() {
   }, [preferences.reminder_enabled, preferences.reminder_day, mealPlanItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset empty-grid flag when navigating to a different week
-  useEffect(() => { setShowEmptyGrid(false); }, [viewWeek]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setShowEmptyGrid(false); pendingGeneratedNames.current = []; }, [viewWeek]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Activity notifications ────────────────────────────────────────────────
   // Filter stored notifications to the active household when it changes.
@@ -2449,7 +2450,10 @@ export default function App() {
     const key = `${day}-${mealType}`;
     setGeneratingExtra(key);
     try {
-      const otherNames = viewItems.map((i) => i.recipe_data?.name).filter(Boolean);
+      const otherNames = [...new Set([
+        ...viewItems.map((i) => i.recipe_data?.name).filter(Boolean),
+        ...pendingGeneratedNames.current,
+      ])];
       const data = await apiFetch('/api/ai/regenerate-day', {
         method: 'POST',
         body: {
@@ -2458,9 +2462,11 @@ export default function App() {
           change_request: request || `A simple ${mealType} for ${day}`,
           other_days_names: otherNames,
           meal_type: mealType,
+          language: memberLanguage || 'en',
         },
       });
       if (data?.recipe) {
+        if (data.recipe.name) pendingGeneratedNames.current = [...pendingGeneratedNames.current, data.recipe.name];
         await toggleSelectedRecipe({
           ...data.recipe,
           _plannedDay: day,
