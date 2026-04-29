@@ -48,7 +48,7 @@ export default async function handleRegenerateDay(req, res) {
   }
 
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }, { data: pantryData }] = await Promise.all([
-    supabase.from('household_preferences').select('preferences_text').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_preferences').select('preferences_text, diet_variety').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
@@ -58,6 +58,7 @@ export default async function handleRegenerateDay(req, res) {
   ]);
 
   const preferences = prefData?.preferences_text || '';
+  const dietVariety = prefData?.diet_variety || 'balanced';
   const starred = starredData || [];
 
   const starredMap = {};
@@ -145,6 +146,14 @@ P3. COOKING TIME — ${timeRule} Respect this unless P1 overrides it.
 
 P4. NO DUPLICATION. Do not suggest a dish already on other days this week, and do not
     cycle back to any previously rejected recipe for this day: ${rejected_names.join(', ') || 'none'}.
+
+VARIETY LEVEL — household preference: ${
+  dietVariety === 'familiar'
+    ? 'FAMILIAR. Lean toward dishes this household already knows and enjoys. Prioritise comfort food and well-known cuisines.'
+    : dietVariety === 'adventurous'
+    ? 'ADVENTUROUS. Push into unfamiliar cuisines and bold combinations. Avoid defaulting to safe, well-known dishes unless directly requested.'
+    : 'BALANCED. A healthy mix of familiar and new — the default.'
+}
 
 HOUSEHOLD-LEVEL PREFERENCES:
 ${preferences || 'No specific preferences — be creative and varied.'}
