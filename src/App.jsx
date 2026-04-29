@@ -4415,13 +4415,18 @@ export default function App() {
                       </button>
                     ))}
                   </div>
-                  {!!(weeklyUsage?.unlimited) && (
-                    <button onClick={() => setShowBarcodeScanner(true)}
-                      title="Scan barcodes to check off items"
-                      className="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-orange-50 text-orange-400 hover:text-orange-600 hover:bg-orange-100 rounded-xl transition">
-                      <ScanLine size={18} />
-                    </button>
-                  )}
+                  {(() => {
+                    const isPremium = !!(weeklyUsage?.unlimited);
+                    return (
+                      <button
+                        onClick={() => isPremium ? setShowBarcodeScanner(true) : setShowUpgradeModal(true)}
+                        title={isPremium ? 'Scan barcodes to check off items' : 'Premium feature'}
+                        className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl transition relative ${isPremium ? 'bg-orange-50 text-orange-400 hover:text-orange-600 hover:bg-orange-100' : 'bg-orange-50/50 text-orange-200 cursor-pointer'}`}>
+                        <ScanLine size={18} />
+                        {!isPremium && <Lock size={9} className="absolute bottom-1.5 right-1.5 text-orange-300" />}
+                      </button>
+                    );
+                  })()}
                 </div>
 
                 {(() => {
