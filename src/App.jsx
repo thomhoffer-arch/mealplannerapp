@@ -3935,10 +3935,6 @@ export default function App() {
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                   {isCooked && <Check size={14} className="text-sage-500" />}
-                                  <button onClick={(e) => { e.stopPropagation(); toggleSelectedRecipe(recipe); }}
-                                    className="text-orange-300 hover:text-red-400 transition p-1" title="Remove dinner">
-                                    <X size={13} />
-                                  </button>
                                   {expandedRecipes[rid] ? <ChevronUp size={16} className="text-orange-400" /> : <ChevronDown size={16} className="text-orange-400" />}
                                 </div>
                               </>
@@ -4993,7 +4989,7 @@ export default function App() {
         <div className="max-w-2xl mx-auto flex items-stretch">
           {[
             { id: "week",    icon: Calendar,     label: "Week" },
-            { id: "basket",  icon: ShoppingCart, label: "Basket",  badge: (() => { const u = shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length; return u > 0 ? u : null; })() },
+            { id: "basket",  icon: ShoppingCart, label: "Basket",  badge: (() => { const u = shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length + (customIngredients['__list__'] || []).filter((e) => !checkedItems[e.name]).length; return u > 0 ? u : null; })() },
             { id: "profile", icon: User,         label: "Profile", badge: notifUnread > 0 ? notifUnread : null },
           ].map(({ id, icon: Icon, label, badge }) => (
             <button key={id} onClick={() => setActiveTab(id)}
