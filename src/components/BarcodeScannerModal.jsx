@@ -3,7 +3,24 @@ import { X, Check, AlertCircle, Package, ScanLine } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 
 const OFF_URL = (code) =>
-  `https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,product_name_en,product_name_nl,product_name_de,product_name_fr,product_name_es,product_name_it,product_name_pt,generic_name,quantity,product_quantity`;
+  `https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,product_name_en,product_name_nl,product_name_de,product_name_fr,product_name_es,product_name_it,product_name_pt,generic_name,quantity,product_quantity,lang`;
+
+async function translateToEnglish(text, fromLang) {
+  try {
+    const langpair = fromLang && fromLang !== 'en' ? `${fromLang}|en` : 'auto|en';
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 3000);
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`,
+      { signal: ctrl.signal }
+    );
+    clearTimeout(tid);
+    const json = await res.json();
+    const t = json?.responseData?.translatedText;
+    if (t && t.toLowerCase() !== text.toLowerCase()) return t;
+  } catch {}
+  return null;
+}
 
 function getProductNames(p) {
   const names = [
@@ -121,6 +138,13 @@ export default function BarcodeScannerModal({ shoppingItems, checkedItems, onChe
           productNames = getProductNames(json.product);
           productQuantityStr = json.product?.quantity || null;
           productQuantityG = json.product?.product_quantity != null ? parseFloat(json.product.product_quantity) : null;
+          // If OFF has no English name, translate the primary name via MyMemory (free, no key)
+          if (!json.product?.product_name_en && productNames.length > 0) {
+            const translated = await translateToEnglish(productNames[0], json.product?.lang);
+            if (translated && !productNames.map(n => n.toLowerCase()).includes(translated.toLowerCase())) {
+              productNames.push(translated);
+            }
+          }
         }
       } catch {}
 
