@@ -54,18 +54,22 @@ const SOURCE_COLORS = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function totalTime(r) { return (r.prepTime || 0) + (r.cookTime || 0); }
 
-// Common food qualifiers that shouldn't affect ingredient matching.
-const FOOD_QUALIFIERS = /\b(unsalted|salted|fresh|dried|ground|whole|organic|plain|low-fat|full-fat|semi-skimmed|skimmed|chopped|sliced|diced|frozen|canned|tinned|large|small|medium|extra|light|dark|sweet|raw|cooked|white|brown|black|red|green|yellow|virgin|pure|fine|coarse|baby|mini|regular|softened|melted|cold|drained|rinsed|washed|peeled|pitted|crushed|minced|grated|toasted|roasted|soaked|trimmed|boneless|skinless|halved|quartered|cubed|mashed|shredded|torn|packed|strained|squeezed)\b/gi;
+// Common food qualifiers that may prefix ingredient names without changing what you buy.
+// Used for matching "organic chicken" → "chicken", "unsalted butter" → "butter", etc.
+const FOOD_QUALIFIERS = /\b(unsalted|salted|fresh|dried|ground|whole|organic|plain|low-fat|full-fat|semi-skimmed|skimmed|chopped|sliced|diced|frozen|canned|tinned|large|small|medium|extra|light|dark|sweet|raw|cooked|white|brown|black|red|green|yellow|virgin|pure|fine|coarse|baby|mini|regular|softened|melted|cold)\b/gi;
 
-// Strip commas (used in names like "chickpeas, canned, drained, rinsed") so they
-// don't block qualifier stripping and word-boundary matching.
-function normalizeName(name) {
-  return name.toLowerCase().trim().replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+// The purchasable ingredient is always before the first comma. Everything after
+// the first comma is a preparation note ("chickpeas, canned, drained, rinsed" →
+// "chickpeas"). This structural rule avoids needing a hardcoded list of prep words.
+function ingredientBase(name) {
+  const n = name.toLowerCase().trim();
+  const ci = n.indexOf(',');
+  return ci > 0 ? n.slice(0, ci).trim() : n;
 }
 
 function pantryMatchesItem(pantryName, itemName) {
-  const p = normalizeName(pantryName);
-  const i = normalizeName(itemName);
+  const p = ingredientBase(pantryName);
+  const i = ingredientBase(itemName);
   if (p === i) return true;
 
   // Whole-word match: "butter" matches "unsalted butter" but NOT "peanut butter"
@@ -77,9 +81,7 @@ function pantryMatchesItem(pantryName, itemName) {
     if (!leftover || !leftover.replace(FOOD_QUALIFIERS, '').replace(/\s+/g, ' ').trim()) return true;
   }
 
-  // Core match: strip qualifiers from both sides and compare exactly.
-  // Substring checks are intentionally removed — after stripping qualifiers any
-  // remaining difference means a genuinely different ingredient type.
+  // Core match: strip qualifiers from both bases and compare.
   const coreP = p.replace(FOOD_QUALIFIERS, '').replace(/\s+/g, ' ').trim();
   const coreI = i.replace(FOOD_QUALIFIERS, '').replace(/\s+/g, ' ').trim();
   if (coreP && coreI && coreP === coreI) return true;
@@ -415,14 +417,17 @@ function consolidateIngredients(selectedRecipes, customIngredients, measurementS
   // Guards:
   //   1. Only split on "and" in the base name (before the first comma) so that prep notes
   //      like "shrimp, peeled and deveined" don't produce a spurious "deveined" item.
-  //   2. Discard any part that consists entirely of PREP_WORDS (e.g. bare "deveined"
-  //      when there's no comma) — those are descriptors, not purchasable ingredients.
+  //   2. Only split when every resulting part is a single word — multi-word parts signal a
+  //      compound product name (e.g. "pork and fennel sausages" → don't split; "onions and
+  //      garlic" → split). This avoids breaking specific product names.
+  //   3. Discard any part that consists entirely of PREP_WORDS.
   const _isPrepOnly = (s) => s.trim().toLowerCase().split(/\s+/).every((w) => PREP_WORDS.includes(w));
   const add = (rawName, amount, extra = {}) => {
     const commaIdx = rawName.indexOf(',');
     const baseForSplit = commaIdx > 0 ? rawName.slice(0, commaIdx).trim() : rawName;
     const parts = baseForSplit.split(/ and /i);
-    if (parts.length > 1) {
+    const allSingleWord = parts.every((p) => !p.trim().includes(' '));
+    if (parts.length > 1 && allSingleWord) {
       const realParts = parts.map((p) => p.trim()).filter((p) => p && !_isPrepOnly(p));
       (realParts.length ? realParts : [rawName]).forEach((p) => addSingle(p, amount, extra));
     } else {
