@@ -55,11 +55,17 @@ const SOURCE_COLORS = {
 function totalTime(r) { return (r.prepTime || 0) + (r.cookTime || 0); }
 
 // Common food qualifiers that shouldn't affect ingredient matching.
-const FOOD_QUALIFIERS = /\b(unsalted|salted|fresh|dried|ground|whole|organic|plain|low-fat|full-fat|semi-skimmed|skimmed|chopped|sliced|diced|frozen|canned|tinned|large|small|medium|extra|light|dark|sweet|raw|cooked|white|brown|black|red|green|yellow|virgin|pure|fine|coarse|baby|mini|regular|softened|melted|cold)\b/gi;
+const FOOD_QUALIFIERS = /\b(unsalted|salted|fresh|dried|ground|whole|organic|plain|low-fat|full-fat|semi-skimmed|skimmed|chopped|sliced|diced|frozen|canned|tinned|large|small|medium|extra|light|dark|sweet|raw|cooked|white|brown|black|red|green|yellow|virgin|pure|fine|coarse|baby|mini|regular|softened|melted|cold|drained|rinsed|washed|peeled|pitted|crushed|minced|grated|toasted|roasted|soaked|trimmed|boneless|skinless|halved|quartered|cubed|mashed|shredded|torn|packed|strained|squeezed)\b/gi;
+
+// Strip commas (used in names like "chickpeas, canned, drained, rinsed") so they
+// don't block qualifier stripping and word-boundary matching.
+function normalizeName(name) {
+  return name.toLowerCase().trim().replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+}
 
 function pantryMatchesItem(pantryName, itemName) {
-  const p = pantryName.toLowerCase().trim();
-  const i = itemName.toLowerCase().trim();
+  const p = normalizeName(pantryName);
+  const i = normalizeName(itemName);
   if (p === i) return true;
 
   // Whole-word match: "butter" matches "unsalted butter" but NOT "peanut butter"
