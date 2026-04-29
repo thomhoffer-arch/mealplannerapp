@@ -8,7 +8,7 @@ import { buildDietaryGuardrails } from '../dietary-guardrails.js';
 export default async function handleGenerateRecipe(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { recipe, request, language = 'English' } = req.body || {};
+  const { recipe, request, language = 'English', week_context = [] } = req.body || {};
   if (!recipe?.name) return res.status(400).json({ error: 'recipe.name is required' });
 
   const isAdjust = typeof request === 'string' && request.trim().length > 0;
@@ -39,7 +39,7 @@ export default async function handleGenerateRecipe(req, res) {
     }
   }
 
-  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim(), householdPrefs, measurementSystem, dietaryGuardrails, language) : buildGeneratePrompt(recipe, householdPrefs, measurementSystem, dietaryGuardrails, language);
+  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim(), householdPrefs, measurementSystem, dietaryGuardrails, language, week_context) : buildGeneratePrompt(recipe, householdPrefs, measurementSystem, dietaryGuardrails, language);
 
   let rawText;
   try {
@@ -118,7 +118,7 @@ Return ONLY a JSON object, no markdown:
 IMPORTANT: macros must be TOTALS for the whole recipe (all servings combined), not per person. Every ingredient MUST have a specific amount with a unit (e.g. "200 g", "2 tbsp", "1 tsp", "3 cloves", "400 ml"). Never leave amount empty or omit units. For whole items use count + unit (e.g. "2 chicken thighs" not just "2"). Each ingredient entry must be ONE purchasable item — never combine two distinct items with "and" in a single entry (write "carrots" and "peas" as two separate entries, not "carrots and peas"). Compound product names that contain "and" as part of their name (e.g. "pork and fennel sausages", "macaroni and cheese") are fine as a single entry.`;
 }
 
-function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '', language = 'English') {
+function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '', language = 'English', weekContext = []) {
   const ingredientsList = (recipe.ingredients || [])
     .map((i) => `  - ${i.amount ? `${i.amount} ` : ''}${i.name}`)
     .join('\n');
@@ -154,7 +154,7 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSyst
 ---
 
 Adjust this recipe based on the user request. Change only what the request asks for. ${unitsLine}${langLine}
-${prefsSection}${guardrailsSection}${reviewFeedbackSection}${adjustmentSection}
+${prefsSection}${guardrailsSection}${reviewFeedbackSection}${adjustmentSection}${weekContext.length ? `\nOTHER DISHES PLANNED THIS WEEK: ${weekContext.join(', ')}\nVariety preference (soft guideline, not a hard rule): prefer ingredients that vary from what the other dishes already use — especially carb sources (e.g. if another dish has quinoa, lean toward a different carb like rice, potatoes, lentils, or pasta). Only apply this when the request leaves room for choice.\n` : ''}
 RECIPE: ${recipe.name}
 INGREDIENTS:
 ${ingredientsList || '  (none listed)'}

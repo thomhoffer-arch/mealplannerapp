@@ -156,9 +156,16 @@ P2. ADAPT OR ENHANCE — DON'T REPLACE. Two cases where you must keep the
 
 P3. COOKING TIME — If HOUSEHOLD-LEVEL PREFERENCES or STANDING INSTRUCTIONS below state a time limit, that takes priority. Otherwise: ${timeRule}
 
-P4. NO DUPLICATION AND NO PROTEIN REPEAT. Do not suggest a dish already on other days
+P4. NO DUPLICATION AND NO HERO REPEAT. Do not suggest a dish already on other days
     this week. Do not cycle back to any previously rejected recipe for this day: ${rejected_names.join(', ') || 'none'}.
     Identify the hero ingredient (main protein or starchy base) for each dish already on other days: ${other_days_names.join(', ') || 'none'}. Do not repeat any of those hero ingredients — if the most fitting dish would repeat one, choose a different dish or swap the hero ingredient.
+
+P5. VARIETY IN SUPPORTING INGREDIENTS (soft guideline — apply when there is a free choice).
+    Beyond the hero ingredient, try to vary supporting ingredients across the week — especially
+    carb sources (rice, quinoa, pasta, potatoes, lentils, couscous, etc.). This is not a hard
+    rule: if the best dish for the request happens to share a carb with another day, that is
+    acceptable. But when two options are otherwise equal, prefer the one that brings a different
+    carb or grain to the week.
 
 VARIETY LEVEL — household preference: ${
   dietVariety === 'familiar'

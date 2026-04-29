@@ -555,6 +555,7 @@ function SelectedRecipeCard({
   customIngredients, onAddCustom, onRemoveCustom, onRemove,
   newIngredientInput, onInputChange, preferences, starredRecipes, onAcceptSubstitution,
   rating, onGenerateRecipe, onShareRecipe,
+  weekRecipeNames = [],
   onSwapRecipe, swapping,
   onAssignDay,
   language,
@@ -585,7 +586,7 @@ function SelectedRecipeCard({
     try {
       const data = await apiFetch('/api/ai/generate-recipe', {
         method: 'POST',
-        body: { recipe, request, ...(language ? { language } : {}) },
+        body: { recipe, request, ...(language ? { language } : {}), ...(weekRecipeNames.length ? { week_context: weekRecipeNames } : {}) },
       });
       onGenerateRecipe(rid, data, { isAdjust: true, request });
       setAdjustInput('');
@@ -3941,6 +3942,7 @@ export default function App() {
                                 onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[xrid] || null}
                                 onSwapRecipe={swapAndSaveRecipe} swapping={swappingRecipeId === xrid}
                                 language={LANG_NAMES[memberLanguage] || 'English'}
+                                weekRecipeNames={viewItems.map((i) => i.recipe_data?.name).filter((n) => n && n !== xr.name)}
                                 inlineExpanded />
                             </div>
                           )}
@@ -4180,6 +4182,7 @@ export default function App() {
                                 onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[rid] || null}
                                 onSwapRecipe={swapAndSaveRecipe} swapping={swappingRecipeId === rid}
                                 language={LANG_NAMES[memberLanguage] || 'English'}
+                                weekRecipeNames={viewItems.map((i) => i.recipe_data?.name).filter((n) => n && n !== recipe.name)}
                                 inlineExpanded />
                             </div>
                           )}
@@ -4229,6 +4232,7 @@ export default function App() {
                             rating={recipeRatings[rid] || null}
                             onAssignDay={assignRecipeToDay}
                             language={LANG_NAMES[memberLanguage] || 'English'}
+                            weekRecipeNames={viewItems.map((i) => i.recipe_data?.name).filter((n) => n && n !== recipe.name)}
                           />
                         );
                       })}
