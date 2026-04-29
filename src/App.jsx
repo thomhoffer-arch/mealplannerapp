@@ -699,10 +699,10 @@ function SelectedRecipeCard({
             {(recipe.macros?.calories || recipe.macros?.protein) && (
               <div className="grid grid-cols-4 gap-2">
                 {[
+                  { label: "Cal",      value: recipe.macros?.calories, unit: "" },
                   { label: "Protein",  value: recipe.macros?.protein,  unit: "g" },
                   { label: "Carbs",    value: recipe.macros?.carbs,    unit: "g" },
                   { label: "Fat",      value: recipe.macros?.fat,      unit: "g" },
-                  { label: "Cal",      value: recipe.macros?.calories, unit: "" },
                 ].map(({ label, value, unit }) => (
                   <div key={label} className="bg-orange-50 rounded-[10px] p-2 text-center">
                     <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>
@@ -916,10 +916,10 @@ function SelectedRecipeCard({
             <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">Nutrition (per serving)</p>
             <div className="grid grid-cols-4 gap-2">
               {[
+                { label: "Calories",  value: recipe.macros?.calories,  unit: "" },
                 { label: "Protein",   value: recipe.macros?.protein,   unit: "g" },
                 { label: "Carbs",     value: recipe.macros?.carbs,     unit: "g" },
                 { label: "Fat",       value: recipe.macros?.fat,       unit: "g" },
-                { label: "Calories",  value: recipe.macros?.calories,  unit: "" },
               ].map(({ label, value, unit }) => (
                 <div key={label} className="bg-orange-50 rounded-[10px] p-2 text-center">
                   <p className="text-sm font-bold text-orange-900">{value || "—"}{unit}</p>

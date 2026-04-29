@@ -114,7 +114,7 @@ async function _handler(req, res) {
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
 
   const dietaryGuardrails = buildDietaryGuardrails(preferences, members);
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language, recentBuckets, dietaryGuardrails);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language, recentBuckets, dietaryGuardrails, dietVariety);
 
   let rawText;
   try {
@@ -296,22 +296,7 @@ function parseWeekdayTimeCap(text) {
   return null;
 }
 
-// Rotates every calendar week so new users (no history) get a different
-// cuisine/protein nudge each time they open the planner.
-const _VARIETY_SEEDS = [
-  { cuisine: 'Asian — Thai, Vietnamese, or Japanese', protein: 'fish or tofu' },
-  { cuisine: 'Middle Eastern or North African — Lebanese, Moroccan, or Persian', protein: 'lamb or chickpeas' },
-  { cuisine: 'Mexican or Latin American', protein: 'chicken or black beans' },
-  { cuisine: 'European — French, Spanish, or Italian beyond pasta', protein: 'pork or seafood' },
-  { cuisine: 'South or East Asian — Indian, Korean, or Chinese', protein: 'beef or lentils' },
-  { cuisine: 'Mediterranean — Greek, Turkish, or Cypriot', protein: 'lamb or white fish' },
-  { cuisine: 'African — West African, Ethiopian, or Moroccan', protein: 'chicken or chickpeas' },
-  { cuisine: 'Northern European — Scandinavian, German, or Eastern European', protein: 'pork or root vegetables' },
-];
-
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null, dietaryGuardrails = '') {
-  const _weekNum = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
-  const _seed = _VARIETY_SEEDS[_weekNum % _VARIETY_SEEDS.length];
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null, dietaryGuardrails = '', dietVariety = 'balanced') {
   const _noHistory = loved.length === 0 && recentNames.length === 0;
 
   let starredSection = '';
@@ -376,10 +361,8 @@ ${recentBuckets
   : (avoidList || 'None — be creative and varied.')
 }
 
-${_noHistory ? `VARIETY BOOST — no meal history yet:
-This household has no cooking history. Be intentionally creative and varied — do NOT fall back on the most familiar "default" dishes (spaghetti bolognese, chicken stir-fry, beef tacos, roast chicken, shepherd's pie, etc.) unless they genuinely fit the household.
-This week's focus: lean toward ${_seed.cuisine} dishes, and feature ${_seed.protein} as a hero protein on at least one day.
-Span at least 3 different cuisine traditions across the week. Vary proteins every day — no hero protein should repeat across dinners.` : ''}
+${_noHistory && dietVariety !== 'familiar' ? `VARIETY BOOST — no meal history yet:
+This household has no cooking history. Be intentionally creative and varied — span at least 3 different cuisine traditions across the week. Do not repeat any hero ingredient (main protein or starchy base) across dinners.` : ''}
 RATINGS HISTORY — what this household actually liked when they cooked it:
 ${loved.length ? `  LOVED (4-5★): ${loved.slice(0, 15).join(', ')}` : '  (no high ratings recorded yet)'}
 ${disliked.length ? `  DISLIKED (1-2★): ${disliked.slice(0, 15).join(', ')} — avoid these patterns` : ''}
