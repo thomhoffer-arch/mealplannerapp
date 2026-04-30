@@ -54,6 +54,17 @@ export default async function handleGenerateRecipe(req, res) {
     return res.status(502).json({ error: 'Could not parse AI response' });
   }
 
+  // Sanitise macros — the AI occasionally returns strings like "26g" instead of 26
+  if (result.macros) {
+    const pm = (v) => { const n = parseFloat(String(v ?? 0)); return isNaN(n) ? 0 : n; };
+    result.macros = {
+      calories: pm(result.macros.calories),
+      protein:  pm(result.macros.protein),
+      carbs:    pm(result.macros.carbs),
+      fat:      pm(result.macros.fat),
+    };
+  }
+
   res.json(result);
 }
 
