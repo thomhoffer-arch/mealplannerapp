@@ -279,6 +279,10 @@ Return ONLY valid JSON (no markdown): {"name":"...","overview":"...","prep_time"
 // focuses on actual special ingredients the household has stocked.
 const _isKitchenBasic = (name) => /\boil\b|\bsalt\b|\bpepper\b|\bwater\b/i.test(name);
 
+// Dried spices and herbs last indefinitely — exclude them from the pantry hint
+// so the AI doesn't treat them as perishable leftovers that need using up.
+const _isDriedSpiceOrHerb = (name) => /\b(cumin|coriander|paprika|turmeric|ginger powder|cinnamon|nutmeg|cardamom|star anise|allspice|cayenne|chilli|chili|oregano|thyme|rosemary|bay leaves?|tarragon|basil|mixed spice|curry powder|garam masala|ras el hanout|za.atar|sumac|black pepper|sea salt|cloves?|dried herbs?|dried spices?|smoked|flakes?|seeds?)\b/i.test(name);
+
 function parseWeekdayTimeCap(text) {
   if (!text) return null;
   // Matches patterns like "weekdays under 35 min", "weekdays less than 35 minutes",
@@ -324,9 +328,10 @@ function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, pl
     })
     .join('\n');
 
-  // Filter out universal kitchen basics (oil, salt, pepper, water) — they're
-  // assumed in every household and don't meaningfully inform recipe choice.
-  const pantryFiltered = pantry.filter((p) => !_isKitchenBasic(p));
+  // Filter out universal kitchen basics and dried spices/herbs — basics are
+  // assumed in every kitchen, and spices last indefinitely so they shouldn't
+  // influence recipe choice the way perishable pantry items do.
+  const pantryFiltered = pantry.filter((p) => !_isKitchenBasic(p) && !_isDriedSpiceOrHerb(p));
 
   return `${VOICE_GUIDE}
 

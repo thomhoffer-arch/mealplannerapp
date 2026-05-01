@@ -4444,8 +4444,9 @@ export default function App() {
                   }));
                   const fullList = [...shoppingList, ...listExtras];
                   const byName = (a, b) => a.name.localeCompare(b.name);
-                  const unchecked = fullList.filter((i) => !checkedItems[i.name] || checkAnimating[i.name]).sort(byName);
+                  const unchecked = fullList.filter((i) => (!checkedItems[i.name] || checkAnimating[i.name]) && !i.inPantry).sort(byName);
                   const checked   = fullList.filter((i) =>  checkedItems[i.name] && !checkAnimating[i.name]).sort(byName);
+                  const pantryInList = fullList.filter((i) => i.inPantry && !checkedItems[i.name]).sort(byName);
                   const handleCheckToggle = (name) => {
                     if (!checkedItems[name]) {
                       setCheckAnimating((prev) => ({ ...prev, [name]: 'enlarging' }));
@@ -4524,6 +4525,14 @@ export default function App() {
                   return (
                     <>
                       {renderUnchecked()}
+                      {pantryInList.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-[11px] font-semibold text-orange-400 uppercase tracking-wide px-1 mb-1.5">Already have it</p>
+                          <div className="bg-white rounded-2xl border border-orange-100 divide-y divide-orange-50 overflow-hidden">
+                            {pantryInList.map(renderRow)}
+                          </div>
+                        </div>
+                      )}
                       {checked.length > 0 && (
                         <div className="mt-3">
                           <p className="text-[11px] font-semibold text-orange-400 uppercase tracking-wide px-1 mb-1.5">In the basket</p>
