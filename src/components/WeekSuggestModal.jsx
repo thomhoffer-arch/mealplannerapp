@@ -82,6 +82,38 @@ function MealPanel({ mealType, name, time, photo, overview, reason, leftoverFor,
 export default function WeekSuggestModal({ household, onClose, onLoadPlan, planExtrasText, preferences, language = 'English', weeklyUsage = null, initialDayNotes = {}, existingItems = [] }) {
   const hasDealsAccess = !!(weeklyUsage?.unlimited || preferences?.is_gifted || preferences?.gemini_api_key_hint);
   const hhKey = household?.id ? `mp:hh:${household.id}` : null;
+
+  const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  // Days with a real manually-planned recipe — excludes empty leftovers stubs so
+  // the AI's suggestion for those days starts pre-selected, not hidden.
+  const alreadyPlannedDays = new Set(
+    existingItems
+      .filter((i) => !i.recipe_data?._isLeftovers)
+      .map((i) => i.recipe_data?._plannedDay)
+      .filter(Boolean)
+  );
+
+  // Empty leftovers stubs: the user wants the AI to plan a bigger-batch dish on an
+  // earlier day that yields enough for this night — no fresh cooking here.
+  const leftoverStubDays = existingItems
+    .filter((i) => i.recipe_data?._isLeftovers)
+    .map((i) => i.recipe_data._plannedDay)
+    .filter(Boolean);
+
+  // Build per-day notes for leftover stub days, merged with any existing user notes.
+  const _buildDayNotes = () => {
+    const notes = { ...(initialDayNotes || {}) };
+    leftoverStubDays.forEach((day) => {
+      if (notes[day]) return; // don't overwrite an explicit user note
+      const idx = WEEK_DAYS.indexOf(day);
+      const before = idx > 0 ? WEEK_DAYS.slice(0, idx).join('/') : null;
+      const beforeClause = before ? ` on ${before} — never from a day after ${day}` : '';
+      notes[day] = `Leftovers night — no fresh cooking on this day. Plan a dish earlier in the week${beforeClause} with enough servings to cover this meal too. Set leftover_for on that source dish to "${day}".`;
+    });
+    return notes;
+  };
+
   const [numWeeks, setNumWeeks]         = useState(() => {
     try { return Number(localStorage.getItem(`${hhKey}:numWeeks`)) || 1; } catch { return 1; }
   });
@@ -92,7 +124,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [errorStatus, setErrorStatus]   = useState(null);
   const [selected, setSelected]         = useState({});   // { "1-Monday": true }
   const [servings, setServings]         = useState({});   // { "1-Monday": 4 }
-  const [dayNotes, setDayNotes]         = useState(() => initialDayNotes || {});
+  const [dayNotes, setDayNotes]         = useState(_buildDayNotes);
   const [swapInput, setSwapInput]       = useState({});
   const [swappingKey, setSwappingKey]   = useState(null);
   const [rejectedByDay, setRejectedByDay] = useState({});  // { "Monday": ["Pasta", "Stir Fry"] }
@@ -119,10 +151,6 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const [sideDishPanel, setSideDishPanel] = useState(null); // { key, weekNum, dayName, recipe, loading, suggestions, error, input }
   const [addingExtra, setAddingExtra]     = useState(null); // "weekNum-dayName-mealType"
   const [easterEggIdx, setEasterEggIdx] = useState(0);
-
-  const alreadyPlannedDays = new Set(
-    existingItems.map((i) => i.recipe_data?._plannedDay).filter(Boolean)
-  );
 
   const EASTER_EGGS = [
     "Consulting the pasta oracle…",
