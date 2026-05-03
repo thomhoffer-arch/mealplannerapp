@@ -618,22 +618,6 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             {dealsError && <span className="text-[11px] text-red-400">{dealsError}</span>}
           </div>
 
-          {deals.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {deals.map((deal, i) => (
-                <span key={i} className="flex items-center gap-1 text-[11px] bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full">
-                  {deal.item}{deal.price ? ` · ${deal.price}` : ''}
-                  <button
-                    type="button"
-                    onClick={() => setDeals((prev) => prev.filter((_, j) => j !== i))}
-                    className="text-green-400 hover:text-green-700 transition ml-0.5 flex-shrink-0"
-                  >
-                    <X size={10} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Content area — scrolls vertically so cards expand to their full height */}

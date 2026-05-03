@@ -167,7 +167,7 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSyst
 
 ---
 
-Adjust this recipe based on the user request. Change only what the request asks for. ${unitsLine}${langLine}
+Adjust this recipe based on the user request. Change ONLY what the request explicitly asks for — nothing else. Keep every ingredient, step, name, and quantity that isn't directly affected by the request identical to the original. Do not rename the dish, rewrite steps, swap proteins, or introduce new flavour profiles unless the request specifically calls for that change. If the request is narrow (e.g. "add more garlic", "make it spicier", "swap chicken for tofu"), touch only those parts and leave the rest untouched. ${unitsLine}${langLine}
 ${locationSection}${prefsSection}${guardrailsSection}${reviewFeedbackSection}${adjustmentSection}${weekContext.length ? `\nOTHER DISHES PLANNED THIS WEEK: ${weekContext.join(', ')}\nVariety preference (soft guideline, not a hard rule): prefer ingredients that vary from what the other dishes already use — especially carb sources (e.g. if another dish has quinoa, lean toward a different carb like rice, potatoes, lentils, or pasta). Only apply this when the request leaves room for choice.\n` : ''}
 RECIPE: ${recipe.name}
 INGREDIENTS:

@@ -40,10 +40,10 @@ export default async function handleSearchDeals(req, res) {
 
   const prompt = `Today is ${TODAY()}.
 
-Search for items currently on offer (in bonus / aanbieding) at Albert Heijn and Jumbo supermarkets in the Netherlands this week. Focus on ingredients useful for home cooking: fresh produce, meat, fish, dairy, and staples. Skip cleaning products, snacks, alcohol, and ready meals.
+Search for items currently on offer (in bonus / aanbieding) at Albert Heijn, Jumbo, and Picnic in the Netherlands this week. Focus on ingredients useful for home cooking: fresh produce, meat, fish, dairy, and staples. Skip cleaning products, snacks, alcohol, and ready meals.
 
 Return ONLY a JSON object, no markdown:
-{"deals":[{"item":"spinach","store":"Albert Heijn","price":"€0.89"},{"item":"salmon fillet","store":"Jumbo","price":"€5.99"}]}
+{"deals":[{"item":"spinach","store":"Albert Heijn","price":"€0.89"},{"item":"salmon fillet","store":"Jumbo","price":"€5.99"},{"item":"chicken breast","store":"Picnic","price":"€4.99"}]}
 
 Include up to 20 items. If you cannot find current deals, return {"deals":[]}.`;
 
