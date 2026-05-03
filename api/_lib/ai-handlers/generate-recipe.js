@@ -163,17 +163,16 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSyst
     ? `\nLANGUAGE: ${language}\nWrite all recipe steps, ingredient names, and any notes in ${language}. JSON field names stay in English.`
     : '';
 
-  const isTranslationRequest = /\b(translat|vertaal|übersetze|tradui|traduc)\b/i.test(request);
-  const translationGuard = isTranslationRequest
-    ? `\nTRANSLATION MODE: This is a pure translation — convert the text to the target language only. Every ingredient name, amount, and step must stay identical in meaning and structure. Do not simplify, reword, combine, or reorder anything. Amounts and units stay exactly as written. Do not add or remove steps. Do not change the dish concept.\n`
-    : '';
-
   return `${VOICE_GUIDE}
 
 ---
 
-Adjust this recipe based on the user request. Change ONLY what the request explicitly asks for — nothing else. Keep every ingredient, step, name, and quantity that isn't directly affected by the request identical to the original. Do not rename the dish, rewrite steps, swap proteins, or introduce new flavour profiles unless the request specifically calls for that change. If the request is narrow (e.g. "add more garlic", "make it spicier", "swap chicken for tofu"), touch only those parts and leave the rest untouched. ${unitsLine}${langLine}
-${translationGuard}
+Adjust this recipe based strictly on what the user asks — nothing else. Rules:
+- Change ONLY what the request explicitly asks for. Every ingredient, amount, step, and name not mentioned in the request must come out identical to the input.
+- Do not rename the dish, reorder steps, swap proteins, or introduce new flavour profiles unless the request specifically calls for it.
+- If the request is a translation: convert text (names, steps, overviews) to the target language only. Do not simplify, reword, combine, or reorder anything. Amounts and units stay exactly as written.
+- If the request adds an ingredient, weave it into the steps at the right moment — don't just append it. Update prep_time / cook_time only if the change genuinely affects total cooking time.
+${unitsLine}${langLine}
 ${locationSection}${prefsSection}${guardrailsSection}${reviewFeedbackSection}${adjustmentSection}${weekContext.length ? `\nOTHER DISHES PLANNED THIS WEEK: ${weekContext.join(', ')}\nVariety preference (soft guideline, not a hard rule): prefer ingredients that vary from what the other dishes already use — especially carb sources (e.g. if another dish has quinoa, lean toward a different carb like rice, potatoes, lentils, or pasta). Only apply this when the request leaves room for choice.\n` : ''}
 RECIPE: ${recipe.name}
 INGREDIENTS:
@@ -182,10 +181,6 @@ STEPS:
 ${stepsList || '  (none listed)'}
 
 USER REQUEST: "${request}"
-
-If the request adds an ingredient (e.g. "add rice", "add potatoes"), weave it fully into the
-steps at the right moment — don't just list it in ingredients and append a side note at the end.
-Update prep_time / cook_time if the addition changes the total cooking time.
 
 Return ONLY a JSON object, no markdown:
 {
