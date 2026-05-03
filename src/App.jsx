@@ -568,6 +568,7 @@ function SelectedRecipeCard({
   weekRecipeNames = [],
   onSwapRecipe, swapping,
   onAssignDay,
+  onRenameRecipe,
   language,
   inlineExpanded,
 }) {
@@ -576,6 +577,7 @@ function SelectedRecipeCard({
   const [shareError, setShareError] = useState(null);
   const [showAllergens, setShowAllergens] = useState(false);
   const [ingOpen, setIngOpen] = useState(true);
+  const [leftoverName, setLeftoverName] = useState(recipe._isLeftovers && recipe.name !== 'Leftovers' ? recipe.name : '');
   const rid = String(recipe.id);
   const customs = customIngredients[rid] || [];
   const detectedAllergens = detectAllergens([...(recipe.ingredients || []), ...customs]);
@@ -594,9 +596,12 @@ function SelectedRecipeCard({
     setAdjusting(true);
     setAdjustError(null);
     try {
+      // structuredClone strips any non-serializable properties (functions, DOM refs,
+      // React internals) that could cause JSON.stringify to throw a cycle error.
+      const safeRecipe = structuredClone(recipe);
       const data = await apiFetch('/api/ai/generate-recipe', {
         method: 'POST',
-        body: { recipe, request, ...(language ? { language } : {}), ...(weekRecipeNames.length ? { week_context: weekRecipeNames } : {}) },
+        body: { recipe: safeRecipe, request, ...(language ? { language } : {}), ...(weekRecipeNames.length ? { week_context: weekRecipeNames } : {}) },
       });
       onGenerateRecipe(rid, data, { isAdjust: true, request });
       setAdjustInput('');
@@ -615,9 +620,10 @@ function SelectedRecipeCard({
     setGenerating(true);
     setGenerateError(null);
     try {
+      const safeRecipe = structuredClone(recipe);
       const data = await apiFetch('/api/ai/generate-recipe', {
         method: 'POST',
-        body: { recipe, ...(language ? { language } : {}) },
+        body: { recipe: safeRecipe, ...(language ? { language } : {}) },
       });
       onGenerateRecipe(rid, data);
     } catch (err) {
@@ -632,9 +638,10 @@ function SelectedRecipeCard({
     setAiError(null);
     setAiResult(null);
     try {
+      const safeRecipe = structuredClone(recipe);
       const data = await apiFetch('/api/ai/suggest', {
         method: 'POST',
-        body: { recipe, preferences, starredRecipes },
+        body: { recipe: safeRecipe, preferences, starredRecipes },
       });
       setAiResult(data);
     } catch (err) {
@@ -748,8 +755,26 @@ function SelectedRecipeCard({
             {generateError && <p className="text-xs text-red-500">{generateError}</p>}
           </div>
         ) : isLeftoversStub ? (
-          <div className="py-3 flex flex-col items-center gap-2">
-            <p className="text-xs text-orange-400 text-center">Leftovers night — the AI will plan an earlier meal with enough servings to cover this day too.</p>
+          <div className="py-3 space-y-2">
+            <p className="text-xs text-orange-400 text-center">Leftovers night — note what you're having so the household knows.</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="e.g. Pasta from Monday, Curry from Tuesday…"
+                value={leftoverName}
+                onChange={(e) => setLeftoverName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && leftoverName.trim()) onRenameRecipe?.(rid, leftoverName.trim()); }}
+                className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
+              />
+              {leftoverName.trim() && leftoverName.trim() !== recipe.name && (
+                <button
+                  onClick={() => onRenameRecipe?.(rid, leftoverName.trim())}
+                  className="flex-shrink-0 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition"
+                >
+                  Save
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <>
@@ -954,9 +979,29 @@ function SelectedRecipeCard({
 
           {/* AI stub or manual stub — offer to generate full recipe */}
           {isLeftoversStub ? (
-            <div className="text-center py-4">
-              <p className="text-sm text-orange-900 mb-1 font-display italic">Leftovers night.</p>
-              <p className="text-xs text-orange-600">The AI will plan a larger portion for an earlier meal to cover this day too.</p>
+            <div className="py-4 space-y-3">
+              <div>
+                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide mb-2">What are you having?</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. Pasta from Monday, Curry from Tuesday…"
+                    value={leftoverName}
+                    onChange={(e) => setLeftoverName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && leftoverName.trim()) onRenameRecipe?.(rid, leftoverName.trim()); }}
+                    className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
+                  />
+                  {leftoverName.trim() && leftoverName.trim() !== recipe.name && (
+                    <button
+                      onClick={() => onRenameRecipe?.(rid, leftoverName.trim())}
+                      className="flex-shrink-0 px-4 py-2 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-600 transition"
+                    >
+                      Save
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-orange-400">The AI will plan an earlier meal with enough servings to cover this day too — no cooking needed tonight.</p>
             </div>
           ) : (isStub || isManualStub) ? (
             <div className="text-center py-4">
@@ -2172,6 +2217,15 @@ export default function App() {
     activityToastTimer.current = setTimeout(() => setActivityToast(null), 5000);
   }
 
+  async function renameRecipeInPlan(rid, newName) {
+    const item = mealPlanItems.find((i) => i.recipe_id === rid);
+    if (!item) return;
+    const updatedRecipe = { ...item.recipe_data, name: newName };
+    setMealPlanItems((prev) => prev.map((i) => i.id === item.id ? { ...i, recipe_data: updatedRecipe } : i));
+    markLocalWrite('meal_plan_items');
+    await supabase.from('meal_plan_items').update({ recipe_data: updatedRecipe }).eq('id', item.id);
+  }
+
   function showBasketToast(recipeName) {
     clearTimeout(basketToastTimer.current);
     setBasketToast(recipeName);
@@ -2190,6 +2244,12 @@ export default function App() {
     const updatedRecipe = {
       ...item.recipe_data,
       ...fullData,
+      // For plain generation (not adjust), keep the stub's original time estimates —
+      // the suggest-week AI already picked the recipe based on those times, so
+      // overwriting them with the generate-recipe AI's re-estimate causes the time
+      // shown in the planner to change unexpectedly after the recipe loads.
+      ...(!isAdjust && item.recipe_data.prepTime ? { prepTime: item.recipe_data.prepTime } : {}),
+      ...(!isAdjust && item.recipe_data.cookTime ? { cookTime: item.recipe_data.cookTime } : {}),
       ...(adjustmentLog.length ? { _adjustmentLog: adjustmentLog } : {}),
       // Stamp the update so the realtime handler can detect it for other members.
       ...(isAdjust ? { _lastAdjustedAt: Date.now() } : {}),
@@ -4001,6 +4061,7 @@ export default function App() {
                                 preferences={preferences} starredRecipes={starredRecipes} onAcceptSubstitution={acceptSubstitution}
                                 onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[xrid] || null}
                                 onSwapRecipe={swapAndSaveRecipe} swapping={swappingRecipeId === xrid}
+                                onRenameRecipe={renameRecipeInPlan}
                                 language={LANG_NAMES[memberLanguage] || 'English'}
                                 weekRecipeNames={viewItems.map((i) => i.recipe_data?.name).filter((n) => n && n !== xr.name)}
                                 inlineExpanded />
@@ -4241,6 +4302,7 @@ export default function App() {
                                 preferences={preferences} starredRecipes={starredRecipes} onAcceptSubstitution={acceptSubstitution}
                                 onGenerateRecipe={generateAndSaveRecipe} onShareRecipe={shareRecipe} rating={recipeRatings[rid] || null}
                                 onSwapRecipe={swapAndSaveRecipe} swapping={swappingRecipeId === rid}
+                                onRenameRecipe={renameRecipeInPlan}
                                 language={LANG_NAMES[memberLanguage] || 'English'}
                                 weekRecipeNames={viewItems.map((i) => i.recipe_data?.name).filter((n) => n && n !== recipe.name)}
                                 inlineExpanded />
@@ -4291,6 +4353,7 @@ export default function App() {
                             onShareRecipe={shareRecipe}
                             rating={recipeRatings[rid] || null}
                             onAssignDay={assignRecipeToDay}
+                            onRenameRecipe={renameRecipeInPlan}
                             language={LANG_NAMES[memberLanguage] || 'English'}
                             weekRecipeNames={viewItems.map((i) => i.recipe_data?.name).filter((n) => n && n !== recipe.name)}
                           />
