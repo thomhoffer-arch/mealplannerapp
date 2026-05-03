@@ -1362,7 +1362,15 @@ export default function App() {
   const pendingGeneratedNames = useRef([]); // names of in-flight addExtraMeal results not yet in viewItems
   const rejectedByDayRef = useRef({});     // { "Monday": ["Pasta", ...] } — seen-and-dismissed dishes per day
 
-  useEffect(() => { localStorage.setItem('mp:activeTab', activeTab); }, [activeTab]);
+  const tabScrollPos = useRef({});
+  const prevTabRef = useRef(activeTab);
+  useEffect(() => {
+    // Save the outgoing tab's scroll position, then restore the incoming tab's.
+    tabScrollPos.current[prevTabRef.current] = window.scrollY;
+    prevTabRef.current = activeTab;
+    localStorage.setItem('mp:activeTab', activeTab);
+    window.scrollTo(0, tabScrollPos.current[activeTab] ?? 0);
+  }, [activeTab]);
 
   // ── Auth setup ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -2251,6 +2259,29 @@ export default function App() {
     setMealPlanItems((prev) => prev.map((i) => i.id === item.id ? { ...i, recipe_data: updatedRecipe } : i));
     markLocalWrite('meal_plan_items');
     await supabase.from('meal_plan_items').update({ recipe_data: updatedRecipe }).eq('id', item.id);
+
+    // If this is the source of a leftover pairing, update the leftover day's name to stay in sync.
+    const leftoverDay = updatedRecipe._plannerLeftoverFor;
+    if (leftoverDay) {
+      const leftoverItem = mealPlanItems.find(
+        (i) => i.id !== item.id &&
+               i.recipe_data?._plannedDay === leftoverDay &&
+               i.recipe_data?._weekStart === updatedRecipe._weekStart &&
+               !i.recipe_data?._mealType
+      );
+      if (leftoverItem) {
+        const oldSourceName = item.recipe_data.name || '';
+        const currentLeftoverName = leftoverItem.recipe_data.name || '';
+        // Derive a new leftover name: replace the old source name inside it, or
+        // fall back to "Leftovers from <new name>" if no match.
+        const newLeftoverName = oldSourceName && currentLeftoverName.includes(oldSourceName)
+          ? currentLeftoverName.replace(oldSourceName, newName)
+          : `Leftovers from ${newName}`;
+        const syncedRecipe = sanitizeForStorage({ ...leftoverItem.recipe_data, name: newLeftoverName });
+        setMealPlanItems((prev) => prev.map((i) => i.id === leftoverItem.id ? { ...i, recipe_data: syncedRecipe } : i));
+        supabase.from('meal_plan_items').update({ recipe_data: syncedRecipe }).eq('id', leftoverItem.id);
+      }
+    }
   }
 
   function showBasketToast(recipeName) {
@@ -2289,6 +2320,34 @@ export default function App() {
     setMealPlanItems((prev) => prev.map((i) =>
       i.id === item.id ? { ...i, recipe_data: updatedRecipe } : i
     ));
+
+    // Propagate content changes to the linked leftover day (same batch dish).
+    // The source recipe carries _plannerLeftoverFor pointing to the day that eats its leftovers.
+    const leftoverDay = updatedRecipe._plannerLeftoverFor;
+    if (leftoverDay) {
+      const leftoverItem = mealPlanItems.find(
+        (i) => i.id !== item.id &&
+               i.recipe_data?._plannedDay === leftoverDay &&
+               i.recipe_data?._weekStart === updatedRecipe._weekStart &&
+               !i.recipe_data?._mealType
+      );
+      if (leftoverItem) {
+        const syncedRecipe = sanitizeForStorage({
+          ...leftoverItem.recipe_data,
+          ingredients: updatedRecipe.ingredients,
+          steps:       updatedRecipe.steps,
+          macros:      updatedRecipe.macros,
+          prepTime:    updatedRecipe.prepTime,
+          cookTime:    updatedRecipe.cookTime,
+          ...(adjustmentLog.length ? { _adjustmentLog: adjustmentLog } : {}),
+          ...(isAdjust ? { _lastAdjustedAt: Date.now() } : {}),
+        });
+        await supabase.from('meal_plan_items').update({ recipe_data: syncedRecipe }).eq('id', leftoverItem.id);
+        setMealPlanItems((prev) => prev.map((i) =>
+          i.id === leftoverItem.id ? { ...i, recipe_data: syncedRecipe } : i
+        ));
+      }
+    }
     if ((fullData.ingredients || []).length > 0) {
       if (isAdjust) {
         showActivityToast('Recipe adjusted.');
@@ -2341,12 +2400,25 @@ export default function App() {
       const newRid = String(result.recipe.id);
       const newRecipeData = {
         ...result.recipe,
-        _plannedDay: recipe._plannedDay,
-        _plannedWeek: recipe._plannedWeek,
-        _plannerReason: result.reason || '',
-        _plannerPhoto: result.photo || null,
-        _weekStart: viewWeek,
+        _plannedDay:         recipe._plannedDay,
+        _plannedWeek:        recipe._plannedWeek,
+        _plannerReason:      result.reason || '',
+        _plannerPhoto:       result.photo || null,
+        _weekStart:          viewWeek,
+        _plannerLeftoverFor: recipe._plannerLeftoverFor || null, // preserve leftover link
       };
+
+      // Find the linked leftover day before mutating state.
+      const linkedLeftoverDay = recipe._plannerLeftoverFor || null;
+      const linkedLeftoverItem = linkedLeftoverDay
+        ? mealPlanItems.find(
+            (i) => i.recipe_id !== rid &&
+                   i.recipe_data?._plannedDay === linkedLeftoverDay &&
+                   i.recipe_data?._weekStart === recipe._weekStart &&
+                   !i.recipe_data?._mealType
+          )
+        : null;
+
       // Remove old item.id from the photo-fetch dedup set so the new recipe
       // can trigger a background fetch if the API didn't return a photo.
       if (dbItem?.id) fetchedPhotoIds.current.delete(String(dbItem.id));
@@ -2359,6 +2431,19 @@ export default function App() {
           .update({ recipe_id: newRid, recipe_data: newRecipeData })
           .eq('id', dbItem.id);
       }
+
+      // Immediately update the leftover day's name to reflect the new source dish.
+      if (linkedLeftoverItem) {
+        const syncedName = sanitizeForStorage({
+          ...linkedLeftoverItem.recipe_data,
+          name: `Leftovers from ${result.recipe.name}`,
+        });
+        setMealPlanItems((prev) => prev.map((i) =>
+          i.id === linkedLeftoverItem.id ? { ...i, recipe_data: syncedName } : i
+        ));
+        supabase.from('meal_plan_items').update({ recipe_data: syncedName }).eq('id', linkedLeftoverItem.id);
+      }
+
       // Auto-generate full recipe for the new stub
       if (result.recipe._aiSuggestion && !(result.recipe.ingredients?.length)) {
         (async () => {
@@ -2378,6 +2463,23 @@ export default function App() {
             if (dbItem?.id) {
               markLocalWrite('meal_plan_items');
               await supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbItem.id);
+            }
+            // Push the full recipe content to the linked leftover day too.
+            if (linkedLeftoverItem) {
+              setMealPlanItems((prev) => {
+                const latest = prev.find((i) => i.id === linkedLeftoverItem.id);
+                if (!latest) return prev;
+                const synced = sanitizeForStorage({
+                  ...latest.recipe_data,
+                  ingredients: enriched.ingredients,
+                  steps:       enriched.steps,
+                  macros:      enriched.macros,
+                  prepTime:    enriched.prepTime,
+                  cookTime:    enriched.cookTime,
+                });
+                supabase.from('meal_plan_items').update({ recipe_data: synced }).eq('id', linkedLeftoverItem.id);
+                return prev.map((i) => i.id === linkedLeftoverItem.id ? { ...i, recipe_data: synced } : i);
+              });
             }
           } catch (err) {
             console.error('[bg-generate-swapped]', err.message);

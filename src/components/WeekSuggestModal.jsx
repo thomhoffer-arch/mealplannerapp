@@ -225,6 +225,15 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           simple_night: simpleNight,
           deals: deals,
           language,
+          planned_this_week: existingItems
+            .filter((i) => {
+              const rd = i.recipe_data;
+              if (!rd?._plannedDay || !rd?.name) return false;
+              // Skip unnamed leftover stubs — they don't constrain variety yet
+              if (rd._isLeftovers && rd.name === 'Leftovers') return false;
+              return true;
+            })
+            .map((i) => ({ name: i.recipe_data.name, day: i.recipe_data._plannedDay })),
         },
       });
 
