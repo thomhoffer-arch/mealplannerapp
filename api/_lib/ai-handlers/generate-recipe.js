@@ -4,6 +4,7 @@ import { VOICE_GUIDE } from '../voice.js';
 import { resolveAiProvider, callAi } from '../ai-call.js';
 import { checkAndIncrementUsage, isGiftedHousehold } from '../usage.js';
 import { buildDietaryGuardrails } from '../dietary-guardrails.js';
+import { buildLocationSection } from '../season.js';
 
 export default async function handleGenerateRecipe(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -20,11 +21,13 @@ export default async function handleGenerateRecipe(req, res) {
 
   const [{ provider, token, usingSharedKey }, { data: prefData }, { data: membersData }] = await Promise.all([
     resolveAiProvider(supabase, ctx.householdId),
-    supabase.from('household_preferences').select('preferences_text, measurement_system').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_preferences').select('preferences_text, measurement_system, country').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('household_members').select('display_name, personal_prefs').eq('household_id', ctx.householdId),
   ]);
   const householdPrefs = prefData?.preferences_text || '';
   const measurementSystem = prefData?.measurement_system || 'metric';
+  const country = prefData?.country || '';
+  const locationSection = buildLocationSection(country);
   const dietaryGuardrails = buildDietaryGuardrails(householdPrefs, membersData || []);
 
   if (!token) return res.status(503).json({ error: 'No AI provider configured' });
@@ -39,7 +42,7 @@ export default async function handleGenerateRecipe(req, res) {
     }
   }
 
-  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim(), householdPrefs, measurementSystem, dietaryGuardrails, language, week_context) : buildGeneratePrompt(recipe, householdPrefs, measurementSystem, dietaryGuardrails, language);
+  const prompt = isAdjust ? buildAdjustPrompt(recipe, request.trim(), householdPrefs, measurementSystem, dietaryGuardrails, language, week_context, locationSection) : buildGeneratePrompt(recipe, householdPrefs, measurementSystem, dietaryGuardrails, language, locationSection);
 
   let rawText;
   try {
@@ -74,7 +77,7 @@ function buildReviewFeedbackSection(recipe) {
   return `\nPAST COOK FEEDBACK (apply these improvements — the household cooked this before and left notes):\n${feedback.map((f) => `  - [${f.stars}★] "${f.note}"`).join('\n')}\n`;
 }
 
-function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '', language = 'English') {
+function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '', language = 'English', locationSection = '') {
   const { name, overview, cuisineType, prepTime, cookTime, _sideDish } = recipe;
   const totalTime = (prepTime || 0) + (cookTime || 0);
   const timeHint = totalTime > 0 ? ` Total time around ${totalTime} minutes.` : '';
@@ -109,7 +112,7 @@ function buildGeneratePrompt(recipe, householdPrefs = '', measurementSystem = 'm
 Write a complete dinner recipe for "${name}".${overviewHint}
 ${cuisineHint}${timeHint}
 Portions for 2 people. ${unitsLine}${langLine}
-${prefsSection}${guardrailsSection}${reviewFeedbackSection}${sideSection}
+${locationSection}${prefsSection}${guardrailsSection}${reviewFeedbackSection}${sideSection}
 If the dish name already implies a dietary adaptation (e.g. "with
 gluten-free pasta", "vegetarian lasagne"), reflect that in the
 ingredient list — label GF pasta as "gluten-free pasta", label
@@ -129,7 +132,7 @@ Return ONLY a JSON object, no markdown:
 IMPORTANT: macros must be TOTALS for the whole recipe (all servings combined), not per person. Every ingredient MUST have a specific amount with a unit (e.g. "200 g", "2 tbsp", "1 tsp", "3 cloves", "400 ml"). Never leave amount empty or omit units. For whole items use count + unit (e.g. "2 chicken thighs" not just "2"). Each ingredient entry must be ONE purchasable item — never combine two distinct items with "and" in a single entry (write "carrots" and "peas" as two separate entries, not "carrots and peas"). Compound product names that contain "and" as part of their name (e.g. "pork and fennel sausages", "macaroni and cheese") are fine as a single entry.`;
 }
 
-function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '', language = 'English', weekContext = []) {
+function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSystem = 'metric', dietaryGuardrails = '', language = 'English', weekContext = [], locationSection = '') {
   const ingredientsList = (recipe.ingredients || [])
     .map((i) => `  - ${i.amount ? `${i.amount} ` : ''}${i.name}`)
     .join('\n');
@@ -165,7 +168,7 @@ function buildAdjustPrompt(recipe, request, householdPrefs = '', measurementSyst
 ---
 
 Adjust this recipe based on the user request. Change only what the request asks for. ${unitsLine}${langLine}
-${prefsSection}${guardrailsSection}${reviewFeedbackSection}${adjustmentSection}${weekContext.length ? `\nOTHER DISHES PLANNED THIS WEEK: ${weekContext.join(', ')}\nVariety preference (soft guideline, not a hard rule): prefer ingredients that vary from what the other dishes already use — especially carb sources (e.g. if another dish has quinoa, lean toward a different carb like rice, potatoes, lentils, or pasta). Only apply this when the request leaves room for choice.\n` : ''}
+${locationSection}${prefsSection}${guardrailsSection}${reviewFeedbackSection}${adjustmentSection}${weekContext.length ? `\nOTHER DISHES PLANNED THIS WEEK: ${weekContext.join(', ')}\nVariety preference (soft guideline, not a hard rule): prefer ingredients that vary from what the other dishes already use — especially carb sources (e.g. if another dish has quinoa, lean toward a different carb like rice, potatoes, lentils, or pasta). Only apply this when the request leaves room for choice.\n` : ''}
 RECIPE: ${recipe.name}
 INGREDIENTS:
 ${ingredientsList || '  (none listed)'}

@@ -5,6 +5,7 @@ import { resolveAiProvider, callAi } from '../ai-call.js';
 import { checkAndIncrementUsage, isGiftedHousehold } from '../usage.js';
 import { searchPhoto } from '../pexels.js';
 import { buildDietaryGuardrails } from '../dietary-guardrails.js';
+import { buildLocationSection } from '../season.js';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_SHORT_TO_LONG = {
@@ -55,7 +56,7 @@ async function _handler(req, res) {
   }
 
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }, { data: pantryData }] = await Promise.all([
-    supabase.from('household_preferences').select('preferences_text, meal_prep_mode, meal_prep_set_by_name, measurement_system, diet_variety').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_preferences').select('preferences_text, meal_prep_mode, meal_prep_set_by_name, measurement_system, diet_variety, country').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
@@ -68,6 +69,7 @@ async function _handler(req, res) {
   const mealPrepMode = prefData?.meal_prep_mode || false;
   const measurementSystem = prefData?.measurement_system || 'metric';
   const dietVariety = prefData?.diet_variety || 'balanced';
+  const country = prefData?.country || '';
   const starred = starredData || [];
   const members = membersData || [];
 
@@ -114,7 +116,8 @@ async function _handler(req, res) {
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
 
   const dietaryGuardrails = buildDietaryGuardrails(preferences, members);
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language, recentBuckets, dietaryGuardrails, dietVariety);
+  const locationSection = buildLocationSection(country);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language, recentBuckets, dietaryGuardrails, dietVariety, locationSection);
 
   let rawText;
   try {
@@ -300,7 +303,7 @@ function parseWeekdayTimeCap(text) {
   return null;
 }
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null, dietaryGuardrails = '', dietVariety = 'balanced') {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null, dietaryGuardrails = '', dietVariety = 'balanced', locationSection = '') {
   const _noHistory = loved.length === 0 && recentNames.length === 0;
 
   let starredSection = '';
@@ -344,7 +347,7 @@ Write every dish name, description, overview, reason, and note in ${language}. U
 
 MEASUREMENT SYSTEM: ${measurementSystem === 'imperial' ? 'Imperial (oz, lb, cups, tsp, tbsp, fl oz)' : 'Metric (g, kg, ml, L, tsp, tbsp)'}
 Use this system for all ingredient amounts in the plan.
-
+${locationSection}
 HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}
 Any time limits stated above (e.g. "weekdays under 40 min", "max 30 min school nights") are hard caps — every applicable day must have prep_time + cook_time within that limit, same as constraints in THIS WEEK SPECIFICALLY.
@@ -476,10 +479,11 @@ Waste-first thinking:
   Side dishes and extras should reuse ingredients already in the week's plan where possible.
 
 Extras — default is ALWAYS empty. This is a strict rule:
-  Every day's "extras" array must be [] unless ALL of the following are true:
+  Every day's "extras" array must be [] unless BOTH of the following are true:
   1. There is a verbatim request for that specific meal type (breakfast / lunch / snack) for that specific day or day group in the user's input OR in the standing extras text.
   2. You can quote the exact words that justify it.
   If you cannot quote a direct user request, the array is []. Do not infer, anticipate, or suggest extras on your own initiative — not for weekends, not for "balance", not for any reason. The user will ask when they want them.
+  EXTRAS AUDIT (mandatory before finalising output): Go through each day that has a non-empty extras array. For each entry, write the exact quote from EXTRAS THE HOUSEHOLD WANTS PLANNED or THIS WEEK SPECIFICALLY that justifies it. If you cannot find a direct quote, delete that extra entry and set the array to []. Apply this check to every single day without exception.
 
 Learning from history — go slowly:
   The LOVED list and recent meal history show what the household has enjoyed, but 2–3 similar dishes is not a strong enough pattern to lock in a genre or style. Keep suggesting variety. Only lean heavily on a pattern when it is overwhelming (5+ clear data points pointing the same direction). Even then, don't abandon variety entirely — one week's plan should never feel monotone.
@@ -488,7 +492,7 @@ Real dishes only:
   Every suggestion must be a recognisable, real-world dish.`}
 
 SELF-CHECK BEFORE OUTPUT
-For every day confirm: (a) extras are in the "extras" array only when directly requested — if you added any extras without a verbatim user request, remove them now; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) leftover_for never points at a spontaneously invented meal; (e) if a time limit was stated in HOUSEHOLD-LEVEL PREFERENCES or THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning; (f) for every day that had a PER-DAY HARD RULE, verify the rule is satisfied — dietary rules fully respected, time rules within the stated limit, away/skip rules set correctly.
+For every day confirm: (a) extras — scan every non-empty extras array one more time; for each entry, if you cannot point to a verbatim user request that covers that exact day and meal type, delete the entry; weekend breakfasts and lunches are NOT added unless the user explicitly asked for them; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) leftover_for never points at a spontaneously invented meal; (e) if a time limit was stated in HOUSEHOLD-LEVEL PREFERENCES or THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning; (f) for every day that had a PER-DAY HARD RULE, verify the rule is satisfied — dietary rules fully respected, time rules within the stated limit, away/skip rules set correctly.
 
 Return ONLY a JSON object, no markdown:
 {

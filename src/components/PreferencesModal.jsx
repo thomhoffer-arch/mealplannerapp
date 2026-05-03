@@ -33,6 +33,9 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
   const [savingMealPrep, setSavingMealPrep] = useState(false);
   const [measurementSystem, setMeasurementSystem] = useState('metric');
   const [savingMeasurement, setSavingMeasurement] = useState(false);
+  const [country, setCountry] = useState('');
+  const [savingCountry, setSavingCountry] = useState(false);
+  const [savedCountry, setSavedCountry] = useState(false);
   const [dietVariety, setDietVariety] = useState('balanced');
   const [savingDietVariety, setSavingDietVariety] = useState(false);
   const [extrasText, setExtrasText] = useState('');
@@ -73,6 +76,7 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
     setMealPrepMode(initialPrefs.meal_prep_mode || false);
     setMealPrepSetByName(initialPrefs.meal_prep_set_by_name || '');
     setMeasurementSystem(initialPrefs.measurement_system || 'metric');
+    setCountry(initialPrefs.country || '');
     setDietVariety(initialPrefs.diet_variety || 'balanced');
     setKeyHint(initialPrefs.gemini_api_key_hint || null);
     setPuterHint(initialPrefs.puter_token_hint || null);
@@ -230,6 +234,41 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
                     {sys === 'metric' ? 'Metric' : 'Imperial'}
                   </button>
                 ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-1 gap-3">
+              <div className="flex-shrink-0">
+                <span className="text-sm text-orange-900 font-medium">Country</span>
+                <p className="text-xs text-orange-400">Seasonal produce &amp; local ingredient suggestions</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <input
+                  type="text"
+                  placeholder="e.g. Netherlands"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                  className="w-36 border border-orange-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300 text-orange-900"
+                />
+                <button
+                  disabled={savingCountry}
+                  onClick={async () => {
+                    setSavingCountry(true);
+                    const { error } = await supabase.from('household_preferences').upsert(
+                      { household_id: household.id, country: country.trim() || null },
+                      { onConflict: 'household_id' }
+                    );
+                    setSavingCountry(false);
+                    if (!error) {
+                      onPrefsChange?.({ country: country.trim() || null });
+                      setSavedCountry(true);
+                      setTimeout(() => setSavedCountry(false), 2000);
+                    }
+                  }}
+                  className="flex-shrink-0 px-3 py-1.5 bg-orange-500 text-white rounded-full text-xs font-semibold hover:bg-orange-600 transition disabled:opacity-50"
+                >
+                  {savedCountry ? <Check size={12} /> : savingCountry ? '…' : 'Save'}
+                </button>
               </div>
             </div>
           </div>
