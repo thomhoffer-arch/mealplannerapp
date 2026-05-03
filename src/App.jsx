@@ -1327,6 +1327,7 @@ export default function App() {
 
   // ── Supabase-backed shared state
   const [mealPlanItems, setMealPlanItems] = useState([]);   // [{ id, recipe_id, recipe_data }]
+  useEffect(() => { mealPlanItemsRef.current = mealPlanItems; }, [mealPlanItems]);
   const [customIngredients, setCustomIngredients] = useState({});  // { recipe_id: [{id,name,amount}] }
   const [cookedRecipes, setCookedRecipes] = useState({});   // { recipe_id: true }
   const [checkedItems, setCheckedItems] = useState({});     // { item_name: true }
@@ -1361,6 +1362,10 @@ export default function App() {
   const pendingDeletes = useRef(new Set()); // recipe_ids removed while INSERT was still in flight
   const pendingGeneratedNames = useRef([]); // names of in-flight addExtraMeal results not yet in viewItems
   const rejectedByDayRef = useRef({});     // { "Monday": ["Pasta", ...] } — seen-and-dismissed dishes per day
+
+  // Always-current mirror of mealPlanItems — safe to read inside async closures
+  // where the captured state variable may be stale after an await.
+  const mealPlanItemsRef = useRef([]);
 
   const tabScrollPos = useRef({});
   const prevTabRef = useRef(activeTab);
@@ -2261,23 +2266,23 @@ export default function App() {
     await supabase.from('meal_plan_items').update({ recipe_data: updatedRecipe }).eq('id', item.id);
 
     // If this is the source of a leftover pairing, update the leftover day's name to stay in sync.
+    // Use mealPlanItemsRef.current to avoid stale-closure id mismatches after the await above.
     const leftoverDay = updatedRecipe._plannerLeftoverFor;
     if (leftoverDay) {
-      const leftoverItem = mealPlanItems.find(
+      const leftoverItem = mealPlanItemsRef.current.find(
         (i) => i.id !== item.id &&
-               i.recipe_data?._plannedDay === leftoverDay &&
+               (i.recipe_data?._plannedDay || '').toLowerCase() === leftoverDay.toLowerCase() &&
                !i.recipe_data?._mealType
       );
       if (leftoverItem) {
         const oldSourceName = item.recipe_data.name || '';
         const currentLeftoverName = leftoverItem.recipe_data.name || '';
-        // Derive a new leftover name: replace the old source name inside it, or
-        // fall back to "Leftovers from <new name>" if no match.
         const newLeftoverName = oldSourceName && currentLeftoverName.includes(oldSourceName)
           ? currentLeftoverName.replace(oldSourceName, newName)
           : `Leftovers from ${newName}`;
         const syncedRecipe = sanitizeForStorage({ ...leftoverItem.recipe_data, name: newLeftoverName });
         setMealPlanItems((prev) => prev.map((i) => i.id === leftoverItem.id ? { ...i, recipe_data: syncedRecipe } : i));
+        markLocalWrite('meal_plan_items');
         supabase.from('meal_plan_items').update({ recipe_data: syncedRecipe }).eq('id', leftoverItem.id);
       }
     }
@@ -2321,12 +2326,13 @@ export default function App() {
     ));
 
     // Propagate content changes to the linked leftover day (same batch dish).
-    // The source recipe carries _plannerLeftoverFor pointing to the day that eats its leftovers.
+    // Use mealPlanItemsRef.current (not the closure variable) so we always see the
+    // latest IDs even if optimistic IDs were replaced during the await above.
     const leftoverDay = updatedRecipe._plannerLeftoverFor;
     if (leftoverDay) {
-      const leftoverItem = mealPlanItems.find(
+      const leftoverItem = mealPlanItemsRef.current.find(
         (i) => i.id !== item.id &&
-               i.recipe_data?._plannedDay === leftoverDay &&
+               (i.recipe_data?._plannedDay || '').toLowerCase() === leftoverDay.toLowerCase() &&
                !i.recipe_data?._mealType
       );
       if (leftoverItem) {
@@ -2340,6 +2346,7 @@ export default function App() {
           ...(adjustmentLog.length ? { _adjustmentLog: adjustmentLog } : {}),
           ...(isAdjust ? { _lastAdjustedAt: Date.now() } : {}),
         });
+        markLocalWrite('meal_plan_items');
         await supabase.from('meal_plan_items').update({ recipe_data: syncedRecipe }).eq('id', leftoverItem.id);
         setMealPlanItems((prev) => prev.map((i) =>
           i.id === leftoverItem.id ? { ...i, recipe_data: syncedRecipe } : i
@@ -2406,15 +2413,7 @@ export default function App() {
         _plannerLeftoverFor: recipe._plannerLeftoverFor || null, // preserve leftover link
       };
 
-      // Find the linked leftover day before mutating state.
       const linkedLeftoverDay = recipe._plannerLeftoverFor || null;
-      const linkedLeftoverItem = linkedLeftoverDay
-        ? mealPlanItems.find(
-            (i) => i.recipe_id !== rid &&
-                   i.recipe_data?._plannedDay === linkedLeftoverDay &&
-                   !i.recipe_data?._mealType
-          )
-        : null;
 
       // Remove old item.id from the photo-fetch dedup set so the new recipe
       // can trigger a background fetch if the API didn't return a photo.
@@ -2430,15 +2429,25 @@ export default function App() {
       }
 
       // Immediately update the leftover day's name to reflect the new source dish.
-      if (linkedLeftoverItem) {
-        const syncedName = sanitizeForStorage({
-          ...linkedLeftoverItem.recipe_data,
-          name: `Leftovers from ${result.recipe.name}`,
-        });
-        setMealPlanItems((prev) => prev.map((i) =>
-          i.id === linkedLeftoverItem.id ? { ...i, recipe_data: syncedName } : i
-        ));
-        supabase.from('meal_plan_items').update({ recipe_data: syncedName }).eq('id', linkedLeftoverItem.id);
+      // Use mealPlanItemsRef.current (always current) so we never act on a stale
+      // optimistic ID that was replaced by a real DB id during the await above.
+      if (linkedLeftoverDay) {
+        const linkedLeftoverItem = mealPlanItemsRef.current.find(
+          (i) => i.recipe_id !== newRid &&
+                 (i.recipe_data?._plannedDay || '').toLowerCase() === linkedLeftoverDay.toLowerCase() &&
+                 !i.recipe_data?._mealType
+        );
+        if (linkedLeftoverItem) {
+          const syncedName = sanitizeForStorage({
+            ...linkedLeftoverItem.recipe_data,
+            name: `Leftovers from ${result.recipe.name}`,
+          });
+          setMealPlanItems((prev) => prev.map((i) =>
+            i.id === linkedLeftoverItem.id ? { ...i, recipe_data: syncedName } : i
+          ));
+          markLocalWrite('meal_plan_items');
+          supabase.from('meal_plan_items').update({ recipe_data: syncedName }).eq('id', linkedLeftoverItem.id);
+        }
       }
 
       // Auto-generate full recipe for the new stub
@@ -2462,21 +2471,25 @@ export default function App() {
               await supabase.from('meal_plan_items').update({ recipe_data: enriched }).eq('id', dbItem.id);
             }
             // Push the full recipe content to the linked leftover day too.
-            if (linkedLeftoverItem) {
-              setMealPlanItems((prev) => {
-                const latest = prev.find((i) => i.id === linkedLeftoverItem.id);
-                if (!latest) return prev;
+            if (linkedLeftoverDay) {
+              const latestLeftover = mealPlanItemsRef.current.find(
+                (i) => i.recipe_id !== newRid &&
+                       (i.recipe_data?._plannedDay || '').toLowerCase() === linkedLeftoverDay.toLowerCase() &&
+                       !i.recipe_data?._mealType
+              );
+              if (latestLeftover) {
                 const synced = sanitizeForStorage({
-                  ...latest.recipe_data,
+                  ...latestLeftover.recipe_data,
                   ingredients: enriched.ingredients,
                   steps:       enriched.steps,
                   macros:      enriched.macros,
                   prepTime:    enriched.prepTime,
                   cookTime:    enriched.cookTime,
                 });
-                supabase.from('meal_plan_items').update({ recipe_data: synced }).eq('id', linkedLeftoverItem.id);
-                return prev.map((i) => i.id === linkedLeftoverItem.id ? { ...i, recipe_data: synced } : i);
-              });
+                markLocalWrite('meal_plan_items');
+                supabase.from('meal_plan_items').update({ recipe_data: synced }).eq('id', latestLeftover.id);
+                setMealPlanItems((prev) => prev.map((i) => i.id === latestLeftover.id ? { ...i, recipe_data: synced } : i));
+              }
             }
           } catch (err) {
             console.error('[bg-generate-swapped]', err.message);
