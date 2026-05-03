@@ -224,7 +224,12 @@ async function _handler(req, res) {
   // ── Validate leftover_for ordering ──────────────────────────────────────────
   // The source dish must come BEFORE the leftover day. Drop any leftover_for
   // where the AI got the order backwards (e.g. source=Friday, leftover=Thursday).
-  for (const week of enrichedWeeks) {
+  // Exception: skip validation for non-final weeks — a day like Friday in week 1
+  // with leftover_for="Monday" is a valid cross-week reference (next Monday), not
+  // a backwards link, so we can't validate it by day-array index alone.
+  for (let wi = 0; wi < enrichedWeeks.length; wi++) {
+    if (wi < enrichedWeeks.length - 1) continue; // only validate within the last week
+    const week = enrichedWeeks[wi];
     const dayIdx = {};
     week.days.forEach((d, i) => { if (d.day) dayIdx[d.day] = i; });
     for (const d of week.days) {
