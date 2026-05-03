@@ -2247,7 +2247,7 @@ export default function App() {
   async function renameRecipeInPlan(rid, newName) {
     const item = mealPlanItems.find((i) => i.recipe_id === rid);
     if (!item) return;
-    const updatedRecipe = { ...item.recipe_data, name: newName };
+    const updatedRecipe = sanitizeForStorage({ ...item.recipe_data, name: newName });
     setMealPlanItems((prev) => prev.map((i) => i.id === item.id ? { ...i, recipe_data: updatedRecipe } : i));
     markLocalWrite('meal_plan_items');
     await supabase.from('meal_plan_items').update({ recipe_data: updatedRecipe }).eq('id', item.id);

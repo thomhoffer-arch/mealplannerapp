@@ -589,18 +589,18 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
             <div className="relative">
               <button
                 type="button"
-                onClick={hasDealsAccess ? fetchDeals : () => setShowDealsUpsell((v) => !v)}
+                onClick={!hasDealsAccess ? () => setShowDealsUpsell((v) => !v) : deals.length ? () => setDeals([]) : fetchDeals}
                 disabled={dealsLoading}
-                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition ${
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition disabled:opacity-50 ${
                   !hasDealsAccess
                     ? 'border-orange-200 text-orange-400 hover:border-orange-400 hover:text-orange-600'
                     : deals.length
-                      ? 'bg-green-50 border-green-300 text-green-700 hover:border-green-400'
-                      : 'border-orange-200 text-orange-600 hover:border-orange-400 disabled:opacity-50'
+                      ? 'bg-orange-500 text-white border-orange-500'
+                      : 'border-orange-200 text-orange-600 hover:border-orange-400'
                 }`}
               >
                 <Tag size={12} />
-                {dealsLoading ? 'Finding deals…' : deals.length ? 'Refresh deals' : 'This week\'s deals'}
+                {dealsLoading ? 'Finding deals…' : deals.length ? '✓ This week\'s deals' : 'This week\'s deals'}
               </button>
               {showDealsUpsell && (
                 <div className="absolute left-0 top-full mt-1.5 z-20 w-56 bg-white border border-orange-200 rounded-2xl shadow-lg p-3">

@@ -76,7 +76,21 @@ export async function apiFetch(path, { method = 'GET', body, headers, householdI
     headers: buildHeaders(await readToken(), hid, headers),
   };
   if (body !== undefined) {
-    init.body = typeof body === 'string' ? body : JSON.stringify(body);
+    if (typeof body === 'string') {
+      init.body = body;
+    } else {
+      // Use a replacer to silently drop functions and cyclic references so a
+      // bad recipe object never causes an unhandled serialization crash.
+      const seen = new WeakSet();
+      init.body = JSON.stringify(body, (_k, v) => {
+        if (typeof v === 'function') return undefined;
+        if (v !== null && typeof v === 'object') {
+          if (seen.has(v)) return undefined;
+          seen.add(v);
+        }
+        return v;
+      });
+    }
   }
 
   let res = await fetch(path, init);
