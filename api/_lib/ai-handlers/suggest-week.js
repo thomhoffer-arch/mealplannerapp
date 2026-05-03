@@ -221,6 +221,22 @@ async function _handler(req, res) {
     }),
   }));
 
+  // ── Validate leftover_for ordering ──────────────────────────────────────────
+  // The source dish must come BEFORE the leftover day. Drop any leftover_for
+  // where the AI got the order backwards (e.g. source=Friday, leftover=Thursday).
+  for (const week of enrichedWeeks) {
+    const dayIdx = {};
+    week.days.forEach((d, i) => { if (d.day) dayIdx[d.day] = i; });
+    for (const d of week.days) {
+      if (!d.leftover_for) continue;
+      const srcIdx = dayIdx[d.day];
+      const tgtIdx = dayIdx[d.leftover_for];
+      if (srcIdx !== undefined && tgtIdx !== undefined && tgtIdx <= srcIdx) {
+        d.leftover_for = null; // source is same day or after the leftover day — invalid
+      }
+    }
+  }
+
   // ── Server-side time-limit enforcement ──────────────────────────────────────
   // Parse weekday time caps from the user's "this week" text (e.g. "Weekdays less than 35 minutes").
   // Any weekday whose prep+cook exceeds the cap gets swapped inline before we return.

@@ -356,19 +356,34 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           language,
         },
       });
+      // Preserve the original leftover_for link if regenerate-day didn't return one.
+      const preservedLeftoverFor = updated.leftover_for || dayObj.leftover_for || null;
       setPlan((prev) => prev.map((w) => {
         if (w.week !== weekNum) return w;
         return {
           ...w,
-          days: w.days.map((d) => d.day !== dayObj.day ? d : {
-            ...d,
-            recipe:       updated.recipe,
-            name:         updated.recipe?.name,
-            overview:     updated.recipe?.overview,
-            reason:       updated.reason,
-            leftover_for: updated.leftover_for,
-            uses_pantry:  updated.uses_pantry,
-            photo:        updated.photo,
+          days: w.days.map((d) => {
+            if (d.day === dayObj.day) {
+              return {
+                ...d,
+                recipe:       updated.recipe,
+                name:         updated.recipe?.name,
+                overview:     updated.recipe?.overview,
+                reason:       updated.reason,
+                leftover_for: preservedLeftoverFor,
+                uses_pantry:  updated.uses_pantry,
+                photo:        updated.photo,
+              };
+            }
+            // Keep the linked leftover day's name in sync with the new source dish.
+            if (preservedLeftoverFor && d.day === preservedLeftoverFor && d.recipe) {
+              return {
+                ...d,
+                name:   `Leftovers from ${updated.recipe?.name || ''}`,
+                recipe: { ...d.recipe, name: `Leftovers from ${updated.recipe?.name || ''}` },
+              };
+            }
+            return d;
           }),
         };
       }));
