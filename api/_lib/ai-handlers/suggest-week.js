@@ -469,10 +469,17 @@ VARIETY LEVEL — household preference: ${
 
 Variety — applies across ALL meals chosen in the plan:
   Treat every dinner, breakfast, lunch, and snack as one unified weekly menu.
-  For every dish, identify its hero ingredient — the star the home cook would name first (the main protein, or the main starchy base if there is no dominant protein). Each hero ingredient may appear in at most one dinner per week. This is a hard constraint: if Monday's dinner is built around chicken, no other dinner this week may feature chicken as its hero. Apply the same rule to every other hero ingredient across the plan.${plannedThisWeek.length ? `\n  ALREADY PLANNED THIS WEEK (locked — treat their hero ingredients as taken when enforcing variety):\n${plannedThisWeek.map((d) => `    - ${d.day}: ${d.name}`).join('\n')}` : ''}
+  For every dish, identify its hero ingredient — the star the home cook would name first (the main protein, or the main starchy base if there is no dominant protein).${plannedThisWeek.length ? `\n\n  ALREADY PLANNED THIS WEEK (fixed — extract their hero ingredients FIRST before planning anything else, then treat those hero ingredients as already used for the rest of the week):\n${plannedThisWeek.map((d) => `    - ${d.day}: ${d.name}`).join('\n')}\n  For example: if "Chicken Curry" is planned on Monday, chicken is taken — do not plan another chicken dish on any other day.` : ''}
+
+  Hero-ingredient repetition rule — applies to BOTH already-planned dishes above AND every dish you suggest:
+  ${dietVariety === 'familiar'
+    ? 'FAMILIAR variety: avoid the same hero ingredient on back-to-back days. Repetition later in the week is acceptable if there is no good alternative.'
+    : dietVariety === 'adventurous'
+    ? 'ADVENTUROUS variety: each hero ingredient may appear in at most ONE dinner across the entire week, including already-planned dishes. This is a hard constraint — replace any duplicate before returning.'
+    : 'BALANCED variety: each hero ingredient may appear in at most one dinner per week, including already-planned dishes. This is a hard constraint — if Monday is chicken, no other dinner this week may feature chicken as its hero.'}
   Extras (breakfasts, lunches, snacks) follow the same logic: a hero ingredient used at breakfast may not reappear at lunch the same day or at breakfast the following day. A dinner and a same-day extra must be meaningfully different from each other.
   Vary cuisines across the week. Spread themed days (fish, vegetarian, etc.) naturally.
-  SELF-CHECK: Before finalising, name the hero ingredient of each planned dinner. If any hero ingredient appears more than once, replace the duplicate with a dish whose hero ingredient hasn't been used yet.
+  SELF-CHECK: Before finalising, list every dinner's hero ingredient — including already-planned dishes. For each hero ingredient that appears more than once (per the rule for your variety level), replace the suggested duplicate with a dish whose hero ingredient has not been used yet.
   Cross-week variety: the RECENTLY EATEN section above shows what was served recently. A plan that closely mirrors last week (same dishes, same cuisine run, same hero-ingredient sequence) is a failure even if no single dish is a direct repeat. Each week should feel meaningfully different from the previous one.
 
 Starred recipes:
@@ -496,7 +503,7 @@ Real dishes only:
   Every suggestion must be a recognisable, real-world dish.`}
 
 SELF-CHECK BEFORE OUTPUT
-For every day confirm: (a) extras — scan every non-empty extras array one more time; for each entry, if you cannot point to a verbatim user request that covers that exact day and meal type, delete the entry; weekend breakfasts and lunches are NOT added unless the user explicitly asked for them; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) leftover_for never points at a spontaneously invented meal; (e) if a time limit was stated in HOUSEHOLD-LEVEL PREFERENCES or THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning; (f) for every day that had a PER-DAY HARD RULE, verify the rule is satisfied — dietary rules fully respected, time rules within the stated limit, away/skip rules set correctly.
+For every day confirm: (a) extras — scan every non-empty extras array one more time; for each entry, if you cannot point to a verbatim user request that covers that exact day and meal type, delete the entry; weekend breakfasts and lunches are NOT added unless the user explicitly asked for them; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) leftover_for never points at a spontaneously invented meal; (e) if a time limit was stated in HOUSEHOLD-LEVEL PREFERENCES or THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning; (f) for every day that had a PER-DAY HARD RULE, verify the rule is satisfied — dietary rules fully respected, time rules within the stated limit, away/skip rules set correctly; (g) hero-ingredient check — list the hero of every dinner including already-planned dishes, then verify no hero appears more than the variety level allows; if a suggested dish repeats a hero from an already-planned dish, replace it.
 
 Return ONLY a JSON object, no markdown:
 {
