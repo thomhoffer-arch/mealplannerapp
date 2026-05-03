@@ -607,7 +607,7 @@ function SelectedRecipeCard({
     }
   }
 
-  const isStub = recipe._aiSuggestion && (!recipe.ingredients || recipe.ingredients.length === 0);
+  const isStub = (recipe._aiSuggestion || recipe._quickEntry) && (!recipe.ingredients || recipe.ingredients.length === 0);
 
   async function generateFullRecipe() {
     setGenerating(true);
@@ -2467,7 +2467,7 @@ export default function App() {
         .catch(() => {});
     }
     // Background full-recipe generation for AI stubs and quick-entry items added to an existing plan
-    if ((recipe._aiSuggestion || recipe._quickEntry) && !(recipe.ingredients?.length)) {
+    if (recipe._aiSuggestion && !(recipe.ingredients?.length)) {
       const dbRowId = inserted?.id;
       (async () => {
         try {
@@ -2744,9 +2744,10 @@ export default function App() {
     const match = trimmed.match(/^([\d.\/½¼¾⅓⅔⅛]+\s*(?:g|kg|ml|l|L|tsp|tbsp|cup|cups|oz|lb|piece|pieces|slice|slices|x|pack|packs|bag|bags|can|cans|bottle|bottles)\s+)/i);
     let amount = '', name = trimmed;
     if (match) { amount = match[0].trim(); name = trimmed.slice(match[0].length).trim() || trimmed; }
+    const listKey = `__list__:${viewWeek}`;
     const tempId = `optimistic-${Date.now()}`;
-    setCustomIngredients((prev) => ({ ...prev, '__list__': [...(prev['__list__'] || []), { id: tempId, name, amount }] }));
-    await supabase.from('custom_ingredients').insert({ household_id: household.id, recipe_id: '__list__', name, amount });
+    setCustomIngredients((prev) => ({ ...prev, [listKey]: [...(prev[listKey] || []), { id: tempId, name, amount }] }));
+    await supabase.from('custom_ingredients').insert({ household_id: household.id, recipe_id: listKey, name, amount });
   }
 
   async function removeListExtra(id) {
@@ -4439,7 +4440,7 @@ export default function App() {
                 </div>
 
                 {(() => {
-                  const listExtras = (customIngredients['__list__'] || []).map((e) => ({
+                  const listExtras = (customIngredients[`__list__:${viewWeek}`] || []).map((e) => ({
                     name: e.name, amount: e.amount || '', isCustom: true, isListExtra: true, listExtraId: e.id, inPantry: false,
                   }));
                   const fullList = [...shoppingList, ...listExtras];
@@ -5149,7 +5150,7 @@ export default function App() {
         <div className="max-w-2xl mx-auto flex items-stretch">
           {[
             { id: "week",    icon: Calendar,     label: "Week" },
-            { id: "basket",  icon: ShoppingCart, label: "Basket",  badge: (() => { const u = shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length + (customIngredients['__list__'] || []).filter((e) => !checkedItems[e.name]).length; return u > 0 ? u : null; })() },
+            { id: "basket",  icon: ShoppingCart, label: "Basket",  badge: (() => { const u = shoppingList.filter((i) => !i.inPantry && !checkedItems[i.name]).length + (customIngredients[`__list__:${viewWeek}`] || []).filter((e) => !checkedItems[e.name]).length; return u > 0 ? u : null; })() },
             { id: "profile", icon: User,         label: "Profile", badge: notifUnread > 0 ? notifUnread : null },
           ].map(({ id, icon: Icon, label, badge }) => (
             <button key={id} onClick={() => setActiveTab(id)}
