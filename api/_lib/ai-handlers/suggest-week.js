@@ -479,10 +479,11 @@ Waste-first thinking:
   Side dishes and extras should reuse ingredients already in the week's plan where possible.
 
 Extras — default is ALWAYS empty. This is a strict rule:
-  Every day's "extras" array must be [] unless ALL of the following are true:
+  Every day's "extras" array must be [] unless BOTH of the following are true:
   1. There is a verbatim request for that specific meal type (breakfast / lunch / snack) for that specific day or day group in the user's input OR in the standing extras text.
   2. You can quote the exact words that justify it.
   If you cannot quote a direct user request, the array is []. Do not infer, anticipate, or suggest extras on your own initiative — not for weekends, not for "balance", not for any reason. The user will ask when they want them.
+  EXTRAS AUDIT (mandatory before finalising output): Go through each day that has a non-empty extras array. For each entry, write the exact quote from EXTRAS THE HOUSEHOLD WANTS PLANNED or THIS WEEK SPECIFICALLY that justifies it. If you cannot find a direct quote, delete that extra entry and set the array to []. Apply this check to every single day without exception.
 
 Learning from history — go slowly:
   The LOVED list and recent meal history show what the household has enjoyed, but 2–3 similar dishes is not a strong enough pattern to lock in a genre or style. Keep suggesting variety. Only lean heavily on a pattern when it is overwhelming (5+ clear data points pointing the same direction). Even then, don't abandon variety entirely — one week's plan should never feel monotone.
@@ -491,7 +492,7 @@ Real dishes only:
   Every suggestion must be a recognisable, real-world dish.`}
 
 SELF-CHECK BEFORE OUTPUT
-For every day confirm: (a) extras are in the "extras" array only when directly requested — if you added any extras without a verbatim user request, remove them now; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) leftover_for never points at a spontaneously invented meal; (e) if a time limit was stated in HOUSEHOLD-LEVEL PREFERENCES or THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning; (f) for every day that had a PER-DAY HARD RULE, verify the rule is satisfied — dietary rules fully respected, time rules within the stated limit, away/skip rules set correctly.
+For every day confirm: (a) extras — scan every non-empty extras array one more time; for each entry, if you cannot point to a verbatim user request that covers that exact day and meal type, delete the entry; weekend breakfasts and lunches are NOT added unless the user explicitly asked for them; (b) skipped days have skip=true, name=null, extras=[]; (c) exactly 7 day entries per week; (d) leftover_for never points at a spontaneously invented meal; (e) if a time limit was stated in HOUSEHOLD-LEVEL PREFERENCES or THIS WEEK SPECIFICALLY, verify prep_time + cook_time for every affected day is within that limit — if any day exceeds it, replace the recipe before returning; (f) for every day that had a PER-DAY HARD RULE, verify the rule is satisfied — dietary rules fully respected, time rules within the stated limit, away/skip rules set correctly.
 
 Return ONLY a JSON object, no markdown:
 {

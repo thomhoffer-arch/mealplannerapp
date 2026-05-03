@@ -202,12 +202,22 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     setSideDishPanel(null);
     setRejectedByDay({});
     try {
+      // Tell the AI to skip already-planned days so it doesn't waste a suggestion on them.
+      const mergedDayNotes = { ...dayNotes };
+      existingItems.forEach((item) => {
+        const day = item.recipe_data?._plannedDay;
+        if (day && !mergedDayNotes[day]) {
+          const name = item.recipe_data?.name || 'an existing recipe';
+          mergedDayNotes[day] = `Skip — already planned ("${name}"). Set skip=true, name=null.`;
+        }
+      });
+
       const data = await apiFetch('/api/ai/suggest-week', {
         method: 'POST',
         body: {
           weeks: numWeeks,
           plan_extras_text: planExtrasText || '',
-          day_notes: dayNotes,
+          day_notes: mergedDayNotes,
           this_week_wishes: thisWeekWishes || '',
           weekly_budget: weeklyBudget ? Number(weeklyBudget) : null,
           simple_night: simpleNight,
@@ -215,18 +225,38 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           language,
         },
       });
-      setPlan(data.weeks);
+
+      // Lock days that already have manually planned meals (week 1 only):
+      // replace the AI suggestion with the existing recipe and mark the day as non-replaceable.
+      const processedWeeks = data.weeks.map((week) => {
+        if (week.week !== 1) return week;
+        return {
+          ...week,
+          days: week.days.map((day) => {
+            if (!alreadyPlannedDays.has(day.day)) return day;
+            const existing = existingItems.find((i) => i.recipe_data?._plannedDay === day.day);
+            return {
+              ...day,
+              skip: false, // override AI skip so the locked card renders correctly
+              recipe: existing?.recipe_data ?? day.recipe,
+              _locked: true,
+              extras: [],
+            };
+          }),
+        };
+      });
+
+      setPlan(processedWeeks);
       setNotes(data.notes || '');
       const sel = {};
       const defExpanded = {};
-      data.weeks.forEach((week) => {
+      processedWeeks.forEach((week) => {
         week.days.forEach((day) => {
-          if (day.recipe) {
-            // Pre-deselect days that already have manually planned meals (week 1 only)
-            const hasExisting = week.week === 1 && alreadyPlannedDays.has(day.day);
-            sel[`${week.week}-${day.day}`] = !hasExisting;
-            defExpanded[`${week.week}-${day.day}`] = { dinner: true };
-          }
+          // Locked days are never selected — they stay in the planner as-is.
+          if (!day.recipe || day._locked) return;
+          const key = `${week.week}-${day.day}`;
+          sel[key] = true;
+          defExpanded[key] = { dinner: true };
         });
       });
       setSelected(sel);
@@ -680,6 +710,34 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                   }
 
                   const isAlreadyPlanned = week.week === 1 && alreadyPlannedDays.has(day.day);
+                  const isLocked = !!day._locked;
+
+                  // Already-planned days: show existing recipe, no AI suggestion, no replace controls.
+                  if (isLocked) {
+                    const recipeName = recipe?.name || day.name;
+                    const recipeType = recipe?._isLeftovers ? 'Leftovers night' : recipe?._quickEntry ? 'Added by you' : null;
+                    return (
+                      <div
+                        key={day.day}
+                        id={`plan-day-${week.week}-${day.day}`}
+                        className="rounded-2xl border-2 border-sky-200 bg-sky-50/30 overflow-hidden"
+                      >
+                        <div className="flex items-center gap-1.5 px-4 pt-4 pb-1">
+                          <span className="text-[10px] font-bold uppercase bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full tracking-wider">{day.day}</span>
+                        </div>
+                        <div className="px-4 pt-2 pb-4">
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <Lock size={12} className="text-sky-400 flex-shrink-0" />
+                            <span className="text-[10px] font-semibold text-sky-500 uppercase tracking-wide">Already planned</span>
+                          </div>
+                          <p className="font-display text-base font-semibold text-orange-900 leading-tight">{recipeName}</p>
+                          {recipeType && <p className="text-xs text-orange-400 mt-0.5">{recipeType}</p>}
+                          <p className="text-[11px] text-sky-400 mt-1.5">Remove from your planner to change this day.</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   const dayExpanded = expandedMeals[key] || {};
                   const extras = day.extras || [];
                   const breakfastExtras = extras.filter((e) => e._mealType === 'breakfast');
@@ -748,7 +806,6 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
                           <div className="flex items-center gap-1.5 flex-wrap flex-1">
                             {isStarred && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">Starred</span>}
                             {isAI && !isStarred && <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold">Suggested</span>}
-                            {isAlreadyPlanned && <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-full font-semibold border border-sky-100">Already planned</span>}
                             {day.estimated_cost && <span className="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full font-semibold border border-green-100">{day.estimated_cost}</span>}
                           </div>
                           {swappingKey === key && (
