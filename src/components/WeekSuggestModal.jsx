@@ -83,6 +83,15 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
   const hasDealsAccess = !!(weeklyUsage?.unlimited || preferences?.is_gifted || preferences?.gemini_api_key_hint);
   const hhKey = household?.id ? `mp:hh:${household.id}` : null;
 
+  // Cache key scoped to household + ISO week (Monday date) so deals auto-expire each week.
+  const dealsWeekKey = (() => {
+    const now = new Date();
+    const day = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+    return `${hhKey}:deals:${monday.toISOString().slice(0, 10)}`;
+  })();
+
   const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   // All days that already have something — both real recipes and leftovers stubs.
@@ -135,7 +144,9 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     try { return localStorage.getItem(`${hhKey}:weeklyBudget`) || ''; } catch { return ''; }
   });
   const [simpleNight, setSimpleNight]     = useState(false); // include one easy night
-  const [deals, setDeals]               = useState([]);    // fetched supermarket deals
+  const [deals, setDeals]               = useState(() => {
+    try { const c = localStorage.getItem(dealsWeekKey); return c ? JSON.parse(c) : []; } catch { return []; }
+  });
   const [dealsLoading, setDealsLoading] = useState(false);
   const [dealsError, setDealsError]     = useState('');
   const [showDealsUpsell, setShowDealsUpsell] = useState(false);
@@ -288,8 +299,13 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     setDealsError('');
     try {
       const data = await apiFetch('/api/ai/search-deals', { method: 'POST', body: {} });
-      setDeals(data.deals || []);
-      if (!data.deals?.length) setDealsError('No deals found for this week.');
+      const fetched = data.deals || [];
+      setDeals(fetched);
+      if (!fetched.length) {
+        setDealsError('No deals found for this week.');
+      } else {
+        try { localStorage.setItem(dealsWeekKey, JSON.stringify(fetched)); } catch {}
+      }
     } catch (err) {
       setDealsError(err.message || 'Could not fetch deals');
     } finally {
@@ -340,19 +356,34 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           language,
         },
       });
+      // Preserve the original leftover_for link if regenerate-day didn't return one.
+      const preservedLeftoverFor = updated.leftover_for || dayObj.leftover_for || null;
       setPlan((prev) => prev.map((w) => {
         if (w.week !== weekNum) return w;
         return {
           ...w,
-          days: w.days.map((d) => d.day !== dayObj.day ? d : {
-            ...d,
-            recipe:       updated.recipe,
-            name:         updated.recipe?.name,
-            overview:     updated.recipe?.overview,
-            reason:       updated.reason,
-            leftover_for: updated.leftover_for,
-            uses_pantry:  updated.uses_pantry,
-            photo:        updated.photo,
+          days: w.days.map((d) => {
+            if (d.day === dayObj.day) {
+              return {
+                ...d,
+                recipe:       updated.recipe,
+                name:         updated.recipe?.name,
+                overview:     updated.recipe?.overview,
+                reason:       updated.reason,
+                leftover_for: preservedLeftoverFor,
+                uses_pantry:  updated.uses_pantry,
+                photo:        updated.photo,
+              };
+            }
+            // Keep the linked leftover day's name in sync with the new source dish.
+            if (preservedLeftoverFor && d.day === preservedLeftoverFor && d.recipe) {
+              return {
+                ...d,
+                name:   `Leftovers from ${updated.recipe?.name || ''}`,
+                recipe: { ...d.recipe, name: `Leftovers from ${updated.recipe?.name || ''}` },
+              };
+            }
+            return d;
           }),
         };
       }));
