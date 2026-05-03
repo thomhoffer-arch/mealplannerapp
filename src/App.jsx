@@ -55,18 +55,31 @@ const SOURCE_COLORS = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function totalTime(r) { return (r.prepTime || 0) + (r.cookTime || 0); }
 
-// Strips functions, DOM nodes, and cyclic references from an object so it can
-// safely be passed to JSON.stringify (used before Supabase writes and AI calls).
+// Strips functions, DOM refs, and cyclic references so the result is safe for
+// Supabase writes and JSON.stringify.  Uses a manual recursive walk rather than
+// a JSON.stringify replacer because Safari throws the cyclic error *before*
+// invoking the replacer, making the replacer approach unreliable on iOS.
 function sanitizeForStorage(obj) {
   const seen = new WeakSet();
-  return JSON.parse(JSON.stringify(obj, (_k, v) => {
-    if (typeof v === 'function') return undefined;
-    if (typeof v === 'object' && v !== null) {
-      if (seen.has(v)) return undefined;
-      seen.add(v);
+  function walk(val) {
+    if (typeof val === 'function') return undefined;
+    if (val === null) return null;
+    if (typeof val === 'object') {
+      if (seen.has(val)) return undefined; // cycle — drop the value
+      seen.add(val);
+      if (Array.isArray(val)) {
+        return val.map((item) => { const r = walk(item); return r === undefined ? null : r; });
+      }
+      const out = {};
+      for (const k of Object.keys(val)) {
+        const r = walk(val[k]);
+        if (r !== undefined) out[k] = r;
+      }
+      return out;
     }
-    return v;
-  }));
+    return val;
+  }
+  return walk(obj);
 }
 
 // Common food qualifiers that may prefix ingredient names without changing what you buy.

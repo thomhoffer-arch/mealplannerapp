@@ -91,10 +91,11 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     existingItems.map((i) => i.recipe_data?._plannedDay).filter(Boolean)
   );
 
-  // Empty leftovers stubs: the user wants the AI to plan a bigger-batch dish on an
-  // earlier day that yields enough for this night — no fresh cooking here.
+  // Unnamed leftovers stubs only — these signal the AI to plan a bigger-batch dish
+  // on an earlier day. Named leftovers (user already noted what they're having) are
+  // treated like any other planned day and locked.
   const leftoverStubDays = existingItems
-    .filter((i) => i.recipe_data?._isLeftovers)
+    .filter((i) => i.recipe_data?._isLeftovers && i.recipe_data?.name === 'Leftovers')
     .map((i) => i.recipe_data._plannedDay)
     .filter(Boolean);
 
@@ -202,14 +203,21 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     setSideDishPanel(null);
     setRejectedByDay({});
     try {
-      // Tell the AI to skip already-planned days so it doesn't waste a suggestion on them.
-      const mergedDayNotes = { ...dayNotes };
+      // Build day notes fresh on every generate call (don't rely on stale dayNotes state).
+      // 1. Unnamed leftover stubs → AI instruction to plan a bigger batch on an earlier day.
+      // 2. Everything else that's already planned → tell AI to skip that day.
+      const mergedDayNotes = {};
+      leftoverStubDays.forEach((day) => {
+        const idx = WEEK_DAYS.indexOf(day);
+        const before = idx > 0 ? WEEK_DAYS.slice(0, idx).join('/') : null;
+        const beforeClause = before ? ` on ${before} — never from a day after ${day}` : '';
+        mergedDayNotes[day] = `Leftovers night — no fresh cooking on this day. Plan a dish earlier in the week${beforeClause} with enough servings to cover this meal too. Set leftover_for on that source dish to "${day}".`;
+      });
       existingItems.forEach((item) => {
         const day = item.recipe_data?._plannedDay;
-        if (day && !mergedDayNotes[day]) {
-          const name = item.recipe_data?.name || 'an existing recipe';
-          mergedDayNotes[day] = `Skip — already planned ("${name}"). Set skip=true, name=null.`;
-        }
+        if (!day || mergedDayNotes[day]) return; // don't overwrite leftover stub notes
+        const name = item.recipe_data?.name || 'an existing recipe';
+        mergedDayNotes[day] = `Skip — already planned ("${name}"). Set skip=true, name=null.`;
       });
 
       const data = await apiFetch('/api/ai/suggest-week', {
@@ -235,6 +243,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           days: week.days.map((day) => {
             if (!alreadyPlannedDays.has(day.day)) return day;
             const existing = existingItems.find((i) => i.recipe_data?._plannedDay === day.day);
+            // Unnamed leftover stubs: AI handles these via leftover instructions — don't lock.
+            if (existing?.recipe_data?._isLeftovers && existing?.recipe_data?.name === 'Leftovers') return day;
             return {
               ...day,
               skip: false, // override AI skip so the locked card renders correctly

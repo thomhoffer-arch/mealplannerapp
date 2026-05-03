@@ -477,7 +477,7 @@ Starred recipes:
   HIGH-priority starred recipes should appear in week 1. Respect rotation priorities.
 
 Waste-first thinking:
-  One "cook once, eat twice" per week where natural. leftover_for can point at a meal 1 or 2 days later — don't force next-day if that creates awkward clusters. leftovers from different cook days can also be combined into one meal. leftover_for must point at a meal that was already going to be planned — never invent an extras entry just to receive leftovers.
+  Only apply "cook once, eat twice" when a day's PER-DAY HARD RULE explicitly says "Leftovers night". In that case, plan a dish on an earlier day with extra servings and set leftover_for on that source dish to the specified leftovers day. Do NOT spontaneously add leftover_for to days that were not explicitly marked as leftovers nights — the user decides when leftovers happen.
   Side dishes and extras should reuse ingredients already in the week's plan where possible.
 
 Extras — default is ALWAYS empty. This is a strict rule:
