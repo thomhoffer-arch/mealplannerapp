@@ -211,7 +211,9 @@ async function _handler(req, res) {
         day: normalizeDay(day.day) || day.day,
         recipe,
         reason: day.reason || '',
-        leftover_for: day.leftover_for || null,
+        leftover_for: day.leftover_for
+          ? (normalizeDay(String(day.leftover_for).trim().split(/\s+/)[0]) || normalizeDay(String(day.leftover_for).trim()) || day.leftover_for)
+          : null,
         uses_pantry: Array.isArray(day.uses_pantry) ? day.uses_pantry : [],
         estimated_cost: weekly_budget ? (day.estimated_cost || null) : null,
         extras,
