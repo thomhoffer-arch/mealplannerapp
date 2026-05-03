@@ -4,7 +4,7 @@ import { callGemini } from '../ai-call.js';
 import { createClient } from '@supabase/supabase-js';
 
 export default async function handleImport(req, res) {
-  const { url } = req.body || {};
+  const { url, language = 'English' } = req.body || {};
   if (!url || !/^https?:\/\//i.test(url)) {
     return res.status(400).json({ error: 'A valid URL is required' });
   }
@@ -31,8 +31,12 @@ export default async function handleImport(req, res) {
     .replace(/\s{2,}/g, ' ')
     .slice(0, 12000);
 
-  const prompt = `Extract the recipe from this webpage text and return ONLY a JSON object — no markdown, no explanation.
+  const langInstruction = language && language !== 'English'
+    ? `\nLANGUAGE: ${language}\nTranslate ALL text fields (name, overview, ingredient names, steps) into ${language}. JSON field names stay in English.\n`
+    : '';
 
+  const prompt = `Extract the recipe from this webpage text and return ONLY a JSON object — no markdown, no explanation.
+${langInstruction}
 WEBPAGE TEXT:
 ${text}
 

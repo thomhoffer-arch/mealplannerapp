@@ -2442,7 +2442,7 @@ export default function App() {
     try {
       const data = await apiFetch('/api/recipes', {
         method: 'POST',
-        body: { url },
+        body: { url, language: LANG_NAMES[memberLanguage] || 'English' },
       });
 
       // Safety pass — classify content before saving. 'block' refuses,

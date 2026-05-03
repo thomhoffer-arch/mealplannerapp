@@ -104,10 +104,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     const notes = { ...(initialDayNotes || {}) };
     leftoverStubDays.forEach((day) => {
       if (notes[day]) return; // don't overwrite an explicit user note
-      const idx = WEEK_DAYS.indexOf(day);
-      const before = idx > 0 ? WEEK_DAYS.slice(0, idx).join('/') : null;
-      const beforeClause = before ? ` on ${before} — never from a day after ${day}` : '';
-      notes[day] = `Leftovers night — no fresh cooking on this day. Plan a dish earlier in the week${beforeClause} with enough servings to cover this meal too. Set leftover_for on that source dish to "${day}".`;
+      notes[day] = `Leftovers night. For ${day}: output skip=false and set the name to something like "Leftovers from [source dish]" — this is NOT fresh cooking, it is eating the remains of a dish planned earlier in the week. Do not invent a brand-new recipe for this day. Your other task: among the days before ${day} that you are freely planning (not already locked or skipped), pick one dish and set leftover_for="${day}" on it with generous servings to cover both evenings. The name you give ${day} must reference that source dish.`;
     });
     return notes;
   };
@@ -208,10 +205,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
       // 2. Everything else that's already planned → tell AI to skip that day.
       const mergedDayNotes = {};
       leftoverStubDays.forEach((day) => {
-        const idx = WEEK_DAYS.indexOf(day);
-        const before = idx > 0 ? WEEK_DAYS.slice(0, idx).join('/') : null;
-        const beforeClause = before ? ` on ${before} — never from a day after ${day}` : '';
-        mergedDayNotes[day] = `Leftovers night — no fresh cooking on this day. Plan a dish earlier in the week${beforeClause} with enough servings to cover this meal too. Set leftover_for on that source dish to "${day}".`;
+        mergedDayNotes[day] = `Leftovers night. For ${day}: output skip=false and set the name to something like "Leftovers from [source dish]" — this is NOT fresh cooking, it is eating the remains of a dish planned earlier in the week. Do not invent a brand-new recipe for this day. Your other task: among the days before ${day} that you are freely planning (not already locked or skipped), pick one dish and set leftover_for="${day}" on it with generous servings to cover both evenings. The name you give ${day} must reference that source dish.`;
       });
       existingItems.forEach((item) => {
         const day = item.recipe_data?._plannedDay;
@@ -243,7 +237,8 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
           days: week.days.map((day) => {
             if (!alreadyPlannedDays.has(day.day)) return day;
             const existing = existingItems.find((i) => i.recipe_data?._plannedDay === day.day);
-            // Unnamed leftover stubs: AI handles these via leftover instructions — don't lock.
+            // Unnamed leftover stubs: let the AI fill this day with a "Leftovers from X" entry.
+            // Don't lock it — the user can accept or reject the AI's suggestion.
             if (existing?.recipe_data?._isLeftovers && existing?.recipe_data?.name === 'Leftovers') return day;
             return {
               ...day,
