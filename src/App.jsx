@@ -588,8 +588,8 @@ function SelectedRecipeCard({
   const [adjusting, setAdjusting] = useState(false);
   const [adjustError, setAdjustError] = useState(null);
 
-  async function adjustRecipe() {
-    const request = adjustInput.trim();
+  async function adjustRecipe(explicitRequest) {
+    const request = explicitRequest || adjustInput.trim();
     if (!request) return;
     setAdjusting(true);
     setAdjustError(null);
@@ -609,6 +609,7 @@ function SelectedRecipeCard({
 
   const isStub = recipe._aiSuggestion && (!recipe.ingredients || recipe.ingredients.length === 0);
   const isManualStub = recipe._quickEntry && (!recipe.ingredients || recipe.ingredients.length === 0);
+  const isLeftoversStub = !!recipe._isLeftovers;
 
   async function generateFullRecipe() {
     setGenerating(true);
@@ -745,6 +746,10 @@ function SelectedRecipeCard({
               {generating ? 'Writing…' : 'Generate full recipe'}
             </button>
             {generateError && <p className="text-xs text-red-500">{generateError}</p>}
+          </div>
+        ) : isLeftoversStub ? (
+          <div className="py-3 flex flex-col items-center gap-2">
+            <p className="text-xs text-orange-400 text-center">Leftovers night — the AI will plan an earlier meal with enough servings to cover this day too.</p>
           </div>
         ) : (
           <>
@@ -948,7 +953,12 @@ function SelectedRecipeCard({
           )}
 
           {/* AI stub or manual stub — offer to generate full recipe */}
-          {(isStub || isManualStub) ? (
+          {isLeftoversStub ? (
+            <div className="text-center py-4">
+              <p className="text-sm text-orange-900 mb-1 font-display italic">Leftovers night.</p>
+              <p className="text-xs text-orange-600">The AI will plan a larger portion for an earlier meal to cover this day too.</p>
+            </div>
+          ) : (isStub || isManualStub) ? (
             <div className="text-center py-4">
               <p className="text-sm text-orange-900 mb-1 font-display italic">Full recipe not written yet.</p>
               <p className="text-xs text-orange-600 mb-4">We'll write the ingredients and steps now — takes about 10 seconds.</p>
@@ -1043,6 +1053,19 @@ function SelectedRecipeCard({
                         </button>
                       </div>
                     ))}
+                    {(aiResult.substitutions || []).length > 0 && (
+                      <button
+                        onClick={() => {
+                          const req = aiResult.substitutions.map((s) => `replace ${s.original} with ${s.replacement}`).join('; ');
+                          adjustRecipe(req);
+                        }}
+                        disabled={adjusting}
+                        className="w-full mt-1 py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      >
+                        <Sparkles size={13} />
+                        {adjusting ? 'Applying…' : 'Apply all substitutions to recipe'}
+                      </button>
+                    )}
                     {aiResult.tips && (
                       <p className="text-xs text-orange-600 italic px-1">{aiResult.tips}</p>
                     )}
@@ -2949,7 +2972,12 @@ export default function App() {
     .map((i) => i.recipe_data);
   const shoppingList = consolidateIngredients(viewRecipeObjects, customIngredients, preferences.measurement_system || 'metric')
     .map((item) => ({ ...item, inPantry: pantryItems.some((p) => pantryMatchesItem(p.name, item.name)) }));
+  const listExtras = (customIngredients[`__list__:${viewWeek}`] || []).map((e) => ({
+    name: e.name, amount: e.amount || '', isCustom: true, isListExtra: true, listExtraId: e.id, inPantry: false,
+  }));
+  const totalListCount = shoppingList.length + listExtras.length;
   const checkedCount = shoppingList.filter((i) => checkedItems[i.name]).length;
+  const totalCheckedCount = checkedCount + listExtras.filter((e) => checkedItems[e.name]).length;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { setWasteInsights(null); }, [shoppingList.length]);
 
@@ -4342,26 +4370,26 @@ export default function App() {
 
             {basketSection === "shopping" && (
               <>
-            {shoppingList.length > 0 ? (
+            {(shoppingList.length > 0 || listExtras.length > 0) ? (
               <>
                 <div className="bg-white rounded-2xl border border-orange-100 p-4 mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <ShoppingCart size={16} className="text-orange-600" />
-                      <span className="text-sm font-semibold text-orange-900">{shoppingList.length} items</span>
+                      <span className="text-sm font-semibold text-orange-900">{totalListCount} items</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm text-orange-600">{checkedCount}/{shoppingList.length} checked</span>
-                      {checkedCount > 0 && (
+                      <span className="text-sm text-orange-600">{totalCheckedCount}/{totalListCount} checked</span>
+                      {totalCheckedCount > 0 && (
                         <button onClick={clearCheckedItems} className="text-xs text-orange-400 hover:text-orange-600 transition">Clear</button>
                       )}
                     </div>
                   </div>
                   <div className="w-full bg-orange-100 rounded-full h-2">
                     <div className="bg-orange-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${shoppingList.length ? (checkedCount / shoppingList.length) * 100 : 0}%` }} />
+                      style={{ width: `${totalListCount ? (totalCheckedCount / totalListCount) * 100 : 0}%` }} />
                   </div>
-                  {checkedCount === shoppingList.length && shoppingList.length > 0 && (
+                  {totalCheckedCount === totalListCount && totalListCount > 0 && (
                     <p className="text-center text-sm text-sage-600 font-semibold mt-2">All done! Happy cooking!</p>
                   )}
                   {!(weeklyUsage?.unlimited) && (
@@ -4450,9 +4478,6 @@ export default function App() {
                 </div>
 
                 {(() => {
-                  const listExtras = (customIngredients[`__list__:${viewWeek}`] || []).map((e) => ({
-                    name: e.name, amount: e.amount || '', isCustom: true, isListExtra: true, listExtraId: e.id, inPantry: false,
-                  }));
                   const fullList = [...shoppingList, ...listExtras];
                   const byName = (a, b) => a.name.localeCompare(b.name);
                   const unchecked = fullList.filter((i) => (!checkedItems[i.name] || checkAnimating[i.name]) && !i.inPantry).sort(byName);
