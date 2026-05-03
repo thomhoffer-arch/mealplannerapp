@@ -380,7 +380,9 @@ ${pantryFiltered.length ? `  ${pantryFiltered.slice(0, 30).join(', ')}` : '  (no
 ${deals.length ? `\nDEALS THIS WEEK (items on offer at local supermarkets — prioritise these ingredients where they fit):\n  ${deals.map((d) => `${d.item}${d.store ? ` (${d.store})` : ''}${d.price ? ` ${d.price}` : ''}`).join(', ')}` : ''}
 ${weeklyBudget ? `\nWEEKLY BUDGET: €${weeklyBudget} — keep the shopping list affordable; favour seasonal produce, cheaper cuts, and pulses where possible. Include an estimated_cost for each day covering all meals that day combined (dinner + any extras, rough ingredient cost, e.g. "€6–9").` : ''}
 ${simpleNight ? `\nEASY NIGHT: include one night this week where dinner is genuinely minimal effort — a good supermarket pizza, assembled wraps, beans on toast, or similar. Mark the reason as "easy night" for that day.` : ''}
-${planExtrasText ? `\nEXTRAS THE HOUSEHOLD WANTS PLANNED (standing instructions, apply every week):\n${planExtrasText}` : ''}
+${planExtrasText ? `\nSTANDING INSTRUCTIONS (apply every week — this covers both extra meals to plan AND any ongoing constraints like time limits or ingredient rules):
+${planExtrasText}
+Any time limits stated here (e.g. "weekdays up to 35 min", "quick weeknight dinners") are hard caps on dinner timing — apply them exactly like the HOUSEHOLD-LEVEL PREFERENCES time limits above. Extra meal requests (breakfast, lunch, snacks) in this section are the only justification for non-empty extras arrays.` : ''}
 ${thisWeekWishes?.trim() ? `\nTHIS WEEK SPECIFICALLY — HARD CONSTRAINTS (treat every instruction here as a strict rule, not a suggestion):
 ${thisWeekWishes.trim()}
 
