@@ -2266,7 +2266,6 @@ export default function App() {
       const leftoverItem = mealPlanItems.find(
         (i) => i.id !== item.id &&
                i.recipe_data?._plannedDay === leftoverDay &&
-               i.recipe_data?._weekStart === updatedRecipe._weekStart &&
                !i.recipe_data?._mealType
       );
       if (leftoverItem) {
@@ -2328,7 +2327,6 @@ export default function App() {
       const leftoverItem = mealPlanItems.find(
         (i) => i.id !== item.id &&
                i.recipe_data?._plannedDay === leftoverDay &&
-               i.recipe_data?._weekStart === updatedRecipe._weekStart &&
                !i.recipe_data?._mealType
       );
       if (leftoverItem) {
@@ -2414,7 +2412,6 @@ export default function App() {
         ? mealPlanItems.find(
             (i) => i.recipe_id !== rid &&
                    i.recipe_data?._plannedDay === linkedLeftoverDay &&
-                   i.recipe_data?._weekStart === recipe._weekStart &&
                    !i.recipe_data?._mealType
           )
         : null;
