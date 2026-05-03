@@ -588,8 +588,8 @@ function SelectedRecipeCard({
   const [adjusting, setAdjusting] = useState(false);
   const [adjustError, setAdjustError] = useState(null);
 
-  async function adjustRecipe() {
-    const request = adjustInput.trim();
+  async function adjustRecipe(explicitRequest) {
+    const request = explicitRequest || adjustInput.trim();
     if (!request) return;
     setAdjusting(true);
     setAdjustError(null);
@@ -1053,6 +1053,19 @@ function SelectedRecipeCard({
                         </button>
                       </div>
                     ))}
+                    {(aiResult.substitutions || []).length > 0 && (
+                      <button
+                        onClick={() => {
+                          const req = aiResult.substitutions.map((s) => `replace ${s.original} with ${s.replacement}`).join('; ');
+                          adjustRecipe(req);
+                        }}
+                        disabled={adjusting}
+                        className="w-full mt-1 py-2.5 bg-orange-500 text-white rounded-full text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      >
+                        <Sparkles size={13} />
+                        {adjusting ? 'Applying…' : 'Apply all substitutions to recipe'}
+                      </button>
+                    )}
                     {aiResult.tips && (
                       <p className="text-xs text-orange-600 italic px-1">{aiResult.tips}</p>
                     )}
