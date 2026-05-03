@@ -55,6 +55,20 @@ const SOURCE_COLORS = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function totalTime(r) { return (r.prepTime || 0) + (r.cookTime || 0); }
 
+// Strips functions, DOM nodes, and cyclic references from an object so it can
+// safely be passed to JSON.stringify (used before Supabase writes and AI calls).
+function sanitizeForStorage(obj) {
+  const seen = new WeakSet();
+  return JSON.parse(JSON.stringify(obj, (_k, v) => {
+    if (typeof v === 'function') return undefined;
+    if (typeof v === 'object' && v !== null) {
+      if (seen.has(v)) return undefined;
+      seen.add(v);
+    }
+    return v;
+  }));
+}
+
 // Common food qualifiers that may prefix ingredient names without changing what you buy.
 // Used for matching "organic chicken" → "chicken", "unsalted butter" → "butter", etc.
 const FOOD_QUALIFIERS = /\b(unsalted|salted|fresh|dried|ground|whole|organic|plain|low-fat|full-fat|semi-skimmed|skimmed|chopped|sliced|diced|frozen|canned|tinned|large|small|medium|extra|light|dark|sweet|raw|cooked|white|brown|black|red|green|yellow|virgin|pure|fine|coarse|baby|mini|regular|softened|melted|cold)\b/gi;
@@ -598,7 +612,7 @@ function SelectedRecipeCard({
     try {
       // structuredClone strips any non-serializable properties (functions, DOM refs,
       // React internals) that could cause JSON.stringify to throw a cycle error.
-      const safeRecipe = structuredClone(recipe);
+      const safeRecipe = sanitizeForStorage(recipe);
       const data = await apiFetch('/api/ai/generate-recipe', {
         method: 'POST',
         body: { recipe: safeRecipe, request, ...(language ? { language } : {}), ...(weekRecipeNames.length ? { week_context: weekRecipeNames } : {}) },
@@ -620,7 +634,7 @@ function SelectedRecipeCard({
     setGenerating(true);
     setGenerateError(null);
     try {
-      const safeRecipe = structuredClone(recipe);
+      const safeRecipe = sanitizeForStorage(recipe);
       const data = await apiFetch('/api/ai/generate-recipe', {
         method: 'POST',
         body: { recipe: safeRecipe, ...(language ? { language } : {}) },
@@ -638,7 +652,7 @@ function SelectedRecipeCard({
     setAiError(null);
     setAiResult(null);
     try {
-      const safeRecipe = structuredClone(recipe);
+      const safeRecipe = sanitizeForStorage(recipe);
       const data = await apiFetch('/api/ai/suggest', {
         method: 'POST',
         body: { recipe: safeRecipe, preferences, starredRecipes },
@@ -2241,7 +2255,7 @@ export default function App() {
     const prevLog = item.recipe_data._adjustmentLog || [];
     const adjustmentLog = isAdjust && request ? [...prevLog, request] : prevLog;
 
-    const updatedRecipe = {
+    const updatedRecipe = sanitizeForStorage({
       ...item.recipe_data,
       ...fullData,
       // For plain generation (not adjust), keep the stub's original time estimates —
@@ -2253,7 +2267,7 @@ export default function App() {
       ...(adjustmentLog.length ? { _adjustmentLog: adjustmentLog } : {}),
       // Stamp the update so the realtime handler can detect it for other members.
       ...(isAdjust ? { _lastAdjustedAt: Date.now() } : {}),
-    };
+    });
     markLocalWrite('meal_plan_items');
     const { error } = await supabase.from("meal_plan_items")
       .update({ recipe_data: updatedRecipe })

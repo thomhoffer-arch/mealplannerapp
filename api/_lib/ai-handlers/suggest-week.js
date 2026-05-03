@@ -5,6 +5,7 @@ import { resolveAiProvider, callAi } from '../ai-call.js';
 import { checkAndIncrementUsage, isGiftedHousehold } from '../usage.js';
 import { searchPhoto } from '../pexels.js';
 import { buildDietaryGuardrails } from '../dietary-guardrails.js';
+import { buildLocationSection } from '../season.js';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_SHORT_TO_LONG = {
@@ -55,7 +56,7 @@ async function _handler(req, res) {
   }
 
   const [{ data: prefData }, { data: starredData }, { data: cookedData }, { data: recentPlanData }, { data: membersData }, { data: pantryData }] = await Promise.all([
-    supabase.from('household_preferences').select('preferences_text, meal_prep_mode, meal_prep_set_by_name, measurement_system, diet_variety').eq('household_id', ctx.householdId).maybeSingle(),
+    supabase.from('household_preferences').select('preferences_text, meal_prep_mode, meal_prep_set_by_name, measurement_system, diet_variety, country').eq('household_id', ctx.householdId).maybeSingle(),
     supabase.from('starred_recipes').select('recipe_id, recipe_data, rotation_priority').eq('household_id', ctx.householdId),
     supabase.from('cooked_recipes').select('recipe_id, rating').eq('household_id', ctx.householdId),
     supabase.from('meal_plan_items').select('recipe_data, added_at').eq('household_id', ctx.householdId)
@@ -68,6 +69,7 @@ async function _handler(req, res) {
   const mealPrepMode = prefData?.meal_prep_mode || false;
   const measurementSystem = prefData?.measurement_system || 'metric';
   const dietVariety = prefData?.diet_variety || 'balanced';
+  const country = prefData?.country || '';
   const starred = starredData || [];
   const members = membersData || [];
 
@@ -114,7 +116,8 @@ async function _handler(req, res) {
   const pantryNames = (pantryData || []).map((p) => p.name).filter(Boolean);
 
   const dietaryGuardrails = buildDietaryGuardrails(preferences, members);
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language, recentBuckets, dietaryGuardrails, dietVariety);
+  const locationSection = buildLocationSection(country);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language, recentBuckets, dietaryGuardrails, dietVariety, locationSection);
 
   let rawText;
   try {
@@ -300,7 +303,7 @@ function parseWeekdayTimeCap(text) {
   return null;
 }
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null, dietaryGuardrails = '', dietVariety = 'balanced') {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null, dietaryGuardrails = '', dietVariety = 'balanced', locationSection = '') {
   const _noHistory = loved.length === 0 && recentNames.length === 0;
 
   let starredSection = '';
@@ -344,7 +347,7 @@ Write every dish name, description, overview, reason, and note in ${language}. U
 
 MEASUREMENT SYSTEM: ${measurementSystem === 'imperial' ? 'Imperial (oz, lb, cups, tsp, tbsp, fl oz)' : 'Metric (g, kg, ml, L, tsp, tbsp)'}
 Use this system for all ingredient amounts in the plan.
-
+${locationSection}
 HOUSEHOLD-LEVEL PREFERENCES (shared by the kitchen):
 ${preferences || 'No specific preferences — be creative and varied.'}
 Any time limits stated above (e.g. "weekdays under 40 min", "max 30 min school nights") are hard caps — every applicable day must have prep_time + cook_time within that limit, same as constraints in THIS WEEK SPECIFICALLY.
