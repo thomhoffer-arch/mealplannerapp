@@ -85,13 +85,10 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
 
   const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  // Days with a real manually-planned recipe — excludes empty leftovers stubs so
-  // the AI's suggestion for those days starts pre-selected, not hidden.
+  // All days that already have something — both real recipes and leftovers stubs.
+  // The AI suggestion for these days starts pre-deselected so existing entries aren't overwritten.
   const alreadyPlannedDays = new Set(
-    existingItems
-      .filter((i) => !i.recipe_data?._isLeftovers)
-      .map((i) => i.recipe_data?._plannedDay)
-      .filter(Boolean)
+    existingItems.map((i) => i.recipe_data?._plannedDay).filter(Boolean)
   );
 
   // Empty leftovers stubs: the user wants the AI to plan a bigger-batch dish on an

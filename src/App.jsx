@@ -607,7 +607,7 @@ function SelectedRecipeCard({
     }
   }
 
-  const isStub = recipe._aiSuggestion && (!recipe.ingredients || recipe.ingredients.length === 0);
+  const isStub = (recipe._aiSuggestion || recipe._quickEntry) && (!recipe.ingredients || recipe.ingredients.length === 0);
 
   async function generateFullRecipe() {
     setGenerating(true);
@@ -2467,7 +2467,7 @@ export default function App() {
         .catch(() => {});
     }
     // Background full-recipe generation for AI stubs and quick-entry items added to an existing plan
-    if ((recipe._aiSuggestion || recipe._quickEntry) && !(recipe.ingredients?.length)) {
+    if (recipe._aiSuggestion && !(recipe.ingredients?.length)) {
       const dbRowId = inserted?.id;
       (async () => {
         try {
