@@ -34,7 +34,7 @@ export default async function handleSuggestWeek(req, res) {
 async function _handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { weeks = 1, plan_extras_text = '', day_notes = {}, this_week_wishes = '', weekly_budget = null, simple_night = false, deals = [], language = 'English' } = req.body || {};
+  const { weeks = 1, plan_extras_text = '', day_notes = {}, this_week_wishes = '', weekly_budget = null, simple_night = false, deals = [], language = 'English', planned_this_week = [] } = req.body || {};
   const numWeeks = Math.min(Math.max(Number(weeks) || 1, 1), 2);
 
   const ctx = await requireAuth(req, res);
@@ -117,7 +117,7 @@ async function _handler(req, res) {
 
   const dietaryGuardrails = buildDietaryGuardrails(preferences, members);
   const locationSection = buildLocationSection(country);
-  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language, recentBuckets, dietaryGuardrails, dietVariety, locationSection);
+  const prompt = buildPrompt(preferences, members, byPriority, recentNames, numWeeks, plan_extras_text, day_notes, loved, disliked, pantryNames, this_week_wishes, weekly_budget, simple_night, deals, mealPrepMode, measurementSystem, language, recentBuckets, dietaryGuardrails, dietVariety, locationSection, planned_this_week);
 
   let rawText;
   try {
@@ -303,7 +303,7 @@ function parseWeekdayTimeCap(text) {
   return null;
 }
 
-function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null, dietaryGuardrails = '', dietVariety = 'balanced', locationSection = '') {
+function buildPrompt(preferences, members, byPriority, recentNames, numWeeks, planExtrasText = '', dayNotes = {}, loved = [], disliked = [], pantry = [], thisWeekWishes = '', weeklyBudget = null, simpleNight = false, deals = [], mealPrepMode = false, measurementSystem = 'metric', language = 'English', recentBuckets = null, dietaryGuardrails = '', dietVariety = 'balanced', locationSection = '', plannedThisWeek = []) {
   const _noHistory = loved.length === 0 && recentNames.length === 0;
 
   let starredSection = '';
@@ -467,7 +467,7 @@ VARIETY LEVEL — household preference: ${
 
 Variety — applies across ALL meals chosen in the plan:
   Treat every dinner, breakfast, lunch, and snack as one unified weekly menu.
-  For every dish, identify its hero ingredient — the star the home cook would name first (the main protein, or the main starchy base if there is no dominant protein). Each hero ingredient may appear in at most one dinner per week. This is a hard constraint: if Monday's dinner is built around chicken, no other dinner this week may feature chicken as its hero. Apply the same rule to every other hero ingredient across the plan.
+  For every dish, identify its hero ingredient — the star the home cook would name first (the main protein, or the main starchy base if there is no dominant protein). Each hero ingredient may appear in at most one dinner per week. This is a hard constraint: if Monday's dinner is built around chicken, no other dinner this week may feature chicken as its hero. Apply the same rule to every other hero ingredient across the plan.${plannedThisWeek.length ? `\n  ALREADY PLANNED THIS WEEK (locked — treat their hero ingredients as taken when enforcing variety):\n${plannedThisWeek.map((d) => `    - ${d.day}: ${d.name}`).join('\n')}` : ''}
   Extras (breakfasts, lunches, snacks) follow the same logic: a hero ingredient used at breakfast may not reappear at lunch the same day or at breakfast the following day. A dinner and a same-day extra must be meaningfully different from each other.
   Vary cuisines across the week. Spread themed days (fish, vegetarian, etc.) naturally.
   SELF-CHECK: Before finalising, name the hero ingredient of each planned dinner. If any hero ingredient appears more than once, replace the duplicate with a dish whose hero ingredient hasn't been used yet.
