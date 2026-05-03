@@ -4175,12 +4175,12 @@ export default function App() {
                                   )}
                                   <div className="px-4 py-3 space-y-2">
                                     {xr._plannerReason && <p className="font-display italic text-orange-600 text-xs leading-snug">— {xr._plannerReason}</p>}
-                                    {((xr._plannerUsesPantry || []).length > 0 || xr._plannerLeftoverFor) && (
+                                    {(() => { const activePantry = (xr._plannerUsesPantry || []).filter((pi) => pantryItems.some((p) => pantryMatchesItem(p.name, pi))); return (activePantry.length > 0 || xr._plannerLeftoverFor) ? (
                                       <div className="flex flex-wrap gap-1">
                                         {xr._plannerLeftoverFor && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">→ {xr._plannerLeftoverFor}</span>}
-                                        {(xr._plannerUsesPantry || []).map((pi) => <span key={pi} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100"><span className="font-display italic">from pantry</span> · {pi}</span>)}
+                                        {activePantry.map((pi) => <span key={pi} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100"><span className="font-display italic">from pantry</span> · {pi}</span>)}
                                       </div>
-                                    )}
+                                    ) : null; })()}
                                   </div>
                                 </div>
                               )}
@@ -4416,12 +4416,12 @@ export default function App() {
                                   )}
                                   <div className="px-4 py-3 space-y-2">
                                     {recipe._plannerReason && <p className="font-display italic text-orange-600 text-xs leading-snug">— {recipe._plannerReason}</p>}
-                                    {((recipe._plannerUsesPantry || []).length > 0 || recipe._plannerLeftoverFor) && (
+                                    {(() => { const activePantry = (recipe._plannerUsesPantry || []).filter((pi) => pantryItems.some((p) => pantryMatchesItem(p.name, pi))); return (activePantry.length > 0 || recipe._plannerLeftoverFor) ? (
                                       <div className="flex flex-wrap gap-1">
                                         {recipe._plannerLeftoverFor && <span className="text-[10px] bg-amber-100 text-orange-700 px-1.5 py-0.5 rounded-full font-semibold">→ {recipe._plannerLeftoverFor}</span>}
-                                        {(recipe._plannerUsesPantry || []).map((item) => <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100"><span className="font-display italic">from pantry</span> · {item}</span>)}
+                                        {activePantry.map((item) => <span key={item} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full border border-orange-100"><span className="font-display italic">from pantry</span> · {item}</span>)}
                                       </div>
-                                    )}
+                                    ) : null; })()}
                                   </div>
                                 </div>
                               )}

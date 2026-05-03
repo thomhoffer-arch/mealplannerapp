@@ -104,7 +104,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     const notes = { ...(initialDayNotes || {}) };
     leftoverStubDays.forEach((day) => {
       if (notes[day]) return; // don't overwrite an explicit user note
-      notes[day] = `Leftovers night. For ${day}: output skip=false and set the name to something like "Leftovers from [source dish]" — this is NOT fresh cooking, it is eating the remains of a dish planned earlier in the week. Do not invent a brand-new recipe for this day. Your other task: among the days before ${day} that you are freely planning (not already locked or skipped), pick one dish and set leftover_for="${day}" on it with generous servings to cover both evenings. The name you give ${day} must reference that source dish.`;
+      notes[day] = `Leftovers night. For ${day} itself: output skip=false and name="Leftovers from [source dish name]" — this is reheating, not fresh cooking. Your task: pick ONE freely-planned day that falls EARLIER in the week than ${day} and set leftover_for="${day}" (the day name only, nothing else) on that dish with generous servings. The source dish must be cooked before ${day} — you cannot eat leftovers from a meal that hasn't been cooked yet. Setting leftover_for on ${day} itself or on any later day is wrong.`;
     });
     return notes;
   };
@@ -205,7 +205,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
       // 2. Everything else that's already planned → tell AI to skip that day.
       const mergedDayNotes = {};
       leftoverStubDays.forEach((day) => {
-        mergedDayNotes[day] = `Leftovers night. For ${day}: output skip=false and set the name to something like "Leftovers from [source dish]" — this is NOT fresh cooking, it is eating the remains of a dish planned earlier in the week. Do not invent a brand-new recipe for this day. Your other task: among the days before ${day} that you are freely planning (not already locked or skipped), pick one dish and set leftover_for="${day}" on it with generous servings to cover both evenings. The name you give ${day} must reference that source dish.`;
+        mergedDayNotes[day] = `Leftovers night. For ${day} itself: output skip=false and name="Leftovers from [source dish name]" — this is reheating, not fresh cooking. Your task: pick ONE freely-planned day that falls EARLIER in the week than ${day} and set leftover_for="${day}" (the day name only, nothing else) on that dish with generous servings. The source dish must be cooked before ${day} — you cannot eat leftovers from a meal that hasn't been cooked yet. Setting leftover_for on ${day} itself or on any later day is wrong.`;
       });
       existingItems.forEach((item) => {
         const day = item.recipe_data?._plannedDay;
