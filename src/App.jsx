@@ -607,7 +607,8 @@ function SelectedRecipeCard({
     }
   }
 
-  const isStub = (recipe._aiSuggestion || recipe._quickEntry) && (!recipe.ingredients || recipe.ingredients.length === 0);
+  const isStub = recipe._aiSuggestion && (!recipe.ingredients || recipe.ingredients.length === 0);
+  const isManualStub = recipe._quickEntry && (!recipe.ingredients || recipe.ingredients.length === 0);
 
   async function generateFullRecipe() {
     setGenerating(true);
@@ -711,15 +712,12 @@ function SelectedRecipeCard({
             <p className="text-[10px] text-orange-400 mt-2">Based on ingredient names — always check labels for your specific dietary needs.</p>
           </div>
         )}
-        {isStub || recipe._quickEntry ? (
+        {isStub ? (
           <div className="py-3 space-y-3">
-            {isStub && (
-              <p className="text-xs text-orange-400 text-center">Tap generate to get the full recipe — or adjust it first.</p>
-            )}
-            {/* Tweak before generating (or adjust a quick entry) */}
+            <p className="text-xs text-orange-400 text-center">Tap generate to get the full recipe — or adjust it first.</p>
             <div className="flex gap-2">
               <input type="text"
-                placeholder={isStub ? 'Adjust before generating… (faster, use chicken…)' : 'Change something… (shorter, add ingredients…)'}
+                placeholder="Adjust before generating… (faster, use chicken…)"
                 value={adjustInput} onChange={(e) => setAdjustInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (generating || adjusting ? null : adjustInput.trim() ? adjustRecipe() : generateFullRecipe())}
                 className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-400 placeholder-orange-300"
@@ -735,6 +733,18 @@ function SelectedRecipeCard({
             {(generateError || adjustError) && (
               <p className="text-xs text-red-500">{generateError || adjustError}</p>
             )}
+          </div>
+        ) : isManualStub ? (
+          <div className="py-3 flex flex-col items-center gap-3">
+            <p className="text-xs text-orange-400 text-center">Saved as a manual entry — no recipe needed.</p>
+            <button
+              onClick={generateFullRecipe}
+              disabled={generating}
+              className="flex items-center gap-1.5 px-4 py-2 border border-orange-200 text-orange-500 rounded-full text-sm hover:bg-orange-50 transition disabled:opacity-50">
+              <Sparkles size={13} />
+              {generating ? 'Writing…' : 'Generate full recipe'}
+            </button>
+            {generateError && <p className="text-xs text-red-500">{generateError}</p>}
           </div>
         ) : (
           <>
@@ -937,8 +947,8 @@ function SelectedRecipeCard({
             </div>
           )}
 
-          {/* AI stub — offer to generate full recipe */}
-          {isStub ? (
+          {/* AI stub or manual stub — offer to generate full recipe */}
+          {(isStub || isManualStub) ? (
             <div className="text-center py-4">
               <p className="text-sm text-orange-900 mb-1 font-display italic">Full recipe not written yet.</p>
               <p className="text-xs text-orange-600 mb-4">We'll write the ingredients and steps now — takes about 10 seconds.</p>
