@@ -307,10 +307,10 @@ export default function PreferencesModal({ household, onClose, onPrefsChange, in
               className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
             />
             <div>
-              <p className="text-xs text-orange-400 mb-1.5">Dinner's always in. Describe anything else you'd all like planned.</p>
+              <p className="text-xs text-orange-400 mb-1.5">Standing instructions for the week planner — anything that applies every week.</p>
               <textarea
                 rows={2}
-                placeholder="e.g. Quick breakfasts Mon–Fri. Packed lunches for Tom. A bake for Sunday afternoon."
+                placeholder="e.g. Weekdays under 35 min. Packed lunches for Tom on Tuesdays. No red meat."
                 value={extrasText}
                 onChange={(e) => setExtrasText(e.target.value)}
                 className="w-full border border-orange-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 placeholder-orange-300 resize-none leading-relaxed"
