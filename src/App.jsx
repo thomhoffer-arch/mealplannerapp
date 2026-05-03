@@ -1362,7 +1362,7 @@ export default function App() {
   const pendingGeneratedNames = useRef([]); // names of in-flight addExtraMeal results not yet in viewItems
   const rejectedByDayRef = useRef({});     // { "Monday": ["Pasta", ...] } — seen-and-dismissed dishes per day
 
-  useEffect(() => { localStorage.setItem('mp:activeTab', activeTab); }, [activeTab]);
+  useEffect(() => { localStorage.setItem('mp:activeTab', activeTab); window.scrollTo(0, 0); }, [activeTab]);
 
   // ── Auth setup ────────────────────────────────────────────────────────────
   useEffect(() => {
