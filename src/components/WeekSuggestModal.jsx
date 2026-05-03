@@ -104,16 +104,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
     const notes = { ...(initialDayNotes || {}) };
     leftoverStubDays.forEach((day) => {
       if (notes[day]) return; // don't overwrite an explicit user note
-      const idx = WEEK_DAYS.indexOf(day);
-      const validSourceDays = idx > 0 ? WEEK_DAYS.slice(0, idx) : [];
-      const invalidDays = WEEK_DAYS.slice(idx + 1);
-      const validClause = validSourceDays.length
-        ? `Valid source days (BEFORE ${day}): ${validSourceDays.join(', ')}.`
-        : 'There are no days before this one — skip the leftover pairing.';
-      const invalidClause = invalidDays.length
-        ? `FORBIDDEN source days (come AFTER ${day}, physically impossible): ${invalidDays.join(', ')}.`
-        : '';
-      notes[day] = `Leftovers night. For ${day} itself: output skip=false and name="Leftovers from [source dish name]" — this is reheating, not fresh cooking. Your task: pick ONE freely-planned day that comes STRICTLY BEFORE ${day} in the calendar week and set leftover_for="${day}" (just the day name, nothing else) on that dish with generous servings. ${validClause} ${invalidClause} Setting leftover_for on ${day} itself or on any day after ${day} is wrong.`;
+      notes[day] = `Leftovers night. For ${day} itself: output skip=false and name="Leftovers from [source dish name]" — this is reheating, not fresh cooking. Your task: pick ONE freely-planned day that falls EARLIER in the week than ${day} and set leftover_for="${day}" (the day name only, nothing else) on that dish with generous servings. The source dish must be cooked before ${day} — you cannot eat leftovers from a meal that hasn't been cooked yet. Setting leftover_for on ${day} itself or on any later day is wrong.`;
     });
     return notes;
   };
@@ -214,16 +205,7 @@ export default function WeekSuggestModal({ household, onClose, onLoadPlan, planE
       // 2. Everything else that's already planned → tell AI to skip that day.
       const mergedDayNotes = {};
       leftoverStubDays.forEach((day) => {
-        const idx = WEEK_DAYS.indexOf(day);
-        const validSourceDays = idx > 0 ? WEEK_DAYS.slice(0, idx) : [];
-        const invalidDays = WEEK_DAYS.slice(idx + 1);
-        const validClause = validSourceDays.length
-          ? `Valid source days (BEFORE ${day}): ${validSourceDays.join(', ')}.`
-          : 'There are no days before this one — skip the leftover pairing.';
-        const invalidClause = invalidDays.length
-          ? `FORBIDDEN source days (come AFTER ${day}, physically impossible): ${invalidDays.join(', ')}.`
-          : '';
-        mergedDayNotes[day] = `Leftovers night. For ${day} itself: output skip=false and name="Leftovers from [source dish name]" — this is reheating, not fresh cooking. Your task: pick ONE freely-planned day that comes STRICTLY BEFORE ${day} in the calendar week and set leftover_for="${day}" (just the day name, nothing else) on that dish with generous servings. ${validClause} ${invalidClause} Setting leftover_for on ${day} itself or on any day after ${day} is wrong.`;
+        mergedDayNotes[day] = `Leftovers night. For ${day} itself: output skip=false and name="Leftovers from [source dish name]" — this is reheating, not fresh cooking. Your task: pick ONE freely-planned day that falls EARLIER in the week than ${day} and set leftover_for="${day}" (the day name only, nothing else) on that dish with generous servings. The source dish must be cooked before ${day} — you cannot eat leftovers from a meal that hasn't been cooked yet. Setting leftover_for on ${day} itself or on any later day is wrong.`;
       });
       existingItems.forEach((item) => {
         const day = item.recipe_data?._plannedDay;
