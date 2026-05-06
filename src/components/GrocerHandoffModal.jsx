@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Copy, Check, ExternalLink, ShoppingBag } from 'lucide-react';
 
 // Deep-link handoff to the Dutch grocers. Not a real API connection —
@@ -47,9 +47,38 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
     if (flag) { setCopiedAll(true); setTimeout(() => setCopiedAll(false), 2000); }
   }
 
+  // Picnic has no list-import or per-search deep link, so the only path is
+  // paste-into-search, one item at a time. To collapse the round-trip, we
+  // arm a flag when the user leaves for Picnic and, when they return to our
+  // tab, tick the item they just added and pre-copy the next one — so the
+  // clipboard is already primed for the next paste.
+  const awaitingReturnRef = useRef(false);
+  const liveRef = useRef({ items, onMarkChecked });
+  liveRef.current = { items, onMarkChecked };
+
+  useEffect(() => {
+    if (grocer?.id !== 'picnic' || mode !== 'guided') return;
+    function onVisible() {
+      if (document.visibilityState !== 'visible') return;
+      if (!awaitingReturnRef.current) return;
+      awaitingReturnRef.current = false;
+      setStep((s) => {
+        const { items: its, onMarkChecked: omc } = liveRef.current;
+        const cur = its[s];
+        const nxt = its[s + 1];
+        if (cur) omc?.(cur.name);
+        if (nxt) copyText(nxt.name);
+        return s + 1;
+      });
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [grocer, mode]);
+
   function openCurrent() {
     if (!current) return;
     if (grocer.copyFirst) copyText(current.name);
+    if (grocer.id === 'picnic') awaitingReturnRef.current = true;
     window.open(grocer.url(current.name), '_blank', 'noopener');
   }
 
@@ -163,7 +192,7 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
               className="w-full flex items-center justify-center gap-2 py-3 bg-orange-900 text-white rounded-2xl font-medium hover:bg-orange-800 transition text-sm shadow-warm mb-2"
             >
               <ExternalLink size={14} />
-              Open in {grocer.name}
+              {step === 0 ? `Open in ${grocer.name}` : `Open ${grocer.name} again`}
             </button>
             <button
               onClick={next}
@@ -171,6 +200,11 @@ export default function GrocerHandoffModal({ items, onClose, onMarkChecked }) {
             >
               Added — next
             </button>
+            {grocer.id === 'picnic' && step > 0 && (
+              <p className="text-[11px] text-orange-500 text-center mt-3 leading-relaxed">
+                Tip: just switch back to Picnic — the next item is already on your clipboard, ready to paste.
+              </p>
+            )}
             <button onClick={skip} className="w-full text-xs text-orange-600 hover:text-orange-900 mt-3 transition">
               Skip this one
             </button>
