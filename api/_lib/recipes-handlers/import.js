@@ -24,18 +24,38 @@ export default async function handleImport(req, res) {
     return res.status(422).json({ error: 'Could not reach that URL' });
   }
 
+  // Pull schema.org JSON-LD Recipe blocks before stripping scripts. Most recipe
+  // sites publish clean recipeInstructions/recipeIngredient here — far more
+  // reliable than parsing the visible page text, which often gets truncated
+  // before the steps section by surrounding menu/related-content markup.
+  const jsonLdRecipe = extractJsonLdRecipe(html);
+  const jsonLdSteps = jsonLdRecipe ? jsonLdInstructions(jsonLdRecipe) : [];
+  const jsonLdIngs = jsonLdRecipe ? jsonLdIngredients(jsonLdRecipe) : [];
+
   const text = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s{2,}/g, ' ')
-    .slice(0, 12000);
+    .slice(0, 20000);
 
   const lang = language || 'English';
   const langInstruction = `\nLANGUAGE: ${lang}\nWrite ALL text fields (name, overview, ingredient names, steps) in ${lang} — translate from the source page if needed. JSON field names stay in English.\n`;
 
+  const structuredHint = jsonLdRecipe
+    ? `\nSTRUCTURED RECIPE DATA (from page's schema.org JSON-LD — prefer this for steps and ingredients; the visible text may be truncated):\n${JSON.stringify({
+        name: jsonLdRecipe.name,
+        description: jsonLdRecipe.description,
+        recipeYield: jsonLdRecipe.recipeYield,
+        prepTime: jsonLdRecipe.prepTime,
+        cookTime: jsonLdRecipe.cookTime,
+        ingredients: jsonLdIngs,
+        steps: jsonLdSteps,
+      })}\n`
+    : '';
+
   const prompt = `Extract the recipe from this webpage text and return ONLY a JSON object — no markdown, no explanation.
-${langInstruction}
+${langInstruction}${structuredHint}
 WEBPAGE TEXT:
 ${text}
 
@@ -80,7 +100,63 @@ If the page does not contain a recipe, return: { "error": "No recipe found on th
   if (recipe.error) return res.status(422).json({ error: recipe.error });
   if (!recipe.id) recipe.id = `import-${Date.now()}`;
 
+  // Backfill from JSON-LD if the AI missed steps or ingredients
+  if ((!Array.isArray(recipe.steps) || recipe.steps.length === 0) && jsonLdSteps.length) {
+    recipe.steps = jsonLdSteps;
+  }
+  if ((!Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0) && jsonLdIngs.length) {
+    recipe.ingredients = jsonLdIngs.map((s) => ({ name: s, amount: '' }));
+  }
+
   res.json(recipe);
+}
+
+function extractJsonLdRecipe(html) {
+  const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  const found = [];
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    try {
+      collectRecipes(JSON.parse(m[1].trim()), found);
+    } catch { /* skip malformed JSON-LD */ }
+  }
+  return found[0] || null;
+}
+
+function collectRecipes(node, out) {
+  if (!node) return;
+  if (Array.isArray(node)) { node.forEach((n) => collectRecipes(n, out)); return; }
+  if (typeof node !== 'object') return;
+  const type = node['@type'];
+  if (type === 'Recipe' || (Array.isArray(type) && type.includes('Recipe'))) out.push(node);
+  if (node['@graph']) collectRecipes(node['@graph'], out);
+}
+
+function jsonLdInstructions(recipe) {
+  const ri = recipe.recipeInstructions;
+  if (!ri) return [];
+  if (typeof ri === 'string') return ri.split(/\r?\n+/).map((s) => s.trim()).filter(Boolean);
+  if (!Array.isArray(ri)) return [];
+  const steps = [];
+  for (const item of ri) {
+    if (typeof item === 'string') { const s = item.trim(); if (s) steps.push(s); continue; }
+    if (!item || typeof item !== 'object') continue;
+    if (item['@type'] === 'HowToSection' && Array.isArray(item.itemListElement)) {
+      for (const sub of item.itemListElement) {
+        const t = sub?.text || sub?.name;
+        if (t) steps.push(String(t).trim());
+      }
+    } else if (item.text) {
+      steps.push(String(item.text).trim());
+    }
+  }
+  return steps.filter(Boolean);
+}
+
+function jsonLdIngredients(recipe) {
+  const ing = recipe.recipeIngredient || recipe.ingredients;
+  if (!Array.isArray(ing)) return [];
+  return ing.map((s) => String(s).trim()).filter(Boolean);
 }
 
 async function resolveApiKey(req) {
