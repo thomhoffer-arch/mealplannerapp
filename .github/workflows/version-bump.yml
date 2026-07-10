@@ -1,0 +1,51 @@
+name: Bump version on merge
+
+# package.json's version field was frozen at 1.0.0 with no bump mechanism
+# — unlike ClashControl/ClashControlEngine's auto-bump-on-push pattern.
+# This repo has no release/installer workflow keyed off the version (it's
+# a Vercel-deployed web app, deployed on every push regardless), so this
+# is bump-only: no tag, no GitHub Release, just keeps the version field
+# meaningful.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  bump:
+    # Skip if this commit is itself a version bump (prevents infinite loop).
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump patch version
+        id: version
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          NEW="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$NEW';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "new=$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push if version changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: bump version to ${{ steps.version.outputs.new }} [skip ci]"
+            git push
+          else
+            echo "No version change, skipping commit"
+          fi
