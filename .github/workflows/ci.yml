@@ -1,0 +1,48 @@
+name: CI
+
+# Runs the node:test suite (api/_lib/*.js pure logic) and a production
+# build check. Modeled on ClashControl's ci.yml — no lint/format gate yet
+# since this repo has no eslint/prettier config; add one here if that changes.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          # Placeholder values so the Vite build doesn't fail on missing env
+          # vars it only needs at runtime (Supabase/API keys). Adjust if the
+          # build ever starts validating these at build time.
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder-key
